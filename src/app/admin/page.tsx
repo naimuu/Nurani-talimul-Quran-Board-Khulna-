@@ -686,13 +686,22 @@ function AdminDashboardContent() {
     <>
       <div className="space-y-6">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex justify-between items-center bg-slate-50/50">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <MapPin className="w-6 h-6 text-primary" /> এলাকা / লোকেশন পরিচালনা
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">মাদরাসা ও ছাত্রদের ঠিকানার জন্য জেলা, উপজেলা এবং অন্যান্য তথ্য যুক্ত করুন।</p>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <MapPin className="w-6 h-6 text-primary" /> এলাকা / লোকেশন পরিচালনা
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">মাদরাসা ও ছাত্রদের ঠিকানার জন্য জেলা, উপজেলা এবং অন্যান্য তথ্য যুক্ত করুন।</p>
+          </div>
+          {(selectedDistrict || selectedUpazila || selectedUnion || selectedVillage) && (
+            <button 
+              onClick={() => { setSelectedDistrict(null); setSelectedUpazila(null); setSelectedUnion(null); setSelectedVillage(null); }}
+              className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors flex items-center gap-2"
+              title="সকল সিলেকশন মুছে ফেলুন"
+            >
+              <Trash2 className="w-4 h-4" /> ক্লিয়ার সিলেকশন
+            </button>
+          )}
         </div>
-      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <LocationColumn 
