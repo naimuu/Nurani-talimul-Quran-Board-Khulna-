@@ -48,7 +48,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
 
   const confirm = (options: DialogOptions): Promise<boolean> => {
     return new Promise((resolve) => {
-      setDialogState({ isOpen: true, isConfirm: true, options, resolve });
+      setDialogState({ isOpen: true, isConfirm: true, options, resolve: resolve as any });
     });
   };
 

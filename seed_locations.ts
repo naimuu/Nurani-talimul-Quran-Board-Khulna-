@@ -1,4 +1,5 @@
 import { connect, connection, Types } from 'mongoose';
+// @ts-ignore
 import dotenv from 'dotenv';
 import path from 'path';
 
