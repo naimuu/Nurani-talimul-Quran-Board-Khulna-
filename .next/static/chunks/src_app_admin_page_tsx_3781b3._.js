@@ -1636,40 +1636,66 @@ function AdminDashboardContent() {
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex justify-between items-center bg-slate-50/50",
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
-                                        className: "text-xl font-bold text-slate-800 flex items-center gap-2",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$map$2d$pin$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__MapPin$3e$__["MapPin"], {
-                                                className: "w-6 h-6 text-primary"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 691,
-                                                columnNumber: 13
-                                            }, this),
-                                            " এলাকা / লোকেশন পরিচালনা"
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 690,
-                                        columnNumber: 11
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                        className: "text-sm text-slate-500 mt-1",
-                                        children: "মাদরাসা ও ছাত্রদের ঠিকানার জন্য জেলা, উপজেলা এবং অন্যান্য তথ্য যুক্ত করুন।"
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 693,
-                                        columnNumber: 11
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/src/app/admin/page.tsx",
-                                lineNumber: 689,
-                                columnNumber: 9
-                            }, this)
-                        }, void 0, false, {
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                                            className: "text-xl font-bold text-slate-800 flex items-center gap-2",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$map$2d$pin$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__MapPin$3e$__["MapPin"], {
+                                                    className: "w-6 h-6 text-primary"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/admin/page.tsx",
+                                                    lineNumber: 691,
+                                                    columnNumber: 15
+                                                }, this),
+                                                " এলাকা / লোকেশন পরিচালনা"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/app/admin/page.tsx",
+                                            lineNumber: 690,
+                                            columnNumber: 13
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "text-sm text-slate-500 mt-1",
+                                            children: "মাদরাসা ও ছাত্রদের ঠিকানার জন্য জেলা, উপজেলা এবং অন্যান্য তথ্য যুক্ত করুন।"
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/admin/page.tsx",
+                                            lineNumber: 693,
+                                            columnNumber: 13
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/app/admin/page.tsx",
+                                    lineNumber: 689,
+                                    columnNumber: 11
+                                }, this),
+                                (selectedDistrict || selectedUpazila || selectedUnion || selectedVillage) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    onClick: ()=>{
+                                        setSelectedDistrict(null);
+                                        setSelectedUpazila(null);
+                                        setSelectedUnion(null);
+                                        setSelectedVillage(null);
+                                    },
+                                    className: "px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-medium text-sm transition-colors flex items-center gap-2",
+                                    title: "সকল সিলেকশন মুছে ফেলুন",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trash$2d$2$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Trash2$3e$__["Trash2"], {
+                                            className: "w-4 h-4"
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/admin/page.tsx",
+                                            lineNumber: 701,
+                                            columnNumber: 15
+                                        }, this),
+                                        " ক্লিয়ার সিলেকশন"
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/app/admin/page.tsx",
+                                    lineNumber: 696,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
                             fileName: "[project]/src/app/admin/page.tsx",
                             lineNumber: 688,
                             columnNumber: 9
@@ -1692,7 +1718,7 @@ function AdminDashboardContent() {
                                     onDelete: handleDeleteLocation
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/admin/page.tsx",
-                                    lineNumber: 698,
+                                    lineNumber: 707,
                                     columnNumber: 9
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LocationColumn, {
@@ -1710,7 +1736,7 @@ function AdminDashboardContent() {
                                     onDelete: handleDeleteLocation
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/admin/page.tsx",
-                                    lineNumber: 706,
+                                    lineNumber: 715,
                                     columnNumber: 9
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LocationColumn, {
@@ -1728,7 +1754,7 @@ function AdminDashboardContent() {
                                     onDelete: handleDeleteLocation
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/admin/page.tsx",
-                                    lineNumber: 714,
+                                    lineNumber: 723,
                                     columnNumber: 9
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LocationColumn, {
@@ -1746,13 +1772,13 @@ function AdminDashboardContent() {
                                     onDelete: handleDeleteLocation
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/admin/page.tsx",
-                                    lineNumber: 722,
+                                    lineNumber: 731,
                                     columnNumber: 9
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/admin/page.tsx",
-                            lineNumber: 697,
+                            lineNumber: 706,
                             columnNumber: 7
                         }, this)
                     ]
@@ -1779,7 +1805,7 @@ function AdminDashboardContent() {
                                 onClick: ()=>setActiveAddForm(null)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/admin/page.tsx",
-                                lineNumber: 736,
+                                lineNumber: 745,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
@@ -1813,7 +1839,7 @@ function AdminDashboardContent() {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 751,
+                                                        lineNumber: 760,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1821,13 +1847,13 @@ function AdminDashboardContent() {
                                                         children: "সিস্টেমে নতুন লোকেশন যুক্ত করুন"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 752,
+                                                        lineNumber: 761,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 750,
+                                                lineNumber: 759,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1836,18 +1862,18 @@ function AdminDashboardContent() {
                                                     className: "w-6 h-6"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/admin/page.tsx",
-                                                    lineNumber: 755,
+                                                    lineNumber: 764,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 754,
+                                                lineNumber: 763,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 749,
+                                        lineNumber: 758,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1859,7 +1885,7 @@ function AdminDashboardContent() {
                                                 children: "একক (Single)"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 760,
+                                                lineNumber: 769,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1868,13 +1894,13 @@ function AdminDashboardContent() {
                                                 children: "একাধিক (Bulk)"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 766,
+                                                lineNumber: 775,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 759,
+                                        lineNumber: 768,
                                         columnNumber: 15
                                     }, this),
                                     addMode === 'single' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1887,7 +1913,7 @@ function AdminDashboardContent() {
                                                         children: "বাংলা নাম"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 777,
+                                                        lineNumber: 786,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -1898,13 +1924,13 @@ function AdminDashboardContent() {
                                                         className: "w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 778,
+                                                        lineNumber: 787,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 776,
+                                                lineNumber: 785,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1914,7 +1940,7 @@ function AdminDashboardContent() {
                                                         children: "ইংরেজি নাম"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 781,
+                                                        lineNumber: 790,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -1925,19 +1951,19 @@ function AdminDashboardContent() {
                                                         className: "w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 782,
+                                                        lineNumber: 791,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 780,
+                                                lineNumber: 789,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 775,
+                                        lineNumber: 784,
                                         columnNumber: 17
                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "space-y-2",
@@ -1950,7 +1976,7 @@ function AdminDashboardContent() {
                                                         children: "তালিকা পেস্ট করুন"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 788,
+                                                        lineNumber: 797,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1958,13 +1984,13 @@ function AdminDashboardContent() {
                                                         children: "বাংলা, ইংরেজি"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/admin/page.tsx",
-                                                        lineNumber: 789,
+                                                        lineNumber: 798,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 787,
+                                                lineNumber: 796,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("textarea", {
@@ -1975,13 +2001,13 @@ function AdminDashboardContent() {
                                                 className: "w-full px-4 py-3 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all font-mono resize-none leading-relaxed"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 791,
+                                                lineNumber: 800,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 786,
+                                        lineNumber: 795,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1993,7 +2019,7 @@ function AdminDashboardContent() {
                                                 children: "বাতিল"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 802,
+                                                lineNumber: 811,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2003,30 +2029,30 @@ function AdminDashboardContent() {
                                                 children: isAddingLocation ? 'অপেক্ষা করুন...' : 'সংরক্ষণ করুন'
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/admin/page.tsx",
-                                                lineNumber: 808,
+                                                lineNumber: 817,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 801,
+                                        lineNumber: 810,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/admin/page.tsx",
-                                lineNumber: 743,
+                                lineNumber: 752,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/admin/page.tsx",
-                        lineNumber: 735,
+                        lineNumber: 744,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/src/app/admin/page.tsx",
-                    lineNumber: 733,
+                    lineNumber: 742,
                     columnNumber: 7
                 }, this)
             ]
@@ -2044,12 +2070,12 @@ function AdminDashboardContent() {
                             children: "অ্যাডমিন প্যানেল"
                         }, void 0, false, {
                             fileName: "[project]/src/app/admin/page.tsx",
-                            lineNumber: 828,
+                            lineNumber: 837,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/app/admin/page.tsx",
-                        lineNumber: 827,
+                        lineNumber: 836,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
@@ -2093,7 +2119,7 @@ function AdminDashboardContent() {
                                         className: "w-5 h-5"
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 849,
+                                        lineNumber: 858,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2101,18 +2127,18 @@ function AdminDashboardContent() {
                                         children: item.label
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/admin/page.tsx",
-                                        lineNumber: 850,
+                                        lineNumber: 859,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, item.id, true, {
                                 fileName: "[project]/src/app/admin/page.tsx",
-                                lineNumber: 842,
+                                lineNumber: 851,
                                 columnNumber: 13
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/src/app/admin/page.tsx",
-                        lineNumber: 833,
+                        lineNumber: 842,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2123,7 +2149,7 @@ function AdminDashboardContent() {
                                 className: "w-5 h-5"
                             }, void 0, false, {
                                 fileName: "[project]/src/app/admin/page.tsx",
-                                lineNumber: 856,
+                                lineNumber: 865,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2131,19 +2157,19 @@ function AdminDashboardContent() {
                                 children: "লগআউট"
                             }, void 0, false, {
                                 fileName: "[project]/src/app/admin/page.tsx",
-                                lineNumber: 857,
+                                lineNumber: 866,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/admin/page.tsx",
-                        lineNumber: 855,
+                        lineNumber: 864,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/admin/page.tsx",
-                lineNumber: 826,
+                lineNumber: 835,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -2158,7 +2184,7 @@ function AdminDashboardContent() {
                                     children: "স্বাগতম, অ্যাডমিন!"
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/admin/page.tsx",
-                                    lineNumber: 866,
+                                    lineNumber: 875,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2166,18 +2192,18 @@ function AdminDashboardContent() {
                                     children: "আজকের সিস্টেমের বর্তমান অবস্থা।"
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/admin/page.tsx",
-                                    lineNumber: 869,
+                                    lineNumber: 878,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/admin/page.tsx",
-                            lineNumber: 865,
+                            lineNumber: 874,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/app/admin/page.tsx",
-                        lineNumber: 864,
+                        lineNumber: 873,
                         columnNumber: 11
                     }, this),
                     activeTab === "users" && renderUserManagement(),
@@ -2187,13 +2213,13 @@ function AdminDashboardContent() {
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/admin/page.tsx",
-                lineNumber: 862,
+                lineNumber: 871,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/admin/page.tsx",
-        lineNumber: 824,
+        lineNumber: 833,
         columnNumber: 5
     }, this);
 }
@@ -2212,17 +2238,17 @@ function AdminDashboard() {
             children: "লোড হচ্ছে..."
         }, void 0, false, {
             fileName: "[project]/src/app/admin/page.tsx",
-            lineNumber: 888,
+            lineNumber: 897,
             columnNumber: 25
         }, void 0),
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AdminDashboardContent, {}, void 0, false, {
             fileName: "[project]/src/app/admin/page.tsx",
-            lineNumber: 889,
+            lineNumber: 898,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/app/admin/page.tsx",
-        lineNumber: 888,
+        lineNumber: 897,
         columnNumber: 5
     }, this);
 }

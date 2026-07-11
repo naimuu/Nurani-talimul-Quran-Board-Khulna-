@@ -978,7 +978,7 @@ function DialogProvider({ children }) {
         columnNumber: 5
     }, this);
 }
-_s1(DialogProvider, "ORHfN2q6MYYvH9t/GalXvTWYlSo=");
+_s1(DialogProvider, "cXPTSYvAlipoK09BBOVgw8QsfNE=");
 _c = DialogProvider;
 var _c;
 __turbopack_refresh__.register(_c, "DialogProvider");
