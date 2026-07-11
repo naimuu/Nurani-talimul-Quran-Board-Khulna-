@@ -1,0 +1,36 @@
+{
+  "version": 3,
+  "middleware": {
+    "/": {
+      "files": [
+        "server/edge/chunks/ssr/_761cf8._.js",
+        "server/edge/chunks/ssr/src_middleware_ts_9f486c._.js",
+        "server/edge/chunks/ssr/edge-wrapper_950a1e.js",
+        "server/edge/chunks/ssr/edge-wrapper_7e7e8a.js"
+      ],
+      "name": "middleware",
+      "page": "/",
+      "matchers": [
+        {
+          "locale": false,
+          "originalSource": "/login/:path*",
+          "regexp": "^/login(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?$"
+        },
+        {
+          "locale": false,
+          "originalSource": "/register",
+          "regexp": "^/register$"
+        },
+        {
+          "locale": false,
+          "originalSource": "/signup",
+          "regexp": "^/signup$"
+        }
+      ]
+    }
+  },
+  "sortedMiddleware": [
+    "/"
+  ],
+  "functions": {}
+}

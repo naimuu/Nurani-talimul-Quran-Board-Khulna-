@@ -1,0 +1,28 @@
+{
+  "app": {
+    "[project]/src/app/admin/page": [
+      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
+    ],
+    "[project]/src/app/login/admin/page": [
+      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
+    ],
+    "[project]/src/app/page": [
+      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
+    ],
+    "[project]/src/app/visitor/page": [
+      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
+    ],
+    "[project]/src/app/trainer/page": [
+      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
+    ],
+    "[project]/src/app/muallim/page": [
+      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
+    ],
+    "[project]/src/app/_not-found/page": [
+      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

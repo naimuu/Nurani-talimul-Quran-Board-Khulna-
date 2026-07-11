@@ -1,0 +1,16 @@
+{
+  "/admin/page": "app/admin/page.js",
+  "/api/admin/users/route": "app/api/admin/users/route.js",
+  "/login/admin/page": "app/login/admin/page.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/page": "app/page.js",
+  "/api/admin/impersonate/route": "app/api/admin/impersonate/route.js",
+  "/visitor/page": "app/visitor/page.js",
+  "/api/admin/revert-impersonate/route": "app/api/admin/revert-impersonate/route.js",
+  "/trainer/page": "app/trainer/page.js",
+  "/muallim/page": "app/muallim/page.js",
+  "/api/admin/madrasas/route": "app/api/admin/madrasas/route.js",
+  "/api/admin/locations/route": "app/api/admin/locations/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/seed-locations/route": "app/api/seed-locations/route.js"
+}

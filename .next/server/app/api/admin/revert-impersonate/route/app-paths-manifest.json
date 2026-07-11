@@ -1,0 +1,3 @@
+{
+  "/api/admin/revert-impersonate/route": "app/api/admin/revert-impersonate/route.js"
+}

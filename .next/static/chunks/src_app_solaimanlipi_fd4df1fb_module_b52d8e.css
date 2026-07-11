@@ -1,0 +1,25 @@
+/* [project]/src/app/solaimanlipi_fd4df1fb.module.css [app-client] (css) */
+@font-face {
+  font-family: __solaimanLipi_fd4df1;
+  src: url("../media/SolaimanLipi_Normal-s.p.c2c690b6.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: __solaimanLipi_Fallback_fd4df1;
+  src: local(Arial);
+  ascent-override: 97.84%;
+  descent-override: 35.23%;
+  line-gap-override: 0.0%;
+  size-adjust: 99.35%;
+}
+
+.solaimanlipi_fd4df1fb-module__WKupRq__className {
+  font-family: __solaimanLipi_fd4df1, __solaimanLipi_Fallback_fd4df1;
+}
+
+.solaimanlipi_fd4df1fb-module__WKupRq__variable {
+  --font-solaiman-lipi: "__solaimanLipi_fd4df1", "__solaimanLipi_Fallback_fd4df1";
+}
+
+/*# sourceMappingURL=src_app_solaimanlipi_fd4df1fb_module_b52d8e.css.map*/
