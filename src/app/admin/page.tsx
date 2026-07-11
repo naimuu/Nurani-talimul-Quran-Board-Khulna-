@@ -46,6 +46,8 @@ function LocationColumn({ title, type, parentId, locations, selectedId, onSelect
     ? filteredLocations.filter((l: any) => l.bn_name.includes(search) || l.name.toLowerCase().includes(search.toLowerCase()))
     : filteredLocations;
 
+  const displayLocations = searchedLocations.slice(0, 100);
+
   return (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-100 flex flex-col h-[32rem] transition-all`}>
       <div className="p-3 border-b border-slate-100 bg-slate-50 rounded-t-xl flex flex-col gap-2">
@@ -72,7 +74,7 @@ function LocationColumn({ title, type, parentId, locations, selectedId, onSelect
           <p className="text-center text-slate-400 p-4 text-sm">{search ? 'কিছু পাওয়া যায়নি' : 'কোনো তথ্য নেই'}</p>
         ) : (
           <ul className="space-y-1">
-            {searchedLocations.map((loc: any) => (
+            {displayLocations.map((loc: any) => (
               <li key={loc._id} className="flex items-center gap-2 group">
                 <button 
                   onClick={() => onSelect && onSelect(loc._id)}
@@ -85,6 +87,11 @@ function LocationColumn({ title, type, parentId, locations, selectedId, onSelect
                 </button>
               </li>
             ))}
+            {searchedLocations.length > 100 && (
+               <li className="text-center text-xs text-slate-400 py-2">
+                 আরো {searchedLocations.length - 100} টি ফলাফল আছে। নির্দিষ্ট করে খুঁজতে সার্চ করুন।
+               </li>
+            )}
           </ul>
         )}
       </div>
