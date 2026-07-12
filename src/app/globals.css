@@ -25,3 +25,36 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Ensure images in the Quill editor scale correctly and don't overflow */
+.ql-editor img, .prose img {
+  max-width: 200px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+  /* Float left to allow multiple lines of text to wrap around it */
+  float: left;
+  margin: 5px 20px 10px 0;
+}
+
+/* Prevent paragraphs from clearing the float so text continues wrapping */
+.ql-editor p, .prose p {
+  clear: none !important;
+}
+
+/* Enable text wrapping (float) for right alignment */
+.ql-editor .ql-align-right img,
+.prose .ql-align-right img {
+  float: right;
+  margin: 5px 0 10px 20px;
+}
+
+/* Center alignment breaks the text wrapping and centers the image */
+.ql-editor .ql-align-center img,
+.prose .ql-align-center img {
+  display: block;
+  margin: 10px auto;
+  float: none;
+}

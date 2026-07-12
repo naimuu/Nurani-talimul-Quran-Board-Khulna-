@@ -40,3 +40,11 @@ model Notice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model PageContent {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug      String   @unique
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
