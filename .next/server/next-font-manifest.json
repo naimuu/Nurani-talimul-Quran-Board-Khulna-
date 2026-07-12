@@ -1,10 +1,6 @@
 {
-  "app": {
-    "[project]/src/app/admin/page": [
-      "static/media/SolaimanLipi_Normal-s.p.c2c690b6.ttf"
-    ]
-  },
-  "appUsingSizeAdjust": true,
+  "app": {},
+  "appUsingSizeAdjust": false,
   "pages": {},
   "pagesUsingSizeAdjust": false
 }
