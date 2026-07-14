@@ -25,8 +25,7 @@ export default function AdminLoginPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "লগইন ব্যর্থ হয়েছে"); setLoading(false); return; }
       if (data.role !== "ADMIN") { setError("আপনি অ্যাডমিন নন, এই পেইজে প্রবেশের অনুমতি নেই"); setLoading(false); return; }
-      router.push("/admin");
-      router.refresh();
+      window.location.href = "/admin";
     } catch { setError("সার্ভারের সাথে সংযোগে সমস্যা"); setLoading(false); }
   };
 

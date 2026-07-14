@@ -48,3 +48,57 @@ model PageContent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model BoardSettings {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String?  @default("খুলনা নূরানী তালিমুল কুরআন বোর্ড")
+  address    String?
+  logoUrl    String?
+  coverUrl   String?
+  
+  contacts   ContactInfo[]
+  payments   PaymentMethod[]
+  
+  updatedAt  DateTime @updatedAt
+}
+
+model ContactInfo {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  type            String   
+  value           String   
+  boardSettingsId String   @db.ObjectId
+  boardSettings   BoardSettings @relation(fields: [boardSettingsId], references: [id], onDelete: Cascade)
+}
+
+model PaymentMethod {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  type            String   
+  provider        String   
+  accountName     String?  
+  accountNumber   String   
+  branch          String?  
+  routingNo       String?  
+  boardSettingsId String   @db.ObjectId
+  boardSettings   BoardSettings @relation(fields: [boardSettingsId], references: [id], onDelete: Cascade)
+}
+
+model Position {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  name       String        @unique
+  order      Int           @default(0)
+  members    BoardMember[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model BoardMember {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  positionId String   @db.ObjectId
+  position   Position @relation(fields: [positionId], references: [id])
+  photoUrl   String?
+  phone      String?
+  type       String   @default("COMMITTEE")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

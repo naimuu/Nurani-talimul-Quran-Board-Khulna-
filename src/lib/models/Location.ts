@@ -6,7 +6,7 @@ const LocationSchema = new mongoose.Schema(
     bn_name: { type: String, required: true },
     type: { 
       type: String, 
-      enum: ["DISTRICT", "UPAZILA", "UNION", "VILLAGE", "PARA"], 
+      enum: ["DIVISION", "DISTRICT", "UPAZILA", "UNION", "VILLAGE", "PARA"], 
       required: true 
     },
     parentId: { 

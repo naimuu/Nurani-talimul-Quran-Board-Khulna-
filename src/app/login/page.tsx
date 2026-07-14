@@ -98,7 +98,7 @@ export default function LoginPage() {
             <School className="w-10 h-10 text-white" />
           </motion.div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2 tracking-tight">মাদরাসা লগইন</h1>
-          <p className="text-slate-500 text-sm">ড্যাশবোর্ডে প্রবেশ করতে আপনার নিবন্ধন নম্বর দিন</p>
+          <p className="text-slate-500 text-sm">ড্যাশবোর্ডে প্রবেশ করতে আপনার ইলহাক নম্বর দিন</p>
         </div>
 
         {/* Login Type Selector */}
@@ -116,6 +116,7 @@ export default function LoginPage() {
             <option value="/login">মাদরাসা লগইন</option>
             <option value="/login/muallim">মুয়াল্লিম লগইন</option>
             <option value="/login/visitor">ভিজিটর / দর্শনার্থী লগইন</option>
+            <option value="/login/admin">অ্যাডমিন লগইন</option>
           </select>
         </div>
 
@@ -126,7 +127,7 @@ export default function LoginPage() {
 
             {/* Registration Number Field */}
             <div className="relative">
-              <label className="block text-sm font-medium text-slate-700 mb-2">নিবন্ধন নম্বর</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">ইলহাক নম্বর / ফোন নম্বর</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <School className="h-5 w-5 text-slate-400" />
@@ -138,8 +139,8 @@ export default function LoginPage() {
                   value={regNumber}
                   onChange={(e) => setRegNumber(e.target.value)}
                   autoComplete="off"
-                  className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
-                  placeholder="আপনার নিবন্ধন নম্বর লিখুন"
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 font-medium font-mono tracking-wider"
+                  placeholder="যেমন: 12345678"
                 />
               </div>
             </div>

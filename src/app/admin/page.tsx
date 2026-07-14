@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2, ClipboardList, Clock, XCircle, X, Eye, Phone, MessageCircle, PhoneCall, MoreVertical, LayoutGrid, List } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { useDialog } from "@/components/ui/DialogProvider";
+import PrintableReceipt from "@/components/forms/PrintableReceipt";
+import SettingsTab from "@/components/admin/SettingsTab";
 
 type UserType = {
   _id: string;
@@ -27,6 +29,24 @@ type MadrasaType = {
   district?: string;
   upazila?: string;
   isApproved: boolean;
+  createdAt: string;
+};
+
+type ApplicationType = {
+  _id: string;
+  name: string;
+  englishName?: string;
+  instituteType?: string;
+  managerName?: string;
+  phone1?: string;
+  email?: string;
+  district?: string;
+  upazila?: string;
+  division?: string;
+  trackingId?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  code?: string;
+  teachers?: { name: string; phone: string; designation: string }[];
   createdAt: string;
 };
 
@@ -110,6 +130,12 @@ function AdminDashboardContent() {
   const [madrasas, setMadrasas] = useState<MadrasaType[]>([]);
   const [madrasaCount, setMadrasaCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [applications, setApplications] = useState<ApplicationType[]>([]);
+  const [appLoading, setAppLoading] = useState(false);
+  const [appFilter, setAppFilter] = useState<'ALL'|'PENDING'|'APPROVED'|'REJECTED'>('PENDING');
+  const [viewMode, setViewMode] = useState<'card'|'table'>('card');
+  const [previewApplication, setPreviewApplication] = useState<ApplicationType | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<{id: string, type: 'action' | 'call'} | null>(null);
 
   // Location State
   const [locations, setLocations] = useState<LocationType[]>([]);
@@ -185,6 +211,12 @@ function AdminDashboardContent() {
         if (lRes.ok) {
           const lData = await lRes.json();
           setLocations(lData.locations || []);
+        }
+
+        const aRes = await fetch('/api/admin/applications');
+        if (aRes.ok) {
+          const aData = await aRes.json();
+          setApplications(aData.applications || []);
         }
       } catch (error) {
         console.error("Failed to fetch admin data", error);
@@ -296,6 +328,407 @@ function AdminDashboardContent() {
       alert({ title: "ত্রুটি!", message: "স্ট্যাটাস আপডেট ব্যর্থ হয়েছে।", type: "error" });
     }
   };
+
+  const handleApplicationAction = async (id: string, action: 'APPROVE' | 'REJECT') => {
+    const label = action === 'APPROVE' ? 'অনুমোদন' : 'বাতিল';
+    const isConfirmed = await confirm({
+      title: `আবেদন ${label}`,
+      message: `আপনি কি এই আবেদনটি ${label} করতে চান?`,
+      type: action === 'APPROVE' ? 'warning' : 'error',
+      confirmText: label + ' করুন',
+      cancelText: 'না'
+    });
+    if (!isConfirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/applications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setApplications(prev => prev.map(a => a._id === id ? { ...a, ...data.application } : a));
+      alert({ title: 'সফল!', message: `আবেদনটি ${label} করা হয়েছে${action === 'APPROVE' ? '. কোড: ' + data.application?.code : ''}.`, type: 'success' });
+    } catch (err: any) {
+      alert({ title: 'ত্রুটি!', message: err.message || 'একটি ত্রুটি ঘটেছে', type: 'error' });
+    }
+  };
+
+  const filteredApplications = appFilter === 'ALL'
+    ? applications
+    : applications.filter(a => a.status === appFilter);
+
+  const renderApplicationManagement = () => (
+    <div>
+      {/* Global overlay for closing dropdowns */}
+      {openDropdown && (
+        <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
+      )}
+
+      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">আবেদন পরিচালনা</h2>
+          <p className="text-slate-500 text-sm mt-1">নতুন মাদরাসা নিবন্ধন আবেদনগুলো এখানে দেখুন ও অনুমোদন করুন।</p>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex bg-slate-100 p-1 rounded-full mr-2">
+            <button
+              onClick={() => setViewMode('card')}
+              className={`p-1.5 rounded-full transition-colors ${viewMode === 'card' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              title="কার্ড ভিউ"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-full transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              title="টেবিল ভিউ"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+          {(['ALL','PENDING','APPROVED','REJECTED'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setAppFilter(f)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                appFilter === f
+                  ? (f === 'PENDING' ? 'bg-amber-500 text-white' : f === 'APPROVED' ? 'bg-emerald-600 text-white' : f === 'REJECTED' ? 'bg-red-500 text-white' : 'bg-slate-800 text-white')
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {f === 'ALL' ? `সব (${applications.length})` : f === 'PENDING' ? `অপেক্ষমান (${applications.filter(a=>a.status==='PENDING').length})` : f === 'APPROVED' ? `অনুমোদিত (${applications.filter(a=>a.status==='APPROVED').length})` : `বাতিলকৃত (${applications.filter(a=>a.status==='REJECTED').length})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filteredApplications.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
+          <ClipboardList className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+          <p className="text-slate-400">এই ফিল্টারে কোনো আবেদন নেই।</p>
+        </div>
+      ) : (
+        <div className={viewMode === 'card' ? "space-y-4" : "bg-white rounded-2xl border border-slate-200 shadow-sm"}>
+          {viewMode === 'table' ? (
+            <div className="">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-4 text-slate-500 font-bold text-sm">প্রতিষ্ঠানের নাম</th>
+                    <th className="py-3 px-4 text-slate-500 font-bold text-sm">ধরন</th>
+                    <th className="py-3 px-4 text-slate-500 font-bold text-sm">ঠিকানা</th>
+                    <th className="py-3 px-4 text-slate-500 font-bold text-sm">যোগাযোগ</th>
+                    <th className="py-3 px-4 text-slate-500 font-bold text-sm">স্ট্যাটাস</th>
+                    <th className="py-3 px-4 text-slate-500 font-bold text-sm text-right">অ্যাকশন</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredApplications.map((app) => (
+                    <tr key={app._id} className="hover:bg-slate-50 transition-colors cursor-pointer group" onClick={() => setPreviewApplication(app)}>
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-slate-800 group-hover:text-primary transition-colors">{app.name}</div>
+                        {app.englishName && <div className="text-xs text-slate-400">{app.englishName}</div>}
+                        {app.code && <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-600">{app.code}</span>}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-600">{app.instituteType || '—'}</td>
+                      <td className="py-3 px-4 text-sm text-slate-600">
+                        <div>{app.upazila}</div>
+                        <div className="text-xs text-slate-400">{app.district}</div>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-600">
+                        <div className="flex items-center gap-2">
+                          <span>{app.phone1 || '—'}</span>
+                          {app.phone1 && (
+                            <div className="relative">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.id === app._id && openDropdown.type === 'call' ? null : {id: app._id, type: 'call'}); }}
+                                className="p-1.5 bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 rounded-full transition-colors flex items-center justify-center"
+                              >
+                                <PhoneCall className="w-4 h-4" />
+                              </button>
+                              
+                              <AnimatePresence>
+                                {openDropdown?.id === app._id && openDropdown?.type === 'call' && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                                    className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 overflow-hidden"
+                                  >
+                                    <a 
+                                      href={`tel:${app.phone1}`} 
+                                      onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}
+                                      className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left"
+                                    >
+                                      <div className="bg-blue-50 p-1.5 rounded-full text-blue-600"><PhoneCall className="w-3.5 h-3.5" /></div>
+                                      <span className="font-medium text-sm">সরাসরি কল</span>
+                                    </a>
+                                    <div className="h-px bg-slate-100 w-full" />
+                                    <a 
+                                      href={`https://wa.me/${app.phone1.replace(/[^0-9]/g, '')}`} 
+                                      target="_blank" rel="noopener noreferrer"
+                                      onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}
+                                      className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left"
+                                    >
+                                      <div className="bg-emerald-50 p-1.5 rounded-full text-emerald-600"><MessageCircle className="w-3.5 h-3.5" /></div>
+                                      <span className="font-medium text-sm">হোয়াটসঅ্যাপ</span>
+                                    </a>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          app.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                          app.status === 'REJECTED' ? 'bg-red-50 text-red-600 border border-red-100' :
+                          'bg-amber-50 text-amber-600 border border-amber-100'
+                        }`}>
+                          {app.status === 'APPROVED' ? '✓ অনুমোদিত' : app.status === 'REJECTED' ? '✗ বাতিলকৃত' : '⏳ অপেক্ষমান'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="relative inline-block text-left">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.id === app._id && openDropdown.type === 'action' ? null : {id: app._id, type: 'action'}); }}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          <AnimatePresence>
+                            {openDropdown?.id === app._id && openDropdown?.type === 'action' && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                                className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 overflow-hidden py-1"
+                              >
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setPreviewApplication(app); setOpenDropdown(null); }}
+                                  className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left"
+                                >
+                                  <Eye className="w-4 h-4 text-slate-400" />
+                                  <span className="font-medium text-sm">বিস্তারিত দেখুন</span>
+                                </button>
+                                
+                                {app.status === 'PENDING' && (
+                                  <>
+                                    <div className="h-px bg-slate-100 w-full my-1" />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleApplicationAction(app._id, 'APPROVE'); setOpenDropdown(null); }}
+                                      className="flex items-center gap-3 px-4 py-2 hover:bg-emerald-50 transition-colors text-emerald-700 w-full text-left"
+                                    >
+                                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                      <span className="font-medium text-sm">অনুমোদন</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleApplicationAction(app._id, 'REJECT'); setOpenDropdown(null); }}
+                                      className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 transition-colors text-red-700 w-full text-left"
+                                    >
+                                      <XCircle className="w-4 h-4 text-red-600" />
+                                      <span className="font-medium text-sm">বাতিল</span>
+                                    </button>
+                                  </>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            filteredApplications.map((app) => (
+              <motion.div
+                key={app._id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl border border-slate-100 shadow-sm"
+              >
+                <div className="p-6 flex flex-wrap gap-4 justify-between items-start">
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer group"
+                    onClick={() => setPreviewApplication(app)}
+                  >
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="font-bold text-slate-800 text-lg group-hover:text-primary transition-colors">{app.name}</h3>
+                      {app.englishName && <span className="text-slate-400 text-sm">({app.englishName})</span>}
+                      <span className={`px-3 py-0.5 rounded-full text-xs font-bold ${
+                        app.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                        app.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {app.status === 'APPROVED' ? '✓ অনুমোদিত' : app.status === 'REJECTED' ? '✗ বাতিলকৃত' : '⏳ অপেক্ষমান'}
+                      </span>
+                      {app.code && <span className="px-3 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-100 text-blue-700">{app.code}</span>}
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
+                      <div className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-slate-400" /> <span>{app.instituteType || '—'}</span></div>
+                      <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-slate-400" /> <span>{app.upazila}, {app.district}</span></div>
+                      <div className="flex items-center gap-1.5"><Phone className="w-4 h-4 text-slate-400" /> <span>{app.phone1 || '—'}</span></div>
+                    </div>
+                  </div>
+  
+                  <div className="flex items-center gap-4 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 text-slate-500">
+                        <ClipboardList className="w-4 h-4" /> 
+                        <span className="font-mono text-xs font-semibold tracking-wider">{app.trackingId || '—'}</span>
+                      </div>
+                      
+                      {app.phone1 && (
+                        <div className="relative">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.id === app._id && openDropdown.type === 'call' ? null : {id: app._id, type: 'call'}); }}
+                            className="p-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-full transition-colors flex items-center justify-center shadow-sm border border-emerald-100"
+                            title="কল করুন"
+                          >
+                            <PhoneCall className="w-5 h-5" />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {openDropdown?.id === app._id && openDropdown?.type === 'call' && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                                className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden"
+                              >
+                                <a 
+                                  href={`tel:${app.phone1}`} 
+                                  onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}
+                                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left"
+                                >
+                                  <div className="bg-blue-50 p-2 rounded-full text-blue-600"><PhoneCall className="w-4 h-4" /></div>
+                                  <span className="font-medium text-sm">সরাসরি কল</span>
+                                </a>
+                                <div className="h-px bg-slate-100 w-full" />
+                                <a 
+                                  href={`https://wa.me/${app.phone1.replace(/[^0-9]/g, '')}`} 
+                                  target="_blank" rel="noopener noreferrer"
+                                  onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}
+                                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left"
+                                >
+                                  <div className="bg-emerald-50 p-2 rounded-full text-emerald-600"><MessageCircle className="w-4 h-4" /></div>
+                                  <span className="font-medium text-sm">হোয়াটসঅ্যাপ</span>
+                                </a>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="w-px h-12 bg-slate-100 hidden sm:block mx-1"></div>
+
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.id === app._id && openDropdown.type === 'action' ? null : {id: app._id, type: 'action'}); }}
+                        className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+  
+                    <AnimatePresence>
+                      {openDropdown?.id === app._id && openDropdown?.type === 'action' && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                          className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden py-1"
+                        >
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setPreviewApplication(app); setOpenDropdown(null); }}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left"
+                          >
+                            <Eye className="w-4 h-4 text-slate-400" />
+                            <span className="font-medium text-sm">বিস্তারিত দেখুন</span>
+                          </button>
+                          
+                          {app.status === 'PENDING' && (
+                            <>
+                              <div className="h-px bg-slate-100 w-full my-1" />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleApplicationAction(app._id, 'APPROVE'); setOpenDropdown(null); }}
+                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 transition-colors text-emerald-700 w-full text-left"
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                <span className="font-medium text-sm">অনুমোদন করুন</span>
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleApplicationAction(app._id, 'REJECT'); setOpenDropdown(null); }}
+                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition-colors text-red-700 w-full text-left"
+                              >
+                                <XCircle className="w-4 h-4 text-red-600" />
+                                <span className="font-medium text-sm">বাতিল করুন</span>
+                              </button>
+                            </>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Application Preview Modal */}
+      <AnimatePresence>
+        {previewApplication && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm print:bg-white print:p-0">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] print:max-h-full print:shadow-none print:border-none"
+            >
+              {/* Modal Header */}
+              <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50 print:hidden">
+                <h3 className="text-xl font-bold text-slate-800">আবেদনের বিস্তারিত</h3>
+                <div className="flex items-center gap-2">
+                  {previewApplication.status === 'PENDING' && (
+                    <>
+                      <button onClick={() => { handleApplicationAction(previewApplication._id, 'APPROVE'); setPreviewApplication(null); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors">
+                        <CheckCircle2 className="w-4 h-4" /> অনুমোদন
+                      </button>
+                      <button onClick={() => { handleApplicationAction(previewApplication._id, 'REJECT'); setPreviewApplication(null); }} className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors">
+                        <XCircle className="w-4 h-4" /> বাতিল
+                      </button>
+                    </>
+                  )}
+                  <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ml-2">
+                    প্রিন্ট
+                  </button>
+                  <button onClick={() => setPreviewApplication(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors ml-2">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-2 print:p-0">
+                <PrintableReceipt application={previewApplication} />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 
   const renderDashboard = () => (
     <>
@@ -849,21 +1282,29 @@ function AdminDashboardContent() {
         <nav className="flex-1 space-y-2 overflow-y-auto">
           {[
             { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
+            { id: "applications", icon: ClipboardList, label: "আবেদন", badge: applications.filter(a=>a.status==='PENDING').length },
             { id: "locations", icon: MapPin, label: "লোকেশন পরিচালনা" },
             { id: "madrasas", icon: Building2, label: "মাদরাসা পরিচালনা" },
             { id: "users", icon: Users, label: "ইউজার পরিচালনা" },
             { id: "reports", icon: FileText, label: "রিপোর্ট" },
             { id: "settings", icon: Settings, label: "সেটিংস" },
-          ].map((item) => (
+          ].map((item: any) => (
             <button
               key={item.id}
               onClick={() => handleTabChange(item.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${
                 activeTab === item.id ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-600 hover:bg-slate-50 hover:text-primary"
               }`}
             >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <div className="flex items-center space-x-3">
+                <item.icon className="w-5 h-5" />
+                <span className="font-medium">{item.label}</span>
+              </div>
+              {item.badge > 0 && (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  activeTab === item.id ? 'bg-white text-primary' : 'bg-amber-500 text-white'
+                }`}>{item.badge}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -892,7 +1333,9 @@ function AdminDashboardContent() {
         {activeTab === "users" && renderUserManagement()}
         {activeTab === "madrasas" && renderMadrasaManagement()}
         {activeTab === "locations" && renderLocationManagement()}
+        {activeTab === "applications" && renderApplicationManagement()}
         {activeTab === "dashboard" && renderDashboard()}
+        {activeTab === "settings" && <SettingsTab />}
         
       </main>
     </div>
