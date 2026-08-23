@@ -34,17 +34,19 @@ const schedules = [
 const authors = [
   {
     id: 1,
-    name: "আল্লামা খলিল আহমদ কাসেমী",
+    name: "চেয়ারম্যানের বাণী",
     designation: "চেয়ারম্যান",
-    desc: "বিশ্ববিশ্রুত বরেণ্য নূরানী তালীমুল কুরআন বোর্ড চট্টগ্রাম বাংলাদেশ এর সার্বিক কার্যক্রম বিস্তৃতির লক্ষ্যে নতুন ওয়েবসাইট খোলা হচ্ছে জেনে প্রথমত আমি মহান আল্লাহ তায়ালার দরবারে শুকরিয়া আদায় করছি এবং বোর্ডের সকল কর্মকর্তা-কর্মচারী সহ সংশ্লিষ্ট সকলকে আন্তরিক মোবারকবাদ ও অভিনন্দন জানাচ্ছি।",
-    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=200&auto=format&fit=crop"
+    desc: "বিসমিল্লাহির রাহমানির রাহিম। নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ-এর নিজস্ব ওয়েবসাইটে আপনাকে স্বাগতম। কুরআনুল কারীমের সহীহ তেলাওয়াত বিস্তার এবং শিশু মনে দ্বীনি শিক্ষার মৌলিক ভিত্তি তৈরিতে আমাদের এই অনলাইন প্ল্যাটফর্ম এক নতুন সংযোজন। আধুনিক তথ্যপ্রযুক্তির সুফল কাজে লাগিয়ে শিক্ষা প্রতিষ্ঠান, শিক্ষক, শিক্ষার্থী ও অভিভাবকদের মধ্যে একটি সুদৃঢ় মেলবন্ধন তৈরি করাই আমাদের প্রত্যাশা। আসুন, প্রযুক্তির সঠিক ব্যবহারের মাধ্যমে আমরা আল-কুরআনের হেদায়েত ও নূর সবার মাঝে ছড়িয়ে দিই।",
+    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=200&auto=format&fit=crop",
+    link: "/about/chairman"
   },
   {
     id: 2,
     name: "মুফতি জসিম উদ্দীন সাহেব",
     designation: "মহাসচিব",
     desc: "বর্তমান যুগ আধুনিক তথ্য প্রযুক্তির যুগ। বিজ্ঞানের উন্নতির এই চরম উৎকর্ষতার যুগে নূরানী তালীমুল কুরআন বোর্ড পিছিয়ে থাকতে পারে না। তাই বোর্ডের যাবতীয় কার্যক্রমকে আধুনিক ও যুগোপযোগী করার লক্ষ্যে নতুন এই ওয়েবসাইট তৈরি করা হয়েছে।",
-    image: "https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=200&auto=format&fit=crop"
+    image: "https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=200&auto=format&fit=crop",
+    link: "/about/secretary"
   }
 ];
 
@@ -124,7 +126,7 @@ export default function TrainingSchedule() {
             <p className="text-xs text-slate-600 mb-4 line-clamp-5 text-justify flex-1">
               {author.desc}
             </p>
-            <Link href="#" className="inline-block bg-blue-800 text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-blue-900 transition-colors w-max mt-auto">
+            <Link href={author.link || "#"} className="inline-block bg-blue-800 text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-blue-900 transition-colors w-max mt-auto">
               বিস্তারিত
             </Link>
           </div>

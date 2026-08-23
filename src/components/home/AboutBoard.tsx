@@ -16,34 +16,42 @@ export default function AboutBoard() {
       
       <div className="p-6 flex-1 flex flex-col">
         <p className="text-sm text-slate-600 mb-6 leading-relaxed text-justify">
-          ধর্ম প্রধান মহান আল্লাহর রাসূলুল্লাগ (সাঃ)-এর দাওয়াতের বদৌলতে ওলামায়ে কেরাম কওমি মাদরাসা প্রতিষ্ঠা করে দ্বীনের প্রসার ঘটাচ্ছেন। এরই ধারাবাহিকতায় নূরানী তালীমুল কুরআন বোর্ড চট্টগ্রাম বাংলাদেশ একটি গুরুত্বপূর্ণ ভূমিকা পালন করছে। দেশের বিভিন্ন প্রান্তে দ্বীনি শিক্ষা ছড়িয়ে দিতে এই বোর্ড কাজ করে যাচ্ছে...
+          ধর্ম প্রধান মহান আল্লাহর রাসূলুল্লাহ (সাঃ)-এর দাওয়াতের বদৌলতে ওলামায়ে কেরাম কওমি মাদরাসা প্রতিষ্ঠা করে দ্বীনের প্রসার ঘটাচ্ছেন। এরই ধারাবাহিকতায় নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ একটি গুরুত্বপূর্ণ ভূমিকা পালন করছে। অত্র অঞ্চলের বিভিন্ন প্রান্তে দ্বীনি শিক্ষা ছড়িয়ে দিতে এই বোর্ড কাজ করে যাচ্ছে...
         </p>
 
-        <div className="space-y-4 mb-8 flex-1">
+        <div className="space-y-3 mb-6 flex-1">
           <div className="flex items-start">
-            <MapPin className="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
-            <p className="text-sm text-slate-700"><strong>প্রধান কার্যালয়:</strong> আল জামিয়াতুল আহলিয়া দারুল উলুম মুঈনুল ইসলাম হাটহাজারী।</p>
+            <MapPin className="w-4 h-4 text-primary mt-0.5 mr-2.5 flex-shrink-0" />
+            <p className="text-xs text-slate-700 leading-relaxed"><strong>প্রধান কার্যালয়:</strong> মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
           </div>
           <div className="flex items-start">
-            <MapPin className="w-5 h-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
-            <p className="text-sm text-slate-700"><strong>কেন্দ্রীয় কার্যালয়:</strong> নূরানী তালীমুল কুরআন বোর্ড চট্টগ্রাম বাংলাদেশ। রেল স্টেশন রোড, হাটহাজারী-৪৩৩০, চট্টগ্রাম বাংলাদেশ</p>
+            <Phone className="w-4 h-4 text-primary mt-0.5 mr-2.5 flex-shrink-0" />
+            <p className="text-xs text-slate-700"><strong>পরীক্ষা ও সনদ:</strong> 01820-58 05 60 | <strong>হিসাব:</strong> 01893-43 23 13</p>
           </div>
-          <div className="flex items-center">
-            <Phone className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
-            <p className="text-sm text-slate-700"><strong>অফিস:</strong> 01777-666030, 01831-291039,40</p>
+          <div className="flex items-start">
+            <Phone className="w-4 h-4 text-primary mt-0.5 mr-2.5 flex-shrink-0" />
+            <p className="text-xs text-slate-700"><strong>বই ও স্টেশনারি:</strong> 01312-13 58 62</p>
           </div>
-          <div className="flex items-center">
-            <MessageSquare className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
-            <p className="text-sm text-slate-700"><strong>বই কেনা:</strong> 01831-291035</p>
+          <div className="flex items-start">
+            <Phone className="w-4 h-4 text-primary mt-0.5 mr-2.5 flex-shrink-0" />
+            <p className="text-xs text-slate-700"><strong>প্রশিক্ষণ:</strong> 01966-93 58 32, 01988-97 72 09</p>
           </div>
         </div>
 
-        <Link 
-          href="/about"
-          className="inline-flex justify-center items-center px-6 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-colors w-max"
-        >
-          বিস্তারিত
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link 
+            href="/about/board_introduction"
+            className="inline-flex justify-center items-center px-5 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-xl transition-colors"
+          >
+            বোর্ড পরিচিতি
+          </Link>
+          <Link 
+            href="/contact"
+            className="inline-flex justify-center items-center px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors"
+          >
+            সকল যোগাযোগ
+          </Link>
+        </div>
       </div>
     </div>
   );

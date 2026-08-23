@@ -101,6 +101,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
         { title: "সনদ ফি", href: "/payment/certificate_fee" },
       ]
     },
+    { title: "যোগাযোগ", href: "/contact" },
   ];
 
   return (

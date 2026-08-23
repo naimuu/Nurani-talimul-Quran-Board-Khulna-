@@ -27,7 +27,7 @@ export default function PrintableReceipt({ application, onNewApplication }: Prin
       {/* Document Header */}
       <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
         <h1 className="text-4xl font-extrabold text-slate-900 mb-2">খুলনা নূরানী তালিমুল কুরআন বোর্ড</h1>
-        <p className="text-slate-700 mb-1">খুলনা, বাংলাদেশ</p>
+        <p className="text-sm text-slate-600 mb-1">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
         <p className="text-xl text-slate-900 font-bold mt-2">প্রতিষ্ঠান নিবন্ধন আবেদন রসিদ (অফিস ও আবেদনকারী কপি)</p>
       </div>
 

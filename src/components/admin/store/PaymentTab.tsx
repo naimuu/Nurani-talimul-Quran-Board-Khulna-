@@ -99,6 +99,7 @@ function ActionDropdown({ payment, onUpdate }: { payment: Payment; onUpdate: () 
     .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee}.label{color:#666}.val{font-weight:600}</style>
     </head><body>
     <h1>পেমেন্ট রসিদ</h1><h2 style="text-align:center;font-size:13px;color:#666">নূরানী তালিমুল কুরআন বোর্ড খুলনা</h2>
+    <p style="text-align:center;font-size:10px;color:#888;margin:2px 0 10px;">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
     <div class="row"><span class="label">তারিখ</span><span class="val">${new Date(payment.createdAt).toLocaleDateString('bn-BD')}</span></div>
     <div class="row"><span class="label">প্রদানকারী</span><span class="val">${payment.payer}</span></div>
     <div class="row"><span class="label">উদ্দেশ্য</span><span class="val">${payment.purpose}</span></div>

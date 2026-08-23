@@ -554,7 +554,7 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string) => {
           ${coverUrl ? `<img src="${coverUrl}" alt="Board Cover" style="width: 100%; display: block; margin: 0; max-height: 120px; object-fit: cover;" />` 
           : `
           <h1>নূরানী তালিমুল কুরআন বোর্ড খুলনা</h1>
-          <p>খুলনা, বাংলাদেশ | মোবাইল: +880 1711-000000</p>
+          <p>প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
           `}
           <div class="invoice-badge">ইনভয়েস</div>
         </div>

@@ -252,6 +252,7 @@ export default function RegisterMadrasaPage() {
             {/* Document Header */}
             <div className="text-center border-b-2 border-slate-800 pb-6 mb-8">
               <h1 className="text-4xl font-extrabold text-slate-900 mb-2">খুলনা নূরানী বোর্ড</h1>
+              <p className="text-sm text-slate-600 mb-1">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
               <p className="text-xl text-slate-600 font-semibold mb-4">প্রতিষ্ঠান নিবন্ধন আবেদন রসিদ (অফিস ও আবেদনকারী কপি)</p>
               
               <div className="inline-block border-2 border-slate-800 rounded-lg px-8 py-3 bg-slate-50 print:bg-white">

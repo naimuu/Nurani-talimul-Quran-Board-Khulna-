@@ -126,8 +126,9 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
           <body>
             <div class="invoice-container">
               <div class="header">
-                ${boardSettings?.coverUrl ? '<img src="' + boardSettings.coverUrl + '" alt="Banner" />' : '<h1 style="color: #16a34a; margin-bottom: 0;">নূরানী তালিমুল কুরআন বোর্ড</h1>'}
+                ${boardSettings?.coverUrl ? '<img src="' + boardSettings.coverUrl + '" alt="Banner" />' : '<h1 style="color: #16a34a; margin-bottom: 0;">নূরানী তালিমুল কুরআন বোর্ড খুলনা</h1>'}
                 <h2>কাস্টমার ইনভয়েস</h2>
+                <p style="font-size: 11px; margin-top: 2px;">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
                 <p>অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে। অনুগ্রহ করে ইনভয়েসটি সংরক্ষণ করুন।</p>
               </div>
               <div class="content">
