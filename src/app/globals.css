@@ -30,6 +30,43 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  /* ─── Standard Glassmorphic Cards & Panels ─── */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/80 shadow-sm transition-all duration-300;
+  }
+  .glass-card-hover {
+    @apply hover:bg-white/95 hover:shadow-xl hover:-translate-y-1 hover:border-emerald-300/60 active:scale-[0.99] transition-all duration-300;
+  }
+  .glass-panel {
+    @apply bg-white/85 backdrop-blur-2xl border border-white/60 shadow-2xl;
+  }
+  .glass-header {
+    @apply bg-[#052e23]/95 backdrop-blur-md text-white border-b border-white/10;
+  }
+  .glass-pill {
+    @apply bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/15 backdrop-blur-sm transition-all duration-200;
+  }
+
+  /* ─── Standard Academic Buttons ─── */
+  .btn-academic-emerald {
+    @apply bg-[#095738] hover:bg-[#06422b] text-white font-bold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 inline-flex items-center justify-center gap-2;
+  }
+  .btn-academic-amber {
+    @apply bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 inline-flex items-center justify-center gap-2;
+  }
+  .btn-academic-glass {
+    @apply bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2.5 rounded-xl border border-white/20 hover:border-white/40 shadow-sm active:scale-95 transition-all duration-200 inline-flex items-center justify-center gap-2 backdrop-blur-xs;
+  }
 }
 
 /* Custom Thin Scrollbar Styles */
