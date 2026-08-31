@@ -133,6 +133,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
   const [settings, setSettings] = useState<BoardSettings | null>(null);
+  const [logoError, setLogoError] = useState(false);
   
   // Mobile Quick Dropdown Bottom-Sheet state
   const [activeMobileDropdown, setActiveMobileDropdown] = useState<NavItem | null>(null);
@@ -391,18 +392,15 @@ export default function Navbar({ user }: { user?: UserPayload }) {
             </button>
             
             <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group hover:opacity-95 transition-opacity min-w-0">
-              {/* Dynamic Uploaded Logo or Fallback Islamic Icon Logo */}
-              {settings?.logoUrl ? (
-                <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl bg-white p-0.5 sm:p-1 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-amber-300">
-                  <img 
-                    src={settings.logoUrl} 
-                    alt="বোর্ড লোগো" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              ) : (
-                <IslamicLogoIcon className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 flex-shrink-0" />
-              )}
+              {/* Official Board Logo with Automatic Fallback */}
+              <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl bg-white p-0.5 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-amber-300 ring-1 ring-amber-400/40">
+                <img 
+                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"} 
+                  alt="বোর্ড লোগো" 
+                  className="w-full h-full object-contain"
+                  onError={() => setLogoError(true)}
+                />
+              </div>
 
               {/* Full Board Typography Branding & Address */}
               <div className="flex flex-col min-w-0 justify-center">
@@ -808,15 +806,14 @@ export default function Navbar({ user }: { user?: UserPayload }) {
           {/* Drawer Header with Dynamic Branding */}
           <div className="sticky top-0 z-10 px-4 sm:px-5 py-4 flex items-center justify-between border-b border-white/10 bg-[#021d15]/90 backdrop-blur-xl flex-shrink-0 shadow-md">
             <div className="flex items-center gap-3 min-w-0">
-              {settings?.logoUrl ? (
-                <div className="w-10 h-10 rounded-2xl bg-white p-0.5 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-amber-400/60">
-                  <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                </div>
-              ) : (
-                <div className="ring-2 ring-amber-400/60 rounded-xl">
-                  <IslamicLogoIcon className="w-9 h-9 flex-shrink-0" />
-                </div>
-              )}
+              <div className="w-10 h-10 rounded-2xl bg-white p-0.5 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-amber-400/60 overflow-hidden">
+                <img 
+                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"} 
+                  alt="Logo" 
+                  className="w-full h-full object-contain" 
+                  onError={() => setLogoError(true)}
+                />
+              </div>
               <div className="flex flex-col min-w-0">
                 <span className="font-black text-sm sm:text-base leading-tight truncate text-amber-300">{settings?.name || "নূরানী বোর্ড খুলনা"}</span>
                 <span className="text-[10.5px] text-emerald-200/90 truncate">{settings?.address || "মুহাম্মাদনগর, লবণচরা, খুলনা"}</span>
