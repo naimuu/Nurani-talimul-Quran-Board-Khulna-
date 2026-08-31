@@ -51,7 +51,7 @@ export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean 
         </motion.div>
       </AnimatePresence>
 
-      <div className="relative z-10 h-full container mx-auto px-4 flex flex-col justify-center items-center text-center">
+      <div className="relative z-10 h-full w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center text-center">
         <div className="h-[80px] flex flex-col justify-center mb-3">
           <AnimatePresence mode="wait">
             <motion.div

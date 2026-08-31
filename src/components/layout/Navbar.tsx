@@ -106,7 +106,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
 
   return (
     <header className="bg-primary text-white shadow-md sticky top-0 z-50">
-      <div className="w-full px-4 md:px-8 py-3 flex justify-between items-center">
+      <div className="w-full max-w-[1720px] mx-auto px-4 md:px-8 py-3 flex justify-between items-center">
         {/* Logo / Title */}
         <div className="text-xl md:text-2xl font-bold flex items-center gap-2">
           <button 

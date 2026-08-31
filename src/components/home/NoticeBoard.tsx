@@ -9,21 +9,26 @@ export default async function NoticeBoard() {
   try {
     notices = await (prisma as any).notice.findMany({
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 15,
     });
   } catch (error) {
     console.error("Failed to load notices for sidebar:", error);
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] border border-slate-100 overflow-hidden h-full flex flex-col">
-      <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50">
-        <div className="flex items-center text-primary font-bold">
-          <Pin className="w-5 h-5 mr-2" />
-          <span>নোটিশ</span>
+    <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.04)] border border-slate-100/90 overflow-hidden max-h-[500px] lg:max-h-[calc(100vh-105px)] flex flex-col">
+      <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 via-slate-50/60 to-transparent shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold">
+            <Pin className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm leading-tight">নোটিশ বোর্ড</h3>
+            <p className="text-[11px] text-slate-500 font-medium">বোর্ডের সাম্প্রতিক বিজ্ঞপ্তি</p>
+          </div>
         </div>
-        <Link href="/notices" className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors flex items-center group">
-          সকল নোটিশ <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+        <Link href="/notices" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition-colors flex items-center group bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg">
+          সকল নোটিশ <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </div>
       
