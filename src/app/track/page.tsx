@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, FileText, CheckCircle2, Clock, XCircle, AlertCircle } from "lucide-react";
+import { Search, FileText, CheckCircle2, Clock, XCircle, AlertCircle, Camera } from "lucide-react";
 import PrintableReceipt from "@/components/forms/PrintableReceipt";
+import { QRScannerModal } from "@/components/shared/QRScannerModal";
 
 export default function TrackApplicationPage() {
   const [trackingId, setTrackingId] = useState("");
   const [loading, setLoading] = useState(false);
   const [application, setApplication] = useState<any>(null);
   const [error, setError] = useState("");
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,21 +71,31 @@ export default function TrackApplicationPage() {
             আবেদন সম্পন্ন হওয়ার পর আপনার প্রাপ্ত ৮ সংখ্যার ট্র্যাকিং নম্বরটি নিচে লিখুন।
           </p>
           <form onSubmit={handleSearch} className="flex gap-3">
-            <input
-              id="track-tracking-id"
-              type="text"
-              value={trackingId}
-              onChange={e => setTrackingId(e.target.value)}
-              placeholder="উদাহরণ: ১২৩৪৫৬৭৮"
-              className="flex-1 border-2 border-slate-200 focus:border-emerald-500 rounded-xl px-5 py-3.5 text-lg font-mono tracking-widest outline-none transition-colors"
-              maxLength={8}
-            />
+            <div className="relative flex-1">
+              <input
+                id="track-tracking-id"
+                type="text"
+                value={trackingId}
+                onChange={e => setTrackingId(e.target.value)}
+                placeholder="উদাহরণ: ১২৩৪৫৬৭৮"
+                className="w-full border-2 border-slate-200 focus:border-emerald-500 rounded-xl pl-5 pr-14 py-3.5 text-lg font-mono tracking-widest outline-none transition-colors"
+                maxLength={20}
+              />
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                title="ক্যামেরা দিয়ে কিউআর কোড স্ক্যান করুন"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
+            </div>
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading || !trackingId.trim()}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold px-8 rounded-xl transition-colors flex items-center gap-2 text-lg"
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold px-8 rounded-xl transition-colors flex items-center gap-2 text-lg whitespace-nowrap"
             >
               {loading ? (
                 <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -94,6 +106,27 @@ export default function TrackApplicationPage() {
               খুঁজুন
             </motion.button>
           </form>
+
+          <QRScannerModal
+            isOpen={isScannerOpen}
+            onClose={() => setIsScannerOpen(false)}
+            onScanSuccess={(code) => {
+              setTrackingId(code);
+              // Trigger instant search
+              const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+              setTimeout(() => {
+                const searchInput = document.getElementById("track-tracking-id") as HTMLInputElement;
+                if (searchInput) searchInput.value = code;
+                fetch(`/api/madrasa/track?trackingId=${code.trim()}`)
+                  .then(r => r.json())
+                  .then(data => {
+                    if (data && data.success) setApplication(data.application);
+                    else setError(data.error || "কোনো আবেদন পাওয়া যায়নি।");
+                  })
+                  .catch(() => setError("সার্ভারে সংযোগ করা যায়নি।"));
+              }, 100);
+            }}
+          />
 
           {/* Error Message */}
           <AnimatePresence>

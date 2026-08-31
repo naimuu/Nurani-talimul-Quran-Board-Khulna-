@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Plus, Filter, Download, FileText, MoreVertical, CheckCircle, Trash2, Share2, X, Scan, Edit } from 'lucide-react';
+import { Search, Plus, Filter, Download, FileText, MoreVertical, CheckCircle, Trash2, Share2, X, Scan, Edit, Camera } from 'lucide-react';
 import BanglaDatePicker, { toBanglaDigits } from './BanglaDatePicker';
+import { generateQRCodeDataUrl, generateBarcodeSVG } from '@/lib/qrHelper';
 
 type SaleItem = { id: string; quantity: number; unitPrice: number; product: { name: string, className?: string | null } };
 type Sale = {
@@ -501,7 +502,7 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     </div>
   );
 }
-const generateInvoiceHTML = (sale: Sale, coverUrl: string) => {
+const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, barcodeSVG?: string) => {
   const payment = sale.payments?.[0];
   const payer = payment?.payer || sale.customerName;
   const method = payment?.method || 'Cash';
@@ -520,7 +521,7 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string) => {
           .invoice-badge { position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); background: #16a34a; color: white; padding: 4px 20px; border-radius: 9999px; font-weight: 600; font-size: 14px; }
           .header h1 { font-size: 26px; color: #16a34a; margin: 0 0 8px 0; font-weight: 700; }
           .header p { margin: 0; color: #64748b; font-size: 14px; }
-          .info-section { display: flex; justify-content: space-between; margin-bottom: 24px; background: #f8fafc; padding: 16px; border-radius: 4px; border: 1px solid #e2e8f0; }
+          .info-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: #f8fafc; padding: 16px; border-radius: 4px; border: 1px solid #e2e8f0; }
           .info-box p { margin: 0 0 4px 0; font-size: 13px; color: #0f172a; }
           .info-box p:last-child { margin-bottom: 0; }
           .info-box p strong { color: #64748b; display: inline-block; width: 90px; font-weight: 500; }
@@ -534,6 +535,7 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string) => {
           .total-row.grand-total { font-size: 16px; font-weight: 700; color: #0f172a; border-top: 2px solid #16a34a; padding-top: 8px; margin-top: 4px; }
           .total-row.paid { color: #16a34a; font-weight: 600; }
           .total-row.due { color: #dc2626; font-weight: 600; }
+          .qr-barcode-section { display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #cbd5e1; padding-top: 14px; margin-top: 15px; width: 100%; }
           @media print {
             body { padding: 5px; max-width: none; }
             .header { margin: -5px -5px 30px -5px; border-bottom-color: #000 !important; }
@@ -545,6 +547,7 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string) => {
             .total-row.grand-total { border-top-color: #000 !important; }
             .total-row.paid, .total-row.due { color: #000 !important; font-weight: 700; }
             .info-box p strong { color: #000 !important; }
+            .qr-barcode-section { border-top-color: #000 !important; }
             img { -webkit-filter: grayscale(100%) brightness(0.6) contrast(2000%); filter: grayscale(100%) brightness(0.6) contrast(2000%); }
           }
         </style>
@@ -565,9 +568,12 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string) => {
             <p><strong>প্রদানকারী:</strong> ${payer}</p>
             <p><strong>পেমেন্ট মাধ্যম:</strong> ${method}</p>
           </div>
-          <div class="info-box">
-            <p><strong>ইনভয়েস নং:</strong> ${sale.invoiceId}</p>
-            <p><strong>তারিখ:</strong> ${new Date(sale.createdAt).toLocaleDateString('bn-BD')}</p>
+          <div class="info-box" style="display: flex; align-items: center; gap: 15px;">
+            <div>
+              <p><strong>ইনভয়েস নং:</strong> <span style="font-family: monospace; font-weight: bold;">${sale.invoiceId}</span></p>
+              <p><strong>তারিখ:</strong> ${new Date(sale.createdAt).toLocaleDateString('bn-BD')}</p>
+            </div>
+            ${qrCodeUrl ? `<img src="${qrCodeUrl}" alt="QR" style="width: 60px; height: 60px; border: 1px solid #cbd5e1; padding: 2px; border-radius: 4px;" />` : ''}
           </div>
         </div>
 
@@ -633,6 +639,17 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string) => {
             <span>${(subtotal + (sale.currentTotalDue || 0) - discount - sale.paidAmount).toFixed(2)} ৳</span>
           </div>
         </div>
+
+        <div class="qr-barcode-section">
+          <div style="text-align: left;">
+            <p style="margin: 0 0 4px; font-size: 11px; font-weight: bold; color: #475569;">বারকোড:</p>
+            ${barcodeSVG || ''}
+          </div>
+          <div style="text-align: right;">
+            <p style="margin: 0 0 4px; font-size: 11px; font-weight: bold; color: #475569;">অনলাইন ট্র্যাক কিউআর:</p>
+            ${qrCodeUrl ? `<img src="${qrCodeUrl}" alt="QR" style="width: 60px; height: 60px; display: inline-block;" />` : ''}
+          </div>
+        </div>
       </body>
     </html>
   `;
@@ -688,10 +705,17 @@ function ActionDropdown({ sale, onUpdate }: { sale: Sale; onUpdate: () => void }
       }
     } catch(e) {}
 
+    // Generate QR code and barcode
+    const trackingUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/track?code=${printSale.invoiceId}` 
+      : printSale.invoiceId;
+    const qrCodeUrl = await generateQRCodeDataUrl(trackingUrl);
+    const barcodeSVG = generateBarcodeSVG(printSale.invoiceId);
+
     const doc = iframe.contentWindow?.document;
     if (doc) {
       doc.open();
-      doc.write(generateInvoiceHTML(printSale, coverUrl));
+      doc.write(generateInvoiceHTML(printSale, coverUrl, qrCodeUrl, barcodeSVG));
       doc.close();
       iframe.onload = () => {
         setTimeout(() => {
@@ -769,10 +793,16 @@ function SaleDetailsModal({ sale, onClose }: { sale: Sale; onClose: () => void }
     iframe.style.border = 'none';
     document.body.appendChild(iframe);
 
+    const trackingUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/track?code=${sale.invoiceId}` 
+      : sale.invoiceId;
+    const qrCodeUrl = await generateQRCodeDataUrl(trackingUrl);
+    const barcodeSVG = generateBarcodeSVG(sale.invoiceId);
+
     const doc = iframe.contentWindow?.document;
     if (doc) {
       doc.open();
-      doc.write(generateInvoiceHTML(sale, coverUrl));
+      doc.write(generateInvoiceHTML(sale, coverUrl, qrCodeUrl, barcodeSVG));
       doc.close();
       iframe.onload = () => {
         setTimeout(() => {

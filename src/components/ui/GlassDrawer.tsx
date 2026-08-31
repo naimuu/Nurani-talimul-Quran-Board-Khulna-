@@ -76,8 +76,11 @@ export function GlassDrawer({
           </div>
         )}
 
-        {/* Scrollable Content Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-8">
+        {/* Scrollable Content Body with Momentum Touch */}
+        <div 
+          className="flex-1 min-h-0 drawer-scroll p-4 pb-28 touch-pan-y"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
           {children}
         </div>
       </div>

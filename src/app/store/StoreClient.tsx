@@ -4,6 +4,7 @@ import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
   SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter
 } from "lucide-react";
+import { generateQRCodeDataUrl, generateBarcodeSVG } from "@/lib/qrHelper";
 
 export type Product = {
   id: string;
@@ -244,8 +245,15 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
     setOrderLoading(false);
   };
 
-  const printInvoice = (orderToPrint = successOrder) => {
+  const printInvoice = async (orderToPrint = successOrder) => {
     if (!orderToPrint) return;
+
+    const trackingUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/track?code=${orderToPrint.invoiceId}` 
+      : orderToPrint.invoiceId;
+    const qrCodeUrl = await generateQRCodeDataUrl(trackingUrl);
+    const barcodeSVG = generateBarcodeSVG(orderToPrint.invoiceId);
+
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
@@ -276,7 +284,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
               .info-section { display: flex; flex-direction: column; margin-bottom: 15px; width: 100%; gap: 10px; }
               .info-block { background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; }
               .info-block p { margin: 2px 0; font-size: 13px; }
-              .flex-between { display: flex; justify-content: space-between; }
+              .flex-between { display: flex; justify-content: space-between; align-items: center; }
               .institute-line { border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 6px; width: 100%; }
               table { width: 100%; border-collapse: collapse; margin-top: 5px; table-layout: fixed; }
               th { background: #16a34a; color: white; padding: 6px 8px; text-align: left; font-size: 13px; border: 1px solid #15803d; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -287,7 +295,8 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
               .totals { width: 60%; min-width: 380px; background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; }
               .totals div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
               .grand-total { font-size: 16px; font-weight: bold; border-top: 2px solid #16a34a; padding-top: 8px !important; margin-top: 4px; color: #16a34a; }
-              .footer { text-align: center; padding: 10px 0; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; margin-top: 20px; width: 100%; }
+              .qr-barcode-section { display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #cbd5e1; padding-top: 12px; margin-top: 20px; }
+              .footer { text-align: center; padding: 10px 0 0; color: #94a3b8; font-size: 12px; margin-top: 8px; width: 100%; }
             </style>
           </head>
           <body>
@@ -299,8 +308,15 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
               <div class="content">
                 <div class="info-section">
                   <div class="info-block flex-between">
-                    <p><strong>ইনভয়েস নং:</strong> ${orderToPrint.invoiceId}</p>
-                    <p><strong>তারিখ:</strong> ${new Date(orderToPrint.createdAt).toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <div>
+                      <p><strong>ইনভয়েস নং:</strong> <span style="font-family: monospace; font-size: 15px; font-weight: bold;">${orderToPrint.invoiceId}</span></p>
+                      <p><strong>তারিখ:</strong> ${new Date(orderToPrint.createdAt).toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                    ${qrCodeUrl ? `
+                      <div style="text-align: right;">
+                        <img src="${qrCodeUrl}" alt="Invoice QR" style="width: 68px; height: 68px; border: 1px solid #cbd5e1; padding: 2px; border-radius: 6px;" />
+                      </div>
+                    ` : ''}
                   </div>
                   <div class="info-block">
                     <div class="flex-between">
@@ -327,6 +343,16 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                     <div class="grand-total"><span>সর্বমোট প্রদেয়:</span><span>${(orderToPrint.totalAmount + (orderToPrint.previousDue || 0) - (orderToPrint.discount || 0)).toFixed(2)} ৳</span></div>
                     <div><span>পরিশোধিত:</span><span>${(orderToPrint.paidAmount || 0).toFixed(2)} ৳</span></div>
                     <div style="font-weight: bold; color: #dc2626;"><span>বর্তমান বকেয়া:</span><span>${(orderToPrint.totalAmount + (orderToPrint.previousDue || 0) - (orderToPrint.discount || 0) - (orderToPrint.paidAmount || 0)).toFixed(2)} ৳</span></div>
+                  </div>
+                </div>
+                <div class="qr-barcode-section">
+                  <div style="text-align: left;">
+                    <p style="margin: 0 0 4px; font-size: 11px; font-weight: bold; color: #475569;">বারকোড ট্র্যাকিং:</p>
+                    ${barcodeSVG}
+                  </div>
+                  <div style="text-align: right;">
+                    <p style="margin: 0 0 4px; font-size: 11px; font-weight: bold; color: #475569;">মোবাইল দিয়ে স্ক্যান করুন:</p>
+                    ${qrCodeUrl ? `<img src="${qrCodeUrl}" alt="QR" style="width: 64px; height: 64px; display: inline-block;" />` : ''}
                   </div>
                 </div>
               </div>

@@ -73,8 +73,11 @@ export function GlassBottomSheet({
           </button>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div className="p-4 overflow-y-auto flex-1 min-h-0 overscroll-contain flex flex-col gap-2 pb-8">
+        {/* Scrollable Content Body with Momentum Touch */}
+        <div 
+          className="p-4 drawer-scroll flex-1 min-h-0 flex flex-col gap-2 pb-28 touch-pan-y"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
           {children}
         </div>
       </div>

@@ -6,8 +6,8 @@ export default function AboutBoard() {
   return (
     <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden h-full flex flex-col">
       <div className="relative h-64 w-full bg-slate-200">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div className="absolute inset-0 bg-[url('/images/hero/slide2.jpg')] bg-cover bg-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
         <div className="absolute bottom-4 left-4 text-white">
           <span className="text-sm font-medium text-emerald-300 mb-1 block">আমাদের সম্পর্কে</span>
           <h2 className="text-2xl font-bold">বোর্ড পরিচিতি</h2>

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { generateQRCodeDataUrl } from '@/lib/qrHelper';
 
 interface PrintableReceiptProps {
   application: any;
@@ -13,6 +14,17 @@ export default function PrintableReceipt({ application, onNewApplication }: Prin
     postOffice, postCode, wardNo, addressDetails, teachers, status, createdAt
   } = application;
   
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (trackingId) {
+      const trackingUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/track?trackingId=${trackingId}`
+        : trackingId;
+      generateQRCodeDataUrl(trackingUrl).then(setQrCodeUrl).catch(() => {});
+    }
+  }, [trackingId]);
+
   const applicationDate = createdAt
     ? new Date(createdAt).toLocaleDateString('bn-BD')
     : new Date().toLocaleDateString('bn-BD');
@@ -33,9 +45,16 @@ export default function PrintableReceipt({ application, onNewApplication }: Prin
 
       {/* Tracking and Date Info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div className="border-2 border-slate-800 px-6 py-2 bg-slate-50 print:bg-white inline-block">
-          <p className="text-slate-700 font-bold uppercase text-xs mb-0.5">ট্র্যাকিং নম্বর / ইলহাক নম্বর</p>
-          <p className="text-2xl font-mono font-bold tracking-[0.15em] text-slate-900">{trackingId}</p>
+        <div className="flex items-center gap-4">
+          <div className="border-2 border-slate-800 px-6 py-2 bg-slate-50 print:bg-white inline-block">
+            <p className="text-slate-700 font-bold uppercase text-xs mb-0.5">ট্র্যাকিং নম্বর / ইলহাক নম্বর</p>
+            <p className="text-2xl font-mono font-bold tracking-[0.15em] text-slate-900">{trackingId}</p>
+          </div>
+          {qrCodeUrl && (
+            <div className="border border-slate-300 p-1 rounded-md bg-white">
+              <img src={qrCodeUrl} alt="Tracking QR" className="w-14 h-14 object-contain" />
+            </div>
+          )}
         </div>
         
         <div className="flex flex-col items-start sm:items-end gap-2">

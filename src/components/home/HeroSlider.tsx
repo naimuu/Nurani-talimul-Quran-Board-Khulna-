@@ -8,19 +8,19 @@ const slides = [
     id: 1,
     title: "খুলনা নূরানী বোর্ডে স্বাগতম",
     description: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
-    bgImage: "url('https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=2000&auto=format&fit=crop')",
+    bgImage: "url('/images/hero/slide1.jpg')",
   },
   {
     id: 2,
     title: "ইসলামি শিক্ষায় শ্রেষ্ঠত্ব",
     description: "আজই আমাদের মাদরাসার বিশাল নেটওয়ার্কে যুক্ত হোন এবং জ্ঞান অর্জনে নিবেদিত একটি ক্রমবর্ধমান সম্প্রদায়ের অংশ হন।",
-    bgImage: "url('https://images.unsplash.com/photo-1577901529141-8f3521d96078?q=80&w=2000&auto=format&fit=crop')",
+    bgImage: "url('/images/hero/slide2.jpg')",
   },
   {
     id: 3,
     title: "আপনার মাদরাসা এখনই নিবন্ধন করুন",
     description: "নতুন মাদরাসাগুলির জন্য সহজ নিবন্ধন প্রক্রিয়া। অনুমোদন পান এবং আমাদের নির্দেশিকায় কাজ শুরু করুন।",
-    bgImage: "url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2000&auto=format&fit=crop')",
+    bgImage: "url('/images/hero/slide3.jpg')",
   },
 ];
 
