@@ -104,8 +104,8 @@ function QuranIcon({ className = "w-4 h-4" }: { className?: string }) {
 // ─── Islamic Icon Logo Fallback Component ─────────────────────────────────────
 function IslamicLogoIcon({ className = "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11" }: { className?: string }) {
   return (
-    <div className={`${className} rounded-xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 p-0.5 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
-      <div className="w-full h-full bg-[#052e23] rounded-[10px] flex items-center justify-center p-1 relative overflow-hidden">
+    <div className={`${className} rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 p-0.5 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
+      <div className="w-full h-full bg-[#052e23] rounded-full flex items-center justify-center p-1 relative overflow-hidden">
         {/* Subtle decorative Islamic glow */}
         <div className="absolute inset-0 bg-radial from-amber-400/20 to-transparent pointer-events-none" />
         <svg viewBox="0 0 64 64" fill="none" className="w-full h-full text-amber-300" xmlns="http://www.w3.org/2000/svg">
@@ -238,6 +238,8 @@ export default function Navbar({ user }: { user?: UserPayload }) {
     setExpandedMobileSubMenu(expandedMobileSubMenu === index ? null : index);
   };
 
+  const isAdmin = user?.role === "ADMIN" || user?.role === "admin";
+
   // Structured menu items with rich icons and concise subtitles
   const navItems: NavItem[] = [
     { title: "হোম", subtitle: "বোর্ডের প্রধান পাতা", href: "/", icon: Home },
@@ -281,13 +283,14 @@ export default function Navbar({ user }: { user?: UserPayload }) {
       ]
     },
     {
-      title: "পরীক্ষা সংক্রান্ত",
-      subtitle: "রুটিন, প্রবেশপত্র ও ফলাফল",
+      title: "পরীক্ষা",
+      subtitle: "রুটিন, প্রশ্ন, প্রবেশপত্র ও ফলাফল",
       href: "/academic",
       icon: GraduationCap,
       subItems: [
         { title: "পরীক্ষার নোটিশ", href: "/notices?type=exam_notice", icon: Bell },
         { title: "পরীক্ষার রুটিন", href: "/academic/routine", icon: Calendar },
+        { title: "প্রশ্নের অর্ডার", href: "/academic/question-order", icon: BookMarked },
         { 
           title: "বোর্ড পরীক্ষা", 
           subtitle: "নিবন্ধন, ফি ও রেজাল্ট",
@@ -320,8 +323,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
         { title: "ফরম ডাউনলোড", href: "/training/download-registration", icon: Download },
       ]
     },
-    { title: "অডিট", subtitle: "হিসাব ও নিরীক্ষা", href: "/audit", icon: Calculator },
-    { title: "একাউন্টিং", subtitle: "আর্থিক হিসাব-নিকাশ", href: "/accounting", icon: Receipt },
+    { title: "পরিদর্শন", subtitle: "মাদরাসা পরিদর্শন ও নিরীক্ষা", href: "/audit", icon: Calculator },
     { title: "যোগাযোগ", subtitle: "হেল্পলাইন ও ঠিকানা", href: "/contact", icon: PhoneCall },
   ];
 
@@ -392,12 +394,12 @@ export default function Navbar({ user }: { user?: UserPayload }) {
             </button>
             
             <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group hover:opacity-95 transition-opacity min-w-0">
-              {/* Official Board Logo with Automatic Fallback */}
-              <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl bg-white p-0.5 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-amber-300 ring-1 ring-amber-400/40">
+              {/* Official Board Logo with Automatic Fallback (Round shape) */}
+              <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-amber-300 ring-1 ring-amber-400/40">
                 <img 
                   src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"} 
                   alt="বোর্ড লোগো" 
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain rounded-full"
                   onError={() => setLogoError(true)}
                 />
               </div>
@@ -806,11 +808,11 @@ export default function Navbar({ user }: { user?: UserPayload }) {
           {/* Drawer Header with Dynamic Branding */}
           <div className="sticky top-0 z-10 px-4 sm:px-5 py-4 flex items-center justify-between border-b border-white/10 bg-[#021d15]/90 backdrop-blur-xl flex-shrink-0 shadow-md">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-white p-0.5 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-amber-400/60 overflow-hidden">
+              <div className="w-10 h-10 rounded-full bg-white p-0.5 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-amber-400/60 overflow-hidden">
                 <img 
                   src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"} 
                   alt="Logo" 
-                  className="w-full h-full object-contain" 
+                  className="w-full h-full object-contain rounded-full" 
                   onError={() => setLogoError(true)}
                 />
               </div>

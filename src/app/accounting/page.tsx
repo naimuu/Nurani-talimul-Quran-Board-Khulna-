@@ -1,8 +1,15 @@
 import NoticeBoard from "@/components/home/NoticeBoard";
 import EditableContent from "@/components/EditableContent";
 import ProfileCard from "@/components/sidebar/ProfileCard";
+import { getUserSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function AccountingPage() {
+export default async function AccountingPage() {
+  const user = await getUserSession();
+  if (user?.role !== "ADMIN" && user?.role !== "admin") {
+    redirect("/login");
+  }
+
   return (
     <div className="container mx-auto px-4 py-10">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

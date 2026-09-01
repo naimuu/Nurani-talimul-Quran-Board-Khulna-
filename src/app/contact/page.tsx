@@ -11,7 +11,7 @@ export const metadata = {
 export default function ContactPage() {
   const contactDepartments = [
     {
-      title: "এলহাক, পরীক্ষা ও সনদ",
+      title: "ইলহাক, পরীক্ষা ও সনদ",
       subtitle: "মাদরাসা নিবন্ধন, কেন্দ্রীয় পরীক্ষা ও সনদ সংক্রান্ত তথ্য",
       icon: <Award className="w-6 h-6 text-emerald-600" />,
       badge: "পরীক্ষা ও সনদ",

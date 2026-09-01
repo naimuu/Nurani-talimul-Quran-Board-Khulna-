@@ -1,6 +1,4 @@
 import NoticeBoard from "@/components/home/NoticeBoard";
-import Image from "next/image";
-import Link from "next/link";
 import EditableContent from "@/components/EditableContent";
 import ProfileCard from "@/components/sidebar/ProfileCard";
 
@@ -11,19 +9,12 @@ export default function SecretaryPage() {
         
         {/* Main Content Area */}
         <div className="lg:col-span-8">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 md:p-12 h-full">
-            <h1 className="text-3xl md:text-4xl font-bold text-center text-blue-900 mb-2">
-              মুফতি জসিম উদ্দীন সাহেব
-            </h1>
-            <p className="text-center font-bold text-slate-800 text-lg mb-4">
-              মহাসচিব
-            </p>
-            <div className="flex justify-center mb-8">
-              <div className="h-1 w-32 bg-red-600 rounded"></div>
-            </div>
-
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 md:p-12 h-full">
             <EditableContent
               slug="secretary"
+              editableHeader={true}
+              initialTitle="মুফতি জসিম উদ্দীন সাহেব"
+              initialSubtitle="মহাসচিব"
               defaultContent={`
                 <div class="float-left mr-6 mb-4 rounded-xl overflow-hidden shadow-md">
                   <img src="https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=300&auto=format&fit=crop" alt="Secretary" width="250" height="250" class="object-cover" />
@@ -59,7 +50,6 @@ export default function SecretaryPage() {
             link="/about/chairman"
             defaultExcerpt="বিসমিল্লাহির রাহমানির রাহিম। নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ-এর নিজস্ব ওয়েবসাইটে আপনাকে স্বাগতম। কুরআনুল কারীমের সহীহ তেলাওয়াত বিস্তার এবং শিশু মনে দ্বীনি শিক্ষার মৌলিক ভিত্তি তৈরিতে আমাদের এই অনলাইন প্ল্যাটফর্ম এক নতুন সংযোজন। আধুনিক তথ্যপ্রযুক্তির সুফল কাজে লাগিয়ে..."
           />
-
         </div>
 
       </div>

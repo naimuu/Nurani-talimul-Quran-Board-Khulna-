@@ -5,6 +5,7 @@ import ProfileCard from "@/components/sidebar/ProfileCard";
 export default function AcademicPage({ params }: { params: { slug: string } }) {
   const titleMap: Record<string, string> = {
     'routine': 'পরীক্ষার রুটিন',
+    'question-order': 'প্রশ্নের অর্ডার',
     'registration-rules': 'নিবন্ধনের নিয়মাবলী',
     'registered-students': 'নিবন্ধনকৃত পরীক্ষার্থীদের তালিকা',
     'admit-card': 'প্রবেশপত্র প্রিন্ট ও ডাউনলোড',

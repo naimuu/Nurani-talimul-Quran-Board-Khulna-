@@ -47,7 +47,7 @@ export default function Footer() {
                 মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।
               </li>
               <li className="pt-1 border-t border-gray-800">
-                <strong className="text-emerald-400">এলহাক, পরীক্ষা ও সনদ:</strong> <a href="tel:01820580560" className="hover:text-white font-mono">01820-58 05 60</a>
+                <strong className="text-emerald-400">ইলহাক, পরীক্ষা ও সনদ:</strong> <a href="tel:01820580560" className="hover:text-white font-mono">01820-58 05 60</a>
               </li>
               <li>
                 <strong className="text-emerald-400">হিসাব বিভাগ:</strong> <a href="tel:01893432313" className="hover:text-white font-mono">01893-43 23 13</a>
