@@ -29,7 +29,25 @@ export async function GET() {
 
   try {
     await connectDB();
-    const madrasas = await Madrasa.find({}).sort({ createdAt: -1 }).lean();
+    const rawMadrasas = await Madrasa.find({}).sort({ createdAt: -1 }).lean();
+    const madrasas = rawMadrasas.map((m: any) => {
+      const isApproved = m.isApproved === true || m.status === "APPROVED";
+      const contactNo = m.contactNo || m.phone1 || m.phone2 || (m.teachers && m.teachers[0]?.phone) || "";
+      const managerName = m.managerName || m.principalName || m.managedBy || (m.teachers && m.teachers[0]?.name) || "";
+      const fullAddress = m.address || [m.village, m.union, m.upazila, m.district].filter(Boolean).join(", ") || m.addressDetails || "";
+      return {
+        ...m,
+        _id: m._id ? m._id.toString() : m.id,
+        isApproved,
+        contactNo,
+        principalName: managerName,
+        managerName,
+        address: fullAddress,
+        district: m.district || "",
+        upazila: m.upazila || "",
+        createdAt: m.createdAt || m.registrationDate || new Date().toISOString(),
+      };
+    });
     return NextResponse.json({ madrasas });
   } catch (error) {
     console.error("Error fetching madrasas:", error);

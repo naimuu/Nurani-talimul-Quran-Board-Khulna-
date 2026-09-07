@@ -326,13 +326,15 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">প্রতিষ্ঠানের নাম <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={instituteName}
                       onChange={(e) => setInstituteName(e.target.value)}
-                      placeholder="মাদরাসা/প্রতিষ্ঠানের নাম"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
+                      placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm font-semibold"
                     />
                   </div>
                 </div>

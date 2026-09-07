@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2, ClipboardList, Clock, XCircle, X, Eye, Phone, MessageCircle, PhoneCall, MoreVertical, LayoutGrid, List, Package, ShoppingCart, CreditCard, ShoppingBag, BookOpen, GraduationCap, Search, Calendar, Filter, RotateCcw, CalendarDays, UserCheck } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2, ClipboardList, Clock, XCircle, X, Eye, Phone, MessageCircle, PhoneCall, MoreVertical, LayoutGrid, List, Package, ShoppingCart, CreditCard, ShoppingBag, BookOpen, GraduationCap, Search, Calendar, Filter, RotateCcw, CalendarDays, UserCheck, Printer, SlidersHorizontal, Check } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense, useEffect } from "react";
 import { useDialog } from "@/components/ui/DialogProvider";
 import PrintableReceipt from "@/components/forms/PrintableReceipt";
 import SettingsTab from "@/components/admin/SettingsTab";
 import StoreManagementView from "@/components/admin/store/StoreManagementView";
 import CurriculumManagementView from "@/components/admin/CurriculumManagementView";
 import BatchManagementView from "@/components/admin/BatchManagementView";
+import ExamQuestionManagementView from "@/components/admin/ExamQuestionManagementView";
+import { FileCheck } from "lucide-react";
 
 type UserType = {
   _id: string;
@@ -26,10 +27,17 @@ type UserType = {
 type MadrasaType = {
   _id: string;
   name: string;
+  englishName?: string;
   code: string;
+  trackingId?: string;
   address: string;
+  village?: string;
+  union?: string;
   contactNo?: string;
+  phone1?: string;
+  phone2?: string;
   principalName?: string;
+  managerName?: string;
   district?: string;
   upazila?: string;
   isApproved: boolean;
@@ -164,7 +172,7 @@ function AdminDashboardContent() {
   const { alert, confirm } = useDialog();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', phone: '', password: '', role: 'GENERAL' });
+  const [newUser, setNewUser] = useState({ name: '', madrasaName: '', email: '', phone: '', password: '', role: 'GENERAL' });
   const [isCreating, setIsCreating] = useState(false);
 
   // User Management Search and Filter States
@@ -178,6 +186,140 @@ function AdminDashboardContent() {
   const [selectedUserDetails, setSelectedUserDetails] = useState<UserType | null>(null);
   const [approvingUser, setApprovingUser] = useState<UserType | null>(null);
   const [approvalRole, setApprovalRole] = useState("MADRASA");
+
+  // Madrasa Management Search, Filter & Print States
+  const [madrasaSearchQuery, setMadrasaSearchQuery] = useState("");
+  const [madrasaStatusFilter, setMadrasaStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED">("ALL");
+  const [madrasaDistrictFilter, setMadrasaDistrictFilter] = useState("");
+  const [madrasaUpazilaFilter, setMadrasaUpazilaFilter] = useState("");
+  const [madrasaDateMode, setMadrasaDateMode] = useState<"ALL" | "TODAY" | "THIS_MONTH" | "THIS_YEAR" | "SPECIFIC" | "RANGE">("ALL");
+  const [madrasaSpecificDate, setMadrasaSpecificDate] = useState("");
+  const [madrasaStartDate, setMadrasaStartDate] = useState("");
+  const [madrasaEndDate, setMadrasaEndDate] = useState("");
+  const [showPrintColumnsModal, setShowPrintColumnsModal] = useState(false);
+  const [printColumns, setPrintColumns] = useState({
+    sl: true,
+    name: true,
+    code: true,
+    manager: true,
+    phone: true,
+    address: true,
+    status: true,
+    date: false,
+  });
+
+  const availableDistricts = useMemo(() => {
+    const set = new Set<string>();
+    madrasas.forEach((m) => {
+      if (m.district && m.district.trim()) set.add(m.district.trim());
+    });
+    return Array.from(set).sort();
+  }, [madrasas]);
+
+  const availableUpazilas = useMemo(() => {
+    const set = new Set<string>();
+    madrasas.forEach((m) => {
+      if (madrasaDistrictFilter && m.district !== madrasaDistrictFilter) return;
+      if (m.upazila && m.upazila.trim()) set.add(m.upazila.trim());
+    });
+    return Array.from(set).sort();
+  }, [madrasas, madrasaDistrictFilter]);
+
+  const filteredMadrasas = useMemo(() => {
+    return madrasas.filter((m) => {
+      // 1. Status Filter
+      if (madrasaStatusFilter === "PENDING" && m.isApproved) return false;
+      if (madrasaStatusFilter === "APPROVED" && !m.isApproved) return false;
+
+      // 2. District Filter
+      if (madrasaDistrictFilter && m.district !== madrasaDistrictFilter) return false;
+
+      // 3. Upazila Filter
+      if (madrasaUpazilaFilter && m.upazila !== madrasaUpazilaFilter) return false;
+
+      // 4. Date Filter
+      if (madrasaDateMode !== "ALL" && m.createdAt) {
+        const itemDate = new Date(m.createdAt);
+        const today = new Date();
+
+        if (madrasaDateMode === "TODAY") {
+          if (
+            itemDate.getFullYear() !== today.getFullYear() ||
+            itemDate.getMonth() !== today.getMonth() ||
+            itemDate.getDate() !== today.getDate()
+          ) {
+            return false;
+          }
+        } else if (madrasaDateMode === "THIS_MONTH") {
+          if (
+            itemDate.getFullYear() !== today.getFullYear() ||
+            itemDate.getMonth() !== today.getMonth()
+          ) {
+            return false;
+          }
+        } else if (madrasaDateMode === "THIS_YEAR") {
+          if (itemDate.getFullYear() !== today.getFullYear()) {
+            return false;
+          }
+        } else if (madrasaDateMode === "SPECIFIC" && madrasaSpecificDate) {
+          const spec = new Date(madrasaSpecificDate);
+          if (
+            itemDate.getFullYear() !== spec.getFullYear() ||
+            itemDate.getMonth() !== spec.getMonth() ||
+            itemDate.getDate() !== spec.getDate()
+          ) {
+            return false;
+          }
+        } else if (madrasaDateMode === "RANGE") {
+          if (madrasaStartDate) {
+            const start = new Date(madrasaStartDate);
+            start.setHours(0, 0, 0, 0);
+            if (itemDate < start) return false;
+          }
+          if (madrasaEndDate) {
+            const end = new Date(madrasaEndDate);
+            end.setHours(23, 59, 59, 999);
+            if (itemDate > end) return false;
+          }
+        }
+      }
+
+      // 5. Search Text Filter
+      if (madrasaSearchQuery.trim()) {
+        const q = madrasaSearchQuery.toLowerCase().trim();
+        const name = (m.name || "").toLowerCase();
+        const code = (m.code || "").toLowerCase();
+        const manager = (m.principalName || m.managerName || "").toLowerCase();
+        const phone = (m.contactNo || "").toLowerCase();
+        const address = (m.address || "").toLowerCase();
+        const dist = (m.district || "").toLowerCase();
+        const upz = (m.upazila || "").toLowerCase();
+
+        const match =
+          name.includes(q) ||
+          code.includes(q) ||
+          manager.includes(q) ||
+          phone.includes(q) ||
+          address.includes(q) ||
+          dist.includes(q) ||
+          upz.includes(q);
+
+        if (!match) return false;
+      }
+
+      return true;
+    });
+  }, [
+    madrasas,
+    madrasaStatusFilter,
+    madrasaDistrictFilter,
+    madrasaUpazilaFilter,
+    madrasaDateMode,
+    madrasaSpecificDate,
+    madrasaStartDate,
+    madrasaEndDate,
+    madrasaSearchQuery,
+  ]);
 
   // Load draft on mount
   useEffect(() => {
@@ -310,7 +452,7 @@ function AdminDashboardContent() {
       alert({ title: "সফল!", message: "নতুন ইউজার সফলভাবে তৈরি হয়েছে!", type: "success" });
       setShowCreateModal(false);
       setUsers([data.user, ...users]); // Optimistically add
-      setNewUser({ name: '', email: '', phone: '', password: '', role: 'GENERAL' });
+      setNewUser({ name: '', madrasaName: '', email: '', phone: '', password: '', role: 'GENERAL' });
       localStorage.removeItem("newUserDraft");
     } catch (err: any) {
       alert({ title: "ত্রুটি!", message: err.message || "একটি ত্রুটি ঘটেছে", type: "error" });
@@ -1468,8 +1610,14 @@ function AdminDashboardContent() {
               <h2 className="text-xl font-bold mb-4 text-slate-800">নতুন ইউজার তৈরি করুন</h2>
               <form onSubmit={handleCreateUser} className="space-y-4" autoComplete="off">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">নাম</label>
-                  <input required type="text" name="user-name-new" autoComplete="new-password" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">পুরো নাম</label>
+                  <input required type="text" name="user-name-new" autoComplete="new-password" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" placeholder="ব্যবহারকারীর নাম" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  <input required type="text" name="user-madrasa-new" autoComplete="new-password" value={newUser.madrasaName} onChange={e => setNewUser({...newUser, madrasaName: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50 font-semibold" placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">ইমেইল</label>
@@ -1511,83 +1659,649 @@ function AdminDashboardContent() {
     );
   };
 
-  const renderMadrasaManagement = () => (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h2 className="text-xl font-bold text-slate-800">মাদরাসা পরিচালনা</h2>
-        <div className="flex gap-2">
-          <span className="flex items-center gap-2 text-sm bg-amber-50 text-amber-700 px-3 py-1 rounded-full border border-amber-200">
-            <ShieldAlert className="w-4 h-4" /> অপেক্ষমাণ: {madrasas.filter(m => !m.isApproved).length}
-          </span>
-        </div>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-100">
-              <th className="px-6 py-4 font-medium">কোড ও নাম</th>
-              <th className="px-6 py-4 font-medium">ঠিকানা ও উপজেলা</th>
-              <th className="px-6 py-4 font-medium">মুহতামিম ও যোগাযোগ</th>
-              <th className="px-6 py-4 font-medium">স্ট্যাটাস</th>
-              <th className="px-6 py-4 font-medium text-right">অ্যাকশন</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">ডাটা লোড হচ্ছে...</td>
-              </tr>
-            ) : madrasas.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">কোনো মাদরাসা পাওয়া যায়নি।</td>
-              </tr>
-            ) : (
-              madrasas.map((madrasa) => (
-                <tr key={madrasa._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-slate-800 text-sm mb-1 bg-slate-100 px-2 py-0.5 rounded inline-block">কোড: {madrasa.code}</p>
-                    <p className="font-semibold text-primary">{madrasa.name}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-slate-700">{madrasa.address}</p>
-                    <p className="text-sm text-slate-500">{madrasa.upazila ? `${madrasa.upazila}, ${madrasa.district}` : madrasa.district || "-"}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-slate-700">{madrasa.principalName || "-"}</p>
-                    <p className="text-sm text-slate-500">{madrasa.contactNo || "-"}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    {madrasa.isApproved ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> অনুমোদিত
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                        <ShieldAlert className="w-3.5 h-3.5" /> অপেক্ষমাণ
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => handleToggleMadrasaApproval(madrasa._id, madrasa.isApproved)}
-                      className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors border ${
-                        madrasa.isApproved 
-                          ? 'bg-white text-red-600 border-red-200 hover:bg-red-50'
-                          : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                      }`}
-                    >
-                      {madrasa.isApproved ? 'স্থগিত করুন' : 'অনুমোদন দিন'}
-                    </button>
-                  </td>
+  const handlePrintMadrasas = () => {
+    if (filteredMadrasas.length === 0) {
+      alert({ title: "সতর্কতা", message: "প্রিন্ট করার মতো কোনো মাদরাসার তথ্য পাওয়া যায়নি।", type: "warning" });
+      return;
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const filterSummary: string[] = [];
+    if (madrasaStatusFilter === "PENDING") filterSummary.push("স্ট্যাটাস: অপেক্ষমাণ");
+    else if (madrasaStatusFilter === "APPROVED") filterSummary.push("স্ট্যাটাস: অনুমোদিত");
+    else filterSummary.push("স্ট্যাটাস: সকল মাদরাসা");
+
+    if (madrasaDistrictFilter) filterSummary.push(`জেলা: ${madrasaDistrictFilter}`);
+    if (madrasaUpazilaFilter) filterSummary.push(`উপজেলা: ${madrasaUpazilaFilter}`);
+    if (madrasaSearchQuery.trim()) filterSummary.push(`অনুসন্ধান: "${madrasaSearchQuery.trim()}"`);
+    if (madrasaDateMode === "TODAY") filterSummary.push("তারিখ: আজকের নিবন্ধন");
+    else if (madrasaDateMode === "THIS_MONTH") filterSummary.push("তারিখ: এই মাস");
+    else if (madrasaDateMode === "THIS_YEAR") filterSummary.push("তারিখ: এই বছর");
+    else if (madrasaDateMode === "SPECIFIC" && madrasaSpecificDate) filterSummary.push(`তারিখ: ${madrasaSpecificDate}`);
+    else if (madrasaDateMode === "RANGE" && (madrasaStartDate || madrasaEndDate)) filterSummary.push(`রেঞ্জ: ${madrasaStartDate || 'শুরু'} হতে ${madrasaEndDate || 'আজ'}`);
+
+    const activeCols = printColumns;
+
+    const tableHeaderHtml = `
+      <tr>
+        ${activeCols.sl ? '<th style="width: 32px; text-align: center;">ক্র.</th>' : ''}
+        ${activeCols.name ? '<th style="text-align: left;">মাদরাসার নাম</th>' : ''}
+        ${activeCols.code ? '<th style="width: 75px; text-align: center;">কোড/ইলহাক</th>' : ''}
+        ${activeCols.manager ? '<th style="text-align: left;">মুহতামিম / সভাপতি</th>' : ''}
+        ${activeCols.phone ? '<th style="width: 95px; text-align: center;">মোবাইল নম্বর</th>' : ''}
+        ${activeCols.address ? '<th style="text-align: left;">ঠিকানা ও অবস্থান</th>' : ''}
+        ${activeCols.status ? '<th style="width: 65px; text-align: center;">স্ট্যাটাস</th>' : ''}
+        ${activeCols.date ? '<th style="width: 75px; text-align: center;">নিবন্ধন তারিখ</th>' : ''}
+      </tr>
+    `;
+
+    const tableRowsHtml = filteredMadrasas.map((m, idx) => `
+      <tr>
+        ${activeCols.sl ? `<td style="text-align: center; font-weight: bold; color: #475569;">${idx + 1}</td>` : ''}
+        ${activeCols.name ? `<td style="font-weight: 600; color: #0f172a;">${m.name}</td>` : ''}
+        ${activeCols.code ? `<td style="text-align: center; font-family: monospace; font-size: 10px; font-weight: bold;">${m.code || m.trackingId || '-'}</td>` : ''}
+        ${activeCols.manager ? `<td>${m.principalName || m.managerName || '-'}</td>` : ''}
+        ${activeCols.phone ? `<td style="text-align: center; font-family: monospace; font-size: 10px;">${m.contactNo || m.phone1 || '-'}</td>` : ''}
+        ${activeCols.address ? `<td>${m.address || ((m.upazila ? m.upazila + ', ' : '') + (m.district || '')) || '-'}</td>` : ''}
+        ${activeCols.status ? `<td style="text-align: center; font-weight: bold; color: ${m.isApproved ? '#15803d' : '#b45309'};">${m.isApproved ? 'অনুমোদিত' : 'অপেক্ষমাণ'}</td>` : ''}
+        ${activeCols.date ? `<td style="text-align: center; font-size: 9.5px; color: #64748b;">${m.createdAt ? new Date(m.createdAt).toLocaleDateString('bn-BD') : '-'}</td>` : ''}
+      </tr>
+    `).join('');
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>মাদরাসা তালিকা - নূরানী তালীমুল কুরআন বোর্ড খুলনা</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 8mm 7mm 8mm 7mm;
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body {
+              font-family: var(--font-solaiman-lipi, 'SolaimanLipi'), sans-serif, system-ui;
+              margin: 0;
+              padding: 0;
+              color: #1e293b;
+              font-size: 10px;
+              line-height: 1.25;
+              background: #fff;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #16a34a;
+              padding-bottom: 4px;
+              margin-bottom: 6px;
+            }
+            .header h1 {
+              font-size: 15px;
+              font-weight: 800;
+              color: #15803d;
+              margin: 0 0 2px 0;
+            }
+            .header h2 {
+              font-size: 11.5px;
+              font-weight: 700;
+              color: #334155;
+              margin: 0 0 2px 0;
+            }
+            .header-meta {
+              display: flex;
+              justify-content: space-between;
+              font-size: 9px;
+              color: #64748b;
+              margin-top: 2px;
+              border-top: 1px dashed #cbd5e1;
+              padding-top: 2px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 4px;
+              table-layout: auto;
+            }
+            th {
+              background-color: #15803d;
+              color: #ffffff;
+              font-size: 9.5px;
+              font-weight: 700;
+              padding: 3px 4px;
+              border: 1px solid #15803d;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            td {
+              padding: 2.5px 4px;
+              border: 1px solid #cbd5e1;
+              font-size: 9.5px;
+              vertical-align: middle;
+              word-break: break-word;
+            }
+            tr:nth-child(even) td {
+              background-color: #f8fafc;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .footer {
+              margin-top: 15px;
+              display: flex;
+              justify-content: space-between;
+              font-size: 8.5px;
+              color: #64748b;
+              padding-top: 6px;
+            }
+            .sign-box {
+              text-align: center;
+              border-top: 1px dotted #94a3b8;
+              width: 130px;
+              padding-top: 2px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>নূরানী তালীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
+            <h2>মাদরাসা রেজিস্টার ও বিবরণী তালিকা</h2>
+            <div class="header-meta">
+              <div><strong>ফিল্টার:</strong> ${filterSummary.join(' | ')}</div>
+              <div><strong>মোট মাদরাসা:</strong> ${filteredMadrasas.length} টি | <strong>প্রিন্ট তারিখ:</strong> ${new Date().toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              ${tableHeaderHtml}
+            </thead>
+            <tbody>
+              ${tableRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <div class="sign-box">সফটওয়্যার অ্যাডমিন</div>
+            <div class="sign-box">পরীক্ষা নিয়ন্ত্রক / পরিদর্শক</div>
+            <div class="sign-box">মুহতামিম / মহাসচিব স্বাক্ষর</div>
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 2000);
+    }, 400);
+  };
+
+  const renderMadrasaManagement = () => {
+    const pendingCount = madrasas.filter(m => !m.isApproved).length;
+    const approvedCount = madrasas.filter(m => m.isApproved).length;
+
+    const hasActiveFilters =
+      madrasaSearchQuery.trim() !== "" ||
+      madrasaStatusFilter !== "ALL" ||
+      madrasaDistrictFilter !== "" ||
+      madrasaUpazilaFilter !== "" ||
+      madrasaDateMode !== "ALL" ||
+      madrasaSpecificDate !== "" ||
+      madrasaStartDate !== "" ||
+      madrasaEndDate !== "";
+
+    const resetFilters = () => {
+      setMadrasaSearchQuery("");
+      setMadrasaStatusFilter("ALL");
+      setMadrasaDistrictFilter("");
+      setMadrasaUpazilaFilter("");
+      setMadrasaDateMode("ALL");
+      setMadrasaSpecificDate("");
+      setMadrasaStartDate("");
+      setMadrasaEndDate("");
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Main Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          {/* Header */}
+          <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Building2 className="w-6 h-6 text-primary" />
+                <h2 className="text-xl font-bold text-slate-800">মাদরাসা পরিচালনা ও ডাটাবেজ</h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                সকল নিবন্ধিত মাদরাসা, মুহতামিম, মোবাইল, ঠিকানা এবং অনুমোদন ও এ৪ প্রিন্ট ব্যবস্থাপনা।
+              </p>
+            </div>
+            
+            <div className="flex items-center flex-wrap gap-2">
+              <button
+                onClick={() => setShowPrintColumnsModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold rounded-xl border border-slate-200 transition-colors shadow-sm"
+                title="প্রিন্ট কলাম নির্বাচন করুন"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
+                <span>কলাম নির্বাচন</span>
+              </button>
+
+              <button
+                onClick={handlePrintMadrasas}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-700/20 transition-all active:scale-[0.98]"
+              >
+                <Printer className="w-4 h-4" />
+                <span>এ৪ প্রিন্ট করুন</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search and Filters Toolbar */}
+          <div className="p-4 bg-white border-b border-slate-100 space-y-3">
+            {/* Top Row: Status Tabs + Search bar */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              {/* Status Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 flex-wrap">
+                <button
+                  onClick={() => setMadrasaStatusFilter("ALL")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    madrasaStatusFilter === "ALL"
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  সব মাদরাসা ({madrasas.length})
+                </button>
+                <button
+                  onClick={() => setMadrasaStatusFilter("PENDING")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    madrasaStatusFilter === "PENDING"
+                      ? "bg-amber-500 text-white shadow-sm"
+                      : "text-amber-700 hover:bg-amber-100/50"
+                  }`}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>অপেক্ষমাণ ({pendingCount})</span>
+                </button>
+                <button
+                  onClick={() => setMadrasaStatusFilter("APPROVED")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    madrasaStatusFilter === "APPROVED"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-emerald-700 hover:bg-emerald-100/50"
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>অনুমোদিত ({approvedCount})</span>
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="মাদরাসার নাম, কোড, মুহতামিম, ফোন বা ঠিকানা খুঁজুন..."
+                  value={madrasaSearchQuery}
+                  onChange={(e) => setMadrasaSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 bg-slate-50 focus:bg-white transition-all shadow-inner"
+                />
+                {madrasaSearchQuery && (
+                  <button
+                    onClick={() => setMadrasaSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Second Row: Multi-layer Geographic Filters & Date Filters */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs">
+              {/* District Filter */}
+              <div className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={madrasaDistrictFilter}
+                  onChange={(e) => {
+                    setMadrasaDistrictFilter(e.target.value);
+                    setMadrasaUpazilaFilter(""); // reset upazila when district changes
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-medium focus:outline-none focus:border-emerald-600"
+                >
+                  <option value="">সব জেলা (All Districts)</option>
+                  {availableDistricts.map((dist) => (
+                    <option key={dist} value={dist}>{dist}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Upazila Filter */}
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={madrasaUpazilaFilter}
+                  onChange={(e) => setMadrasaUpazilaFilter(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-medium focus:outline-none focus:border-emerald-600"
+                  disabled={availableUpazilas.length === 0}
+                >
+                  <option value="">সব উপজেলা (All Upazilas)</option>
+                  {availableUpazilas.map((upz) => (
+                    <option key={upz} value={upz}>{upz}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Filter Pills */}
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex-wrap">
+                <button
+                  onClick={() => setMadrasaDateMode("ALL")}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${madrasaDateMode === "ALL" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600"}`}
+                >
+                  সকল সময়
+                </button>
+                <button
+                  onClick={() => setMadrasaDateMode("TODAY")}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${madrasaDateMode === "TODAY" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600"}`}
+                >
+                  আজকের নিবন্ধন
+                </button>
+                <button
+                  onClick={() => setMadrasaDateMode("THIS_MONTH")}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${madrasaDateMode === "THIS_MONTH" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600"}`}
+                >
+                  এই মাস
+                </button>
+                <button
+                  onClick={() => setMadrasaDateMode("THIS_YEAR")}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${madrasaDateMode === "THIS_YEAR" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600"}`}
+                >
+                  এই বছর
+                </button>
+                <button
+                  onClick={() => setMadrasaDateMode("SPECIFIC")}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${madrasaDateMode === "SPECIFIC" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600"}`}
+                >
+                  নির্দিষ্ট তারিখ
+                </button>
+                <button
+                  onClick={() => setMadrasaDateMode("RANGE")}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${madrasaDateMode === "RANGE" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600"}`}
+                >
+                  তারিখের রেঞ্জ
+                </button>
+              </div>
+
+              {/* Specific Date input */}
+              {madrasaDateMode === "SPECIFIC" && (
+                <div className="flex items-center gap-1 animate-in fade-in">
+                  <input
+                    type="date"
+                    value={madrasaSpecificDate}
+                    onChange={(e) => setMadrasaSpecificDate(e.target.value)}
+                    className="px-2 py-1 text-xs rounded-lg border border-slate-300 bg-white"
+                  />
+                </div>
+              )}
+
+              {/* Date Range inputs */}
+              {madrasaDateMode === "RANGE" && (
+                <div className="flex items-center gap-1.5 animate-in fade-in">
+                  <input
+                    type="date"
+                    value={madrasaStartDate}
+                    onChange={(e) => setMadrasaStartDate(e.target.value)}
+                    className="px-2 py-1 text-xs rounded-lg border border-slate-300 bg-white"
+                    placeholder="হতে"
+                  />
+                  <span className="text-slate-400">থেকে</span>
+                  <input
+                    type="date"
+                    value={madrasaEndDate}
+                    onChange={(e) => setMadrasaEndDate(e.target.value)}
+                    className="px-2 py-1 text-xs rounded-lg border border-slate-300 bg-white"
+                    placeholder="পর্যন্ত"
+                  />
+                </div>
+              )}
+
+              {/* Reset Filters */}
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100/80 px-2.5 py-1.5 rounded-lg border border-red-200 transition-colors ml-auto"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>ফিল্টার রিসেট</span>
+                </button>
+              )}
+            </div>
+
+            {/* Filter result counts */}
+            <div className="flex justify-between items-center text-[11px] text-slate-500 pt-1">
+              <span>
+                প্রদর্শিত হচ্ছে: <strong className="text-slate-800">{filteredMadrasas.length}</strong> টি (মোট {madrasas.length} টি থেকে ফিল্টারকৃত)
+              </span>
+              {hasActiveFilters && (
+                <span className="text-emerald-700 font-medium">ফিল্টার সক্রিয় রয়েছে</span>
+              )}
+            </div>
+          </div>
+          
+          {/* Madrasa List Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-600 text-xs border-b border-slate-200 font-bold">
+                  <th className="px-5 py-3 w-12 text-center">ক্র.</th>
+                  <th className="px-5 py-3 min-w-[220px]">মাদরাসার নাম</th>
+                  <th className="px-5 py-3 w-36">কোড ও ইলহাক</th>
+                  <th className="px-5 py-3 min-w-[180px]">মুহতামিম ও যোগাযোগ</th>
+                  <th className="px-5 py-3 min-w-[220px]">ঠিকানা ও অবস্থান</th>
+                  <th className="px-5 py-3 w-32 text-center">স্ট্যাটাস</th>
+                  <th className="px-5 py-3 w-32 text-right">অ্যাকশন</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400">ডাটা লোড হচ্ছে...</td>
+                  </tr>
+                ) : filteredMadrasas.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                      কোনো মাদরাসা পাওয়া যায়নি। ফিল্টার পরিবর্তন করে চেষ্টা করুন।
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMadrasas.map((madrasa, idx) => (
+                    <tr key={madrasa._id} className="hover:bg-slate-50/80 transition-colors">
+                      {/* Serial */}
+                      <td className="px-5 py-3.5 text-center text-xs font-bold text-slate-400">
+                        {idx + 1}
+                      </td>
+
+                      {/* Madrasa Name Column (Clean: only institute name) */}
+                      <td className="px-5 py-3.5">
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm hover:text-emerald-700 transition-colors">
+                            {madrasa.name}
+                          </p>
+                          {madrasa.englishName && (
+                            <p className="text-[11px] text-slate-400 uppercase font-medium mt-0.5">
+                              {madrasa.englishName}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Code */}
+                      <td className="px-5 py-3.5">
+                        <span className="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md border border-slate-200 inline-block shadow-sm">
+                          {madrasa.code || madrasa.trackingId || "-"}
+                        </span>
+                      </td>
+
+                      {/* Principal & Phone */}
+                      <td className="px-5 py-3.5">
+                        <p className="font-bold text-slate-800 text-xs">{madrasa.principalName || madrasa.managerName || "তথ্য নেই"}</p>
+                        <p className="text-xs font-mono font-semibold text-slate-600 mt-0.5">{madrasa.contactNo || madrasa.phone1 || "তথ্য নেই"}</p>
+                      </td>
+
+                      {/* Address & Location Column (Address ONLY shown here) */}
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-start gap-1.5 text-xs">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="font-medium text-slate-800 leading-snug">
+                              {madrasa.address || [madrasa.village, madrasa.union, madrasa.upazila, madrasa.district].filter(Boolean).join(", ") || "ঠিকানা দেওয়া নেই"}
+                            </p>
+                            {(madrasa.upazila || madrasa.district) && (
+                              <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                                {[madrasa.upazila, madrasa.district].filter(Boolean).join(", ")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-5 py-3.5 text-center">
+                        {madrasa.isApproved ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> অনুমোদিত
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <ShieldAlert className="w-3.5 h-3.5" /> অপেক্ষমাণ
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-5 py-3.5 text-right">
+                        <button 
+                          onClick={() => handleToggleMadrasaApproval(madrasa._id, madrasa.isApproved)}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border shadow-sm ${
+                            madrasa.isApproved 
+                              ? 'bg-white text-red-600 border-red-200 hover:bg-red-50'
+                              : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                          }`}
+                        >
+                          {madrasa.isApproved ? 'স্থগিত করুন' : 'অনুমোদন দিন'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Print Columns Selection Modal */}
+        {showPrintColumnsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/80">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-emerald-700" />
+                  <h3 className="font-bold text-sm text-slate-800">এ৪ প্রিন্ট কলাম কাস্টমাইজেশন</h3>
+                </div>
+                <button onClick={() => setShowPrintColumnsModal(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <p className="text-xs text-slate-600">
+                  এ৪ পেপারে প্রিন্ট করার সময় কোন কোন কলাম অন্তর্ভুক্ত করতে চান তা টিক দিন:
+                </p>
+
+                <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  {[
+                    { key: 'sl', label: '১. ক্রমিক নম্বর (SL)' },
+                    { key: 'name', label: '২. মাদরাসার নাম' },
+                    { key: 'code', label: '৩. কোড / ইলহাক' },
+                    { key: 'manager', label: '৪. মুহতামিম / সভাপতি' },
+                    { key: 'phone', label: '৫. মোবাইল নম্বর' },
+                    { key: 'address', label: '৬. সম্পূর্ণ ঠিকানা' },
+                    { key: 'status', label: '৭. অনুমোদনের স্ট্যাটাস' },
+                    { key: 'date', label: '৮. নিবন্ধনের তারিখ' },
+                  ].map((col) => (
+                    <label key={col.key} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-white text-xs font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={(printColumns as any)[col.key]}
+                        onChange={(e) => setPrintColumns({ ...printColumns, [col.key]: e.target.checked })}
+                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPrintColumns({ sl: true, name: true, code: true, manager: true, phone: true, address: true, status: true, date: true })}
+                      className="text-[11px] text-emerald-700 hover:underline font-bold"
+                    >
+                      সব নির্বাচন
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setPrintColumns({ sl: true, name: true, code: true, manager: true, phone: true, address: true, status: true, date: false })}
+                      className="text-[11px] text-slate-500 hover:underline"
+                    >
+                      ডিফল্ট রিস্টোর
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowPrintColumnsModal(false)}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                    >
+                      সম্পন্ন
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowPrintColumnsModal(false);
+                        handlePrintMadrasas();
+                      }}
+                      className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg flex items-center gap-1 shadow-sm"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>প্রিন্ট করুন</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const handleAddLocation = async (type: string, parentId: string | null) => {
     setIsAddingLocation(true);
@@ -1872,6 +2586,7 @@ function AdminDashboardContent() {
         <nav className="flex-1 space-y-2 overflow-y-auto">
           {[
             { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
+            { id: "exams", icon: FileCheck, label: "পরীক্ষা ও প্রশ্নপত্র" },
             { id: "batches", icon: GraduationCap, label: "প্রশিক্ষণ ব্যাচ" },
             { id: "store", icon: ShoppingBag, label: "স্টোর পরিচালনা" },
             { id: "curriculum", icon: BookOpen, label: "কারিকুলাম" },
@@ -1927,6 +2642,7 @@ function AdminDashboardContent() {
         {activeTab === "madrasas" && renderMadrasaManagement()}
         {activeTab === "locations" && renderLocationManagement()}
         {activeTab === "applications" && renderApplicationManagement()}
+        {activeTab === "exams" && <ExamQuestionManagementView />}
         {activeTab === "batches" && <BatchManagementView />}
         {activeTab === "store" && renderStoreManagement()}
         {activeTab === "curriculum" && <CurriculumManagementView />}

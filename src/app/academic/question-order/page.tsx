@@ -24,9 +24,12 @@ import {
   Layers,
   ShieldCheck,
   PackageCheck,
-  BookOpen
+  BookOpen,
+  Calendar,
+  Clock
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
 
 type QuestionItem = {
   id: string;
@@ -268,6 +271,8 @@ export default function QuestionOrderPage() {
     } catch {}
   };
 
+  const [examSessions, setExamSessions] = useState<any[]>([]);
+
   useEffect(() => {
     fetch("/api/store/products")
       .then((r) => r.json())
@@ -282,10 +287,49 @@ export default function QuestionOrderPage() {
         }
       })
       .catch(() => {});
+
+    fetch("/api/exams")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.sessions)) {
+          setExamSessions(data.sessions);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const allQuestionItems = useMemo<QuestionItem[]>(() => {
     const list: QuestionItem[] = [...DEFAULT_QUESTION_SETS];
+
+    // Merge session exams question sets
+    examSessions.forEach((session) => {
+      session.exams?.forEach((exam: any) => {
+        exam.questionSets?.forEach((qs: any) => {
+          if (!qs.isActive && qs.isActive !== undefined) return;
+          const matchIndex = list.findIndex(
+            (d) => d.name === qs.setName || (d.className === qs.className && d.examTerm === exam.name)
+          );
+          if (matchIndex >= 0) {
+            list[matchIndex] = {
+              ...list[matchIndex],
+              pricePerSet: qs.pricePerSet || list[matchIndex].pricePerSet,
+              description: qs.details || list[matchIndex].description,
+            };
+          } else {
+            list.push({
+              id: qs._id ? `qs_${qs._id}` : `qs_${exam._id}_${qs.className}`,
+              name: qs.setName || `${qs.className} — ${exam.name}`,
+              category: "প্রশ্নপত্র",
+              className: qs.className || "সাধারণ",
+              examTerm: exam.name || "সাধারণ",
+              pricePerSet: qs.pricePerSet || 15,
+              description: qs.details || (qs.subjects && qs.subjects.length > 0 ? qs.subjects.join(", ") : "প্রশ্নপত্র সেট"),
+            });
+          }
+        });
+      });
+    });
+
     dbProducts.forEach((p) => {
       const matchIndex = list.findIndex((d) => d.name === p.name);
       if (matchIndex >= 0) {
@@ -309,7 +353,7 @@ export default function QuestionOrderPage() {
       }
     });
     return list;
-  }, [dbProducts]);
+  }, [examSessions, dbProducts]);
 
   const examTerms = useMemo(() => {
     const defaultTerms = ["১ম সাময়িক", "২য় সাময়িক", "বার্ষিক পরীক্ষা", "বোর্ড সমাপনী"];
@@ -322,6 +366,22 @@ export default function QuestionOrderPage() {
     const dynamicClasses = Array.from(new Set(allQuestionItems.map((i) => i.className).filter(Boolean)));
     return Array.from(new Set([...defaultClasses, ...dynamicClasses]));
   }, [allQuestionItems]);
+
+  const getExamInfo = (termName: string) => {
+    if (!termName || termName === "all") return null;
+    for (const session of examSessions) {
+      if (Array.isArray(session.exams)) {
+        const found = session.exams.find(
+          (e: any) =>
+            e.name === termName ||
+            e.name?.includes(termName) ||
+            termName.includes(e.name)
+        );
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
   const filteredItems = useMemo(() => {
     return allQuestionItems.filter((item) => {
@@ -619,7 +679,7 @@ export default function QuestionOrderPage() {
         </div>
 
         {/* ─── 2. EXAM DROPDOWN & SEARCH CONTROL BAR ─────────────────── */}
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs mb-3 space-y-3">
+        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs mb-3 space-y-2.5">
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             
@@ -632,9 +692,15 @@ export default function QuestionOrderPage() {
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer"
               >
                 <option value="all">সকল পরীক্ষা (সবগুলো)</option>
-                {examTerms.map((term) => (
-                  <option key={term} value={term}>{term}</option>
-                ))}
+                {examTerms.map((term) => {
+                  const matchingExam = getExamInfo(term);
+                  const status = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
+                  return (
+                    <option key={term} value={term}>
+                      {term} {status ? `— ${status.badgeText}` : ""}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -681,6 +747,61 @@ export default function QuestionOrderPage() {
             </div>
 
           </div>
+
+          {/* EXAM STATUS PILLS WITH LIVE COUNTDOWN BADGES */}
+          {examTerms.length > 0 && (
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-1 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <span className="text-[11px] font-bold text-slate-500 shrink-0 mr-1 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                পরীক্ষা:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedTerm("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 ${
+                  selectedTerm === "all"
+                    ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                সকল পরীক্ষা
+              </button>
+              {examTerms.map((term) => {
+                const matchingExam = getExamInfo(term);
+                const status = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
+                const isSelected = selectedTerm === term;
+                return (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => setSelectedTerm(term)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 shrink-0 ${
+                      isSelected
+                        ? "bg-[#095738] text-white border-[#095738] shadow-xs"
+                        : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>{term}</span>
+                    {status && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                          isSelected
+                            ? "bg-white/25 text-white"
+                            : status.status === "ACTIVE"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : status.status === "UPCOMING"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {status.badgeText}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* CLASS NAME AS TABS (WITH GENEROUS MOBILE PADDING & SMOOTH AUTO-CENTERING) */}
           <div className="pt-2.5 border-t border-slate-100">
@@ -740,6 +861,8 @@ export default function QuestionOrderPage() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredItems.map((item, idx) => {
                     const currentQty = cart[item.id]?.qty || 0;
+                    const matchingExam = getExamInfo(item.examTerm);
+                    const examStatus = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
                     return (
                       <tr
                         key={item.id}
@@ -760,6 +883,11 @@ export default function QuestionOrderPage() {
                                 <span className="text-[#095738] font-black">{item.className}</span>
                                 <span className="text-slate-300 font-normal">—</span>
                                 <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
+                                {examStatus && (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
+                                    {examStatus.badgeText}
+                                  </span>
+                                )}
                               </h4>
                               <p className="text-[10.5px] text-slate-500 font-normal leading-tight mt-0.5">{item.description}</p>
                             </div>
@@ -826,6 +954,8 @@ export default function QuestionOrderPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {filteredItems.map((item) => {
               const currentQty = cart[item.id]?.qty || 0;
+              const matchingExam = getExamInfo(item.examTerm);
+              const examStatus = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
               return (
                 <div
                   key={item.id}
@@ -840,6 +970,11 @@ export default function QuestionOrderPage() {
                       <span className="text-[#095738] font-black">{item.className}</span>
                       <span className="text-slate-300 font-normal">—</span>
                       <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
+                      {examStatus && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
+                          {examStatus.badgeText}
+                        </span>
+                      )}
                     </h3>
 
                     {/* Less Important: Muted / Subdued Opacity Description */}
@@ -1087,13 +1222,31 @@ export default function QuestionOrderPage() {
 
             {/* Modal Body */}
             <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3.5 text-xs sm:text-sm">
-              {/* Question Name */}
+              {/* Question Name & Exam Date Status */}
               <div>
                 <h2 className="text-base sm:text-lg leading-snug flex items-center gap-1.5 flex-wrap">
                   <span className="text-[#095738] font-black">{selectedDetailItem.className}</span>
                   <span className="text-slate-300 font-normal">—</span>
                   <span className="text-slate-900 font-black">{selectedDetailItem.examTerm.includes("পরীক্ষা") ? selectedDetailItem.examTerm : `${selectedDetailItem.examTerm} পরীক্ষা`}</span>
                 </h2>
+                {(() => {
+                  const matchingExam = getExamInfo(selectedDetailItem.examTerm);
+                  const examStatus = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
+                  if (!matchingExam && !examStatus) return null;
+                  return (
+                    <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 text-slate-600 font-semibold">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>পরীক্ষার তারিখ: {matchingExam?.startDate ? `${matchingExam.startDate}${matchingExam.endDate ? ` হতে ${matchingExam.endDate}` : ""}` : "নির্ধারিত নয়"}</span>
+                      </div>
+                      {examStatus && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
+                          {examStatus.badgeText}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Subjects / Description */}
@@ -1223,24 +1376,28 @@ export default function QuestionOrderPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">প্রতিষ্ঠানের নাম *</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={instituteName}
                     onChange={(e) => setInstituteName(e.target.value)}
-                    placeholder="মাদরাসার নাম"
+                    placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা"
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-semibold focus:outline-emerald-600"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">মুহতামিম/আবেদনকারী *</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    মুহতামিম / আবেদনকারীর নাম <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="নাম"
+                    placeholder="যেমন: মাওলানা মো: আবদুল্লাহ"
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-semibold focus:outline-emerald-600"
                   />
                 </div>

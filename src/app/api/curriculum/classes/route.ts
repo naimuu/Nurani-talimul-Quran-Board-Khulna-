@@ -7,8 +7,12 @@ export async function GET() {
       orderBy: { order: 'asc' },
       include: {
         books: true,
-        examYears: true
-      }
+        examYears: {
+          include: {
+            exams: true,
+          },
+        },
+      },
     });
     return NextResponse.json(classes);
   } catch (error) {

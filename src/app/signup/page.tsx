@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Lock, Mail, UserCircle2, ArrowRight, User } from "lucide-react";
+import { Lock, Mail, UserCircle2, ArrowRight, User, Building2 } from "lucide-react";
 import Link from "next/link";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
+  const [madrasaName, setMadrasaName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +20,11 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!madrasaName.trim()) {
+      setError("মাদরাসা বা প্রতিষ্ঠানের নাম দেওয়া আবশ্যক!");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("পাসওয়ার্ড দুটি মিলছে না!");
@@ -42,7 +48,13 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email: email || undefined, phone: phone || undefined, password }),
+        body: JSON.stringify({
+          name,
+          madrasaName: madrasaName.trim(),
+          email: email || undefined,
+          phone: phone || undefined,
+          password,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -98,7 +110,7 @@ export default function SignupPage() {
 
             {/* Name Field */}
             <div className="relative">
-              <label className="block text-sm font-medium text-slate-700 mb-2">পুরো নাম</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">আপনার পুরো নাম</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-slate-400" />
@@ -111,7 +123,29 @@ export default function SignupPage() {
                   onChange={(e) => setName(e.target.value)}
                   autoComplete="off"
                   className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
-                  placeholder="আপনার নাম লিখুন"
+                  placeholder="যেমন: মাওলানা মো: আবদুল্লাহ"
+                />
+              </div>
+            </div>
+
+            {/* Madrasa / Institute Name Field */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500 font-bold">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Building2 className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  name="madrasaName"
+                  required
+                  value={madrasaName}
+                  onChange={(e) => setMadrasaName(e.target.value)}
+                  autoComplete="off"
+                  className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 font-semibold"
+                  placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা"
                 />
               </div>
             </div>

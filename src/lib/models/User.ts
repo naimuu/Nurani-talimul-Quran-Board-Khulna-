@@ -6,6 +6,8 @@ export interface IUser extends Document {
   name?: string;
   phone?: string;
   role: string;
+  madrasaName?: string;
+  instituteName?: string;
   madrasaId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -18,6 +20,8 @@ const UserSchema = new Schema<IUser>(
     name: { type: String },
     phone: { type: String, unique: true, sparse: true },
     role: { type: String, default: 'GENERAL' },
+    madrasaName: { type: String },
+    instituteName: { type: String },
     madrasaId: { type: Schema.Types.ObjectId, ref: 'Madrasa' },
   },
   { timestamps: true }

@@ -6,7 +6,8 @@ import User from "@/lib/models/User";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, phone, password } = body;
+    const { name, email, phone, password, madrasaName, instituteName } = body;
+    const finalMadrasaName = madrasaName || instituteName || undefined;
 
     // Validate inputs
     if (!password) {
@@ -41,6 +42,8 @@ export async function POST(req: Request) {
       phone: phone || undefined,
       password: hashedPassword,
       role: "GENERAL",
+      madrasaName: finalMadrasaName,
+      instituteName: finalMadrasaName,
     });
 
     return NextResponse.json(

@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { name, email, phone, password, role } = await request.json();
+    const { name, email, phone, password, role, madrasaName, instituteName } = await request.json();
     if (!email || !password || !role) {
       return NextResponse.json({ error: "প্রয়োজনীয় তথ্য দিন (ইমেইল, পাসওয়ার্ড ও রোল)" }, { status: 400 });
     }
@@ -109,6 +109,7 @@ export async function POST(request: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const finalMadrasa = madrasaName || instituteName || undefined;
     
     const newUser = await User.create({
       name,
@@ -116,6 +117,8 @@ export async function POST(request: Request) {
       phone,
       password: hashedPassword,
       role: role.toUpperCase(),
+      madrasaName: finalMadrasa,
+      instituteName: finalMadrasa,
     });
 
     return NextResponse.json({ message: "User created successfully", user: newUser }, { status: 201 });
