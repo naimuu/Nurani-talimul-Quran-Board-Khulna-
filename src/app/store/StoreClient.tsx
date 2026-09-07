@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
-  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter
+  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, UserCheck, KeyRound, Copy
 } from "lucide-react";
 import { generateQRCodeDataUrl, generateBarcodeSVG } from "@/lib/qrHelper";
 
@@ -175,10 +175,49 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPassword, setCustomerPassword] = useState("");
   const [instituteId, setInstituteId] = useState("");
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState("");
   const [successOrder, setSuccessOrder] = useState<any>(null);
+  const [customPasswordInput, setCustomPasswordInput] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSaveStatus, setPasswordSaveStatus] = useState<string | null>(null);
+
+  const handleSetPassword = async () => {
+    if (!customPasswordInput || customPasswordInput.trim().length < 4) {
+      setPasswordSaveStatus("error:পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে");
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const res = await fetch("/api/auth/set-order-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: successOrder?.userAccount?.id,
+          phone: successOrder?.userAccount?.phone,
+          email: successOrder?.userAccount?.email,
+          newPassword: customPasswordInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update password");
+      setPasswordSaveStatus("success:পাসওয়ার্ড সফলভাবে সংরক্ষিত হয়েছে!");
+      setSuccessOrder((prev: any) => ({
+        ...prev,
+        userAccount: {
+          ...prev.userAccount,
+          initialPassword: customPasswordInput.trim(),
+        }
+      }));
+    } catch (err: any) {
+      setPasswordSaveStatus(`error:${err.message}`);
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const [boardSettings, setBoardSettings] = useState<any>(null);
 
@@ -226,7 +265,14 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
       const res = await fetch("/api/store/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerName, customerPhone, instituteId, items })
+        body: JSON.stringify({
+          customerName,
+          customerPhone,
+          customerEmail: customerEmail.trim() || undefined,
+          password: customerPassword.trim() || undefined,
+          instituteId,
+          items
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit order");
@@ -882,22 +928,34 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
             </div>
             <div className="p-6">
               {orderError && <p className="mb-4 text-red-500 text-sm bg-red-50 p-2 rounded">{orderError}</p>}
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">আপনার নাম *</label>
-                  <input value={customerName} onChange={e => setCustomerName(e.target.value)} type="text" placeholder="নাম লিখুন..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary" />
+                  <label className="block text-xs font-bold text-slate-700 mb-1">আপনার নাম <span className="text-red-500">*</span></label>
+                  <input value={customerName} onChange={e => setCustomerName(e.target.value)} type="text" placeholder="নাম লিখুন..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">মোবাইল নাম্বার <span className="text-red-500">*</span></label>
+                    <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} type="text" placeholder="017..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">ইমেইল <span className="text-slate-400 font-normal">(ঐচ্ছিক)</span></label>
+                    <input value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} type="email" placeholder="user@mail.com" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">মোবাইল নাম্বার</label>
-                  <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} type="text" placeholder="017..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary" />
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    অ্যাকাউন্ট পাসওয়ার্ড <span className="text-slate-400 font-normal text-[11px]">(ঐচ্ছিক / লগইনের জন্য)</span>
+                  </label>
+                  <input value={customerPassword} onChange={e => setCustomerPassword(e.target.value)} type="password" placeholder="পাসওয়ার্ড দিন (না দিলে অটো পাসওয়ার্ড হবে)" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">প্রতিষ্ঠানের নাম বা ঠিকানা</label>
-                  <input value={instituteId} onChange={e => setInstituteId(e.target.value)} type="text" placeholder="ঠিকানা..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary" />
+                  <label className="block text-xs font-bold text-slate-700 mb-1">প্রতিষ্ঠানের নাম বা ঠিকানা</label>
+                  <input value={instituteId} onChange={e => setInstituteId(e.target.value)} type="text" placeholder="ঠিকানা..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
                 </div>
               </div>
               
-              <button onClick={submitOrder} disabled={orderLoading || !customerName} className="w-full mt-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              <button onClick={submitOrder} disabled={orderLoading || !customerName} className="w-full mt-5 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors text-sm">
                 {orderLoading ? "অপেক্ষা করুন..." : "অর্ডার সাবমিট করুন"}
               </button>
             </div>
@@ -908,20 +966,88 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
       {/* Success Modal */}
       {successOrder && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col items-center text-center max-h-[90vh] overflow-y-auto">
+            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
             </div>
-            <h3 className="font-black text-2xl text-slate-800 mb-2">অর্ডার সফল হয়েছে!</h3>
-            <p className="text-slate-500 mb-6">আপনার অর্ডারটি আমাদের সিস্টেমে গ্রহণ করা হয়েছে। আপনার ইনভয়েস আইডি:</p>
-            <div className="bg-slate-100 text-slate-800 font-black text-xl px-4 py-2 rounded-lg mb-6 border border-slate-200 shadow-inner">
-              {successOrder.invoiceId}
+            <h3 className="font-black text-2xl text-slate-800 mb-1">অর্ডার সফল হয়েছে!</h3>
+            <p className="text-slate-500 text-xs mb-4">আপনার অর্ডারটি সিস্টেমে গ্রহণ করা হয়েছে। ইনভয়েস আইডি:</p>
+            <div className="w-full bg-slate-100 text-slate-800 font-black text-lg px-4 py-2 rounded-lg mb-4 border border-slate-200 shadow-inner flex items-center justify-between">
+              <span>{successOrder.invoiceId}</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(successOrder.invoiceId)}
+                title="কপি করুন"
+                className="p-1 hover:bg-slate-200 rounded text-slate-500"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex flex-col gap-3 w-full">
-              <button onClick={printInvoice} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
+
+            {/* User Account Info */}
+            {successOrder.userAccount && (
+              <div className="w-full mb-4 text-left bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs mb-2">
+                  <UserCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{successOrder.userAccount.isNew ? "🎉 নতুন ইউজার অ্যাকাউন্ট তৈরি হয়েছে!" : "✓ বিদ্যমান অ্যাকাউন্টে অর্ডার সংরক্ষিত হয়েছে"}</span>
+                </div>
+                <div className="space-y-1 text-xs text-slate-700">
+                  <p><strong className="text-slate-500">নাম:</strong> {successOrder.userAccount.name}</p>
+                  <p><strong className="text-slate-500">লগইন আইডি:</strong> {successOrder.userAccount.phone || successOrder.userAccount.email}</p>
+                  
+                  {successOrder.userAccount.isNew && (
+                    <div className="mt-2 pt-2 border-t border-emerald-200/80">
+                      <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-emerald-300/80 mb-2">
+                        <span className="text-[11px] text-slate-600">লগইন পাসওয়ার্ড:</span>
+                        <span className="font-mono font-bold text-emerald-700 text-xs">{successOrder.userAccount.initialPassword || "আপনার সেট করা পাসওয়ার্ড"}</span>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          পাসওয়ার্ড পরিবর্তন/সেট করতে চান?
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            placeholder="নতুন পাসওয়ার্ড লিখুন..."
+                            value={customPasswordInput}
+                            onChange={(e) => {
+                              setCustomPasswordInput(e.target.value);
+                              setPasswordSaveStatus(null);
+                            }}
+                            className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 bg-white"
+                          />
+                          <button
+                            onClick={handleSetPassword}
+                            disabled={passwordSaving || !customPasswordInput.trim()}
+                            className="px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 disabled:opacity-50 transition-colors flex-shrink-0"
+                          >
+                            {passwordSaving ? "..." : "সংরক্ষণ"}
+                          </button>
+                        </div>
+                        {passwordSaveStatus && (
+                          <p className={`text-[11px] mt-1 font-medium ${passwordSaveStatus.startsWith("success") ? "text-emerald-700" : "text-red-600"}`}>
+                            {passwordSaveStatus.replace(/^(success|error):/, "")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2.5 w-full">
+              <button onClick={() => printInvoice(successOrder)} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 text-sm">
                 ইনভয়েস প্রিন্ট করুন
               </button>
-              <button onClick={() => setSuccessOrder(null)} className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+              <button
+                onClick={() => {
+                  setSuccessOrder(null);
+                  setCustomPasswordInput("");
+                  setPasswordSaveStatus(null);
+                }}
+                className="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors text-sm"
+              >
                 বন্ধ করুন
               </button>
             </div>

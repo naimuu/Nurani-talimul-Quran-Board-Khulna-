@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2, ClipboardList, Clock, XCircle, X, Eye, Phone, MessageCircle, PhoneCall, MoreVertical, LayoutGrid, List, Package, ShoppingCart, CreditCard, ShoppingBag, BookOpen, GraduationCap } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2, ClipboardList, Clock, XCircle, X, Eye, Phone, MessageCircle, PhoneCall, MoreVertical, LayoutGrid, List, Package, ShoppingCart, CreditCard, ShoppingBag, BookOpen, GraduationCap, Search, Calendar, Filter, RotateCcw, CalendarDays, UserCheck } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useEffect } from "react";
@@ -166,6 +166,18 @@ function AdminDashboardContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', phone: '', password: '', role: 'GENERAL' });
   const [isCreating, setIsCreating] = useState(false);
+
+  // User Management Search and Filter States
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userStatusFilter, setUserStatusFilter] = useState<"ALL" | "PENDING" | "ACTIVE">("ALL");
+  const [userRoleFilter, setUserRoleFilter] = useState("ALL");
+  const [userDateMode, setUserDateMode] = useState<"ALL" | "TODAY" | "SPECIFIC" | "RANGE">("ALL");
+  const [userSpecificDate, setUserSpecificDate] = useState("");
+  const [userStartDate, setUserStartDate] = useState("");
+  const [userEndDate, setUserEndDate] = useState("");
+  const [selectedUserDetails, setSelectedUserDetails] = useState<UserType | null>(null);
+  const [approvingUser, setApprovingUser] = useState<UserType | null>(null);
+  const [approvalRole, setApprovalRole] = useState("MADRASA");
 
   // Load draft on mount
   useEffect(() => {
@@ -772,162 +784,732 @@ function AdminDashboardContent() {
     </>
   );
 
-  const renderUserManagement = () => (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h2 className="text-xl font-bold text-slate-800">ইউজার ম্যানেজমেন্ট ও রোল সেটিং</h2>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 text-sm bg-primary text-white px-4 py-1.5 rounded-full shadow hover:bg-primary/90 transition-colors"
-          >
-            + নতুন ইউজার
-          </button>
-          <span className="flex items-center gap-2 text-sm bg-amber-50 text-amber-700 px-3 py-1 rounded-full border border-amber-200">
-            <ShieldAlert className="w-4 h-4" /> পেন্ডিং ইউজার: {users.filter(u => (u.role || "").trim().toUpperCase() === "GENERAL").length}
+  const renderUserManagement = () => {
+    const totalUsers = users.length;
+    const pendingUsersCount = users.filter(u => (u.role || "").trim().toUpperCase() === "GENERAL").length;
+    const activeUsersCount = users.filter(u => (u.role || "").trim().toUpperCase() !== "GENERAL").length;
+
+    // Filter users based on query, status, role, and date
+    const filteredUsers = users.filter((user) => {
+      // 1. Search Query
+      if (userSearchQuery.trim()) {
+        const q = userSearchQuery.toLowerCase();
+        const matchName = (user.name || "").toLowerCase().includes(q);
+        const matchEmail = (user.email || "").toLowerCase().includes(q);
+        const matchPhone = (user.phone || "").toLowerCase().includes(q);
+        const matchRole = (user.role || "").toLowerCase().includes(q);
+        if (!matchName && !matchEmail && !matchPhone && !matchRole) return false;
+      }
+
+      // 2. Status Filter
+      const isPending = (user.role || "").trim().toUpperCase() === "GENERAL";
+      if (userStatusFilter === "PENDING" && !isPending) return false;
+      if (userStatusFilter === "ACTIVE" && isPending) return false;
+
+      // 3. Role Filter
+      if (userRoleFilter !== "ALL") {
+        if ((user.role || "").trim().toUpperCase() !== userRoleFilter.toUpperCase()) {
+          return false;
+        }
+      }
+
+      // 4. Date Filter
+      if (user.createdAt && userDateMode !== "ALL") {
+        const userDate = new Date(user.createdAt);
+        if (!isNaN(userDate.getTime())) {
+          const userDateStr = userDate.toISOString().split("T")[0]; // YYYY-MM-DD
+          const todayStr = new Date().toISOString().split("T")[0];
+
+          if (userDateMode === "TODAY") {
+            if (userDateStr !== todayStr) return false;
+          } else if (userDateMode === "SPECIFIC" && userSpecificDate) {
+            if (userDateStr !== userSpecificDate) return false;
+          } else if (userDateMode === "RANGE") {
+            if (userStartDate && userDateStr < userStartDate) return false;
+            if (userEndDate && userDateStr > userEndDate) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+
+    const isFiltered = Boolean(
+      userSearchQuery.trim() ||
+      userStatusFilter !== "ALL" ||
+      userRoleFilter !== "ALL" ||
+      userDateMode !== "ALL" ||
+      userSpecificDate ||
+      userStartDate ||
+      userEndDate
+    );
+
+    const resetFilters = () => {
+      setUserSearchQuery("");
+      setUserStatusFilter("ALL");
+      setUserRoleFilter("ALL");
+      setUserDateMode("ALL");
+      setUserSpecificDate("");
+      setUserStartDate("");
+      setUserEndDate("");
+    };
+
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-0">
+        
+        {/* Top Header */}
+        <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-700" />
+              <span>ইউজার ম্যানেজমেন্ট ও রোল সেটিং</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              সকল নিবন্ধিত ইউজার, রোল অ্যাসাইনমেন্ট, পেন্ডিং অ্যাকাউন্ট এবং তারিখ ফিল্টারিং পরিচালনা করুন।
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Clickable Pending Users Filter Badge */}
+            <button
+              onClick={() => setUserStatusFilter(userStatusFilter === 'PENDING' ? 'ALL' : 'PENDING')}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                userStatusFilter === 'PENDING'
+                  ? 'bg-amber-600 text-white border-amber-600 ring-2 ring-amber-300'
+                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+              }`}
+              title="পেন্ডিং ইউজারদের তালিকা ফিল্টার করতে ক্লিক করুন"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>পেন্ডিং ইউজার: {pendingUsersCount}</span>
+            </button>
+
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold bg-emerald-700 text-white px-4 py-1.5 rounded-xl shadow-xs hover:bg-emerald-800 active:scale-95 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ নতুন ইউজার</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter & Search Toolbar */}
+        <div className="p-4 sm:p-5 bg-white border-b border-slate-100 space-y-3.5">
+          
+          {/* Row 1: Status Tabs + Search Input + Role Select */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            
+            {/* Status Tabs */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1 overflow-x-auto text-xs font-semibold shrink-0">
+              <button
+                type="button"
+                onClick={() => setUserStatusFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                  userStatusFilter === "ALL"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                সব ইউজার ({totalUsers})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserStatusFilter("PENDING")}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
+                  userStatusFilter === "PENDING"
+                    ? "bg-amber-500 text-white shadow-2xs font-bold"
+                    : "text-amber-800 hover:bg-amber-100/60"
+                }`}
+              >
+                <ShieldAlert className="w-3 h-3" />
+                <span>পেন্ডিং / সাধারণ ({pendingUsersCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserStatusFilter("ACTIVE")}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
+                  userStatusFilter === "ACTIVE"
+                    ? "bg-emerald-700 text-white shadow-2xs font-bold"
+                    : "text-emerald-800 hover:bg-emerald-100/60"
+                }`}
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                <span>অ্যাক্টিভ ({activeUsersCount})</span>
+              </button>
+            </div>
+
+            {/* Search and Role Filter */}
+            <div className="flex items-center gap-2.5 flex-1 max-w-2xl flex-wrap sm:flex-nowrap">
+              {/* Search Box */}
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="নাম, ইমেইল, ফোন বা রোল দিয়ে খুঁজুন..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 transition-colors"
+                />
+                {userSearchQuery && (
+                  <button
+                    onClick={() => setUserSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Role Dropdown Filter */}
+              <div className="w-full sm:w-48 shrink-0">
+                <select
+                  value={userRoleFilter}
+                  onChange={(e) => setUserRoleFilter(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 font-medium text-slate-700 cursor-pointer"
+                >
+                  <option value="ALL">সকল রোল (All Roles)</option>
+                  <option value="GENERAL">সাধারণ ইউজার (পেন্ডিং)</option>
+                  <option value="MADRASA">মাদরাসা (MADRASA)</option>
+                  <option value="MUALLIM">মুয়াল্লিম (MUALLIM)</option>
+                  <option value="TRAINER">প্রশিক্ষক (TRAINER)</option>
+                  <option value="VISITOR">পরিদর্শক (VISITOR)</option>
+                  <option value="ADMIN">অ্যাডমিন (ADMIN)</option>
+                  <option value="SUPER_ADMIN">সুপার অ্যাডমিন</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Date Filtering (Specific Date & Date Range) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="font-bold text-slate-700 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                <span>তৈরির তারিখ ফিল্টার:</span>
+              </span>
+
+              {/* Date Filter Mode Selection */}
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setUserDateMode("ALL")}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    userDateMode === "ALL" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600"
+                  }`}
+                >
+                  সকল সময়
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserDateMode("TODAY")}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    userDateMode === "TODAY" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600"
+                  }`}
+                >
+                  আজকের নিবন্ধন
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserDateMode("SPECIFIC")}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    userDateMode === "SPECIFIC" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600"
+                  }`}
+                >
+                  নির্দিষ্ট তারিখ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserDateMode("RANGE")}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    userDateMode === "RANGE" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600"
+                  }`}
+                >
+                  তারিখের রেঞ্জ
+                </button>
+              </div>
+
+              {/* Specific Date Picker */}
+              {userDateMode === "SPECIFIC" && (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={userSpecificDate}
+                    onChange={(e) => setUserSpecificDate(e.target.value)}
+                    className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                  {userSpecificDate && (
+                    <button
+                      onClick={() => setUserSpecificDate("")}
+                      className="p-1 text-slate-400 hover:text-slate-600 text-xs"
+                      title="তারিখ মুছুন"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Date Range Pickers (Start - End) */}
+              {userDateMode === "RANGE" && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <input
+                    type="date"
+                    value={userStartDate}
+                    onChange={(e) => setUserStartDate(e.target.value)}
+                    className="px-2 py-1 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600"
+                    placeholder="শুরুর তারিখ"
+                  />
+                  <span className="text-slate-400 text-xs">থেকে</span>
+                  <input
+                    type="date"
+                    value={userEndDate}
+                    onChange={(e) => setUserEndDate(e.target.value)}
+                    className="px-2 py-1 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600"
+                    placeholder="শেষ তারিখ"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Reset Filters */}
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors border border-red-200 shrink-0"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>ফিল্টার রিসেট</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Results Count Summary */}
+        <div className="px-6 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+          <span>
+            প্রদর্শিত হচ্ছে: <b className="text-slate-800">{filteredUsers.length}</b> টি ইউজার
+            {isFiltered && ` (মোট ${totalUsers} টি থেকে ফিল্টারকৃত)`}
           </span>
         </div>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-100">
-              <th className="px-6 py-4 font-medium">নাম ও ইমেইল</th>
-              <th className="px-6 py-4 font-medium">ফোন নম্বর</th>
-              <th className="px-6 py-4 font-medium">স্ট্যাটাস</th>
-              <th className="px-6 py-4 font-medium">ইউজারের ধরন (Role)</th>
-              <th className="px-6 py-4 font-medium text-right">অ্যাকশন</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                  <div className="flex justify-center mb-2">
-                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                  ডাটা লোড হচ্ছে...
-                </td>
+        
+        {/* Users Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200 uppercase tracking-wider">
+                <th className="px-6 py-3.5">নাম ও ইমেইল</th>
+                <th className="px-6 py-3.5">ফোন নম্বর</th>
+                <th className="px-6 py-3.5">তৈরির তারিখ</th>
+                <th className="px-6 py-3.5">স্ট্যাটাস</th>
+                <th className="px-6 py-3.5">ইউজারের ধরন (Role)</th>
+                <th className="px-6 py-3.5 text-right">অ্যাকশন</th>
               </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                  কোনো ইউজার পাওয়া যায়নি।
-                </td>
-              </tr>
-            ) : (
-              users.map((user) => (
-                <tr key={user._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-800">{user.name || "অজানা নাম"}</p>
-                    <p className="text-sm text-slate-500">{user.email}</p>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                    <div className="flex justify-center mb-2">
+                      <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    ডাটা লোড হচ্ছে...
                   </td>
-                  <td className="px-6 py-4 text-slate-600">{user.phone || "-"}</td>
-                  <td className="px-6 py-4">
-                    {(user.role || "").trim().toUpperCase() !== "GENERAL" ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> অ্যাক্টিভ
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                        <ShieldAlert className="w-3.5 h-3.5" /> সাধারণ
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    {user._id === 'master_admin_id' ? (
-                       <span className="inline-block font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-sm">সুপার অ্যাডমিন</span>
-                    ) : (
-                      <select
-                        value={(user.role || "").trim().toLowerCase()}
-                        onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                        className={`text-sm rounded-lg px-3 py-2 outline-none border focus:ring-2 transition-all cursor-pointer font-medium
-                          ${(user.role || "").trim().toUpperCase() === 'GENERAL' ? 'bg-slate-50 border-slate-300 text-slate-700 focus:ring-slate-500/50' : 
-                            'bg-blue-50 border-blue-200 text-blue-700 focus:ring-blue-500/50'}`}
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-14 text-center text-slate-400 space-y-2">
+                    <Users className="w-10 h-10 mx-auto text-slate-300 stroke-1" />
+                    <p className="font-semibold text-slate-600">কোনো ইউজার পাওয়া যায়নি।</p>
+                    {isFiltered && (
+                      <button
+                        onClick={resetFilters}
+                        className="text-xs text-emerald-700 hover:underline font-bold"
                       >
-                        <option value="general">সাধারণ ইউজার</option>
-                        <option value="madrasa">মাদরাসা</option>
-                        <option value="muallim">মুয়াল্লিম</option>
-                        <option value="trainer">প্রশিক্ষক</option>
-                        <option value="visitor">পরিদর্শক</option>
-                        <option value="admin">অ্যাডমিন</option>
-                      </select>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    {user._id !== 'master_admin_id' && (
-                      <>
-                        <button 
-                          onClick={() => handleImpersonate(user._id)}
-                          className="text-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium px-3 py-1.5 rounded-lg border border-indigo-200 transition-colors"
-                        >
-                          প্রবেশ করুন
-                        </button>
-                        <button className="text-sm text-primary hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                          বিস্তারিত
-                        </button>
-                      </>
+                        ফিল্টার পরিষ্কার করে সকল ইউজার দেখুন
+                      </button>
                     )}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                filteredUsers.map((user) => {
+                  const isPending = (user.role || "").trim().toUpperCase() === "GENERAL";
+                  const createdDate = user.createdAt ? new Date(user.createdAt) : null;
+                  const formattedDate = createdDate && !isNaN(createdDate.getTime())
+                    ? createdDate.toLocaleDateString("bn-BD", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                      })
+                    : "—";
 
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+                  return (
+                    <tr key={user._id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-6 py-3.5">
+                        <p className="font-bold text-xs sm:text-sm text-slate-800">{user.name || "অজানা নাম"}</p>
+                        <p className="text-xs text-slate-500 font-mono">{user.email}</p>
+                      </td>
+                      <td className="px-6 py-3.5 text-xs text-slate-600 font-mono">{user.phone || "—"}</td>
+                      <td className="px-6 py-3.5 text-xs text-slate-600 whitespace-nowrap">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span>{formattedDate}</span>
+                        </span>
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {!isPending ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3" /> অ্যাক্টিভ
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApprovingUser(user);
+                              setApprovalRole("MADRASA");
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-colors cursor-pointer"
+                            title="ক্লিক করে এই ইউজারকে অনুমোদন দিন"
+                          >
+                            <ShieldAlert className="w-3 h-3" />
+                            <span>সাধারণ / পেন্ডিং</span>
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {user._id === 'master_admin_id' ? (
+                          <span className="inline-block font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                            সুপার অ্যাডমিন
+                          </span>
+                        ) : (
+                          <select
+                            value={(user.role || "").trim().toLowerCase()}
+                            onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                            className={`text-xs rounded-lg px-2.5 py-1.5 outline-none border focus:ring-2 transition-all cursor-pointer font-bold
+                              ${isPending
+                                ? 'bg-amber-50/60 border-amber-300 text-amber-900 focus:ring-amber-500/50' 
+                                : 'bg-blue-50 border-blue-200 text-blue-700 focus:ring-blue-500/50'}`}
+                          >
+                            <option value="general">সাধারণ ইউজার (পেন্ডিং)</option>
+                            <option value="madrasa">মাদরাসা</option>
+                            <option value="muallim">মুয়াল্লিম</option>
+                            <option value="trainer">প্রশিক্ষক</option>
+                            <option value="visitor">পরিদর্শক</option>
+                            <option value="admin">অ্যাডমিন</option>
+                          </select>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5 text-right">
+                        <div className="flex justify-end gap-1.5 items-center">
+                          {/* Quick Approve Button for Pending users */}
+                          {isPending && user._id !== 'master_admin_id' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setApprovingUser(user);
+                                setApprovalRole("MADRASA");
+                              }}
+                              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg shadow-2xs transition-all active:scale-95 inline-flex items-center gap-1"
+                              title="ইউজার অ্যাকাউন্ট অনুমোদন দিন"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>অনুমোদন দিন</span>
+                            </button>
+                          )}
+
+                          {user._id !== 'master_admin_id' && (
+                            <button 
+                              onClick={() => handleImpersonate(user._id)}
+                              className="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold px-2.5 py-1 rounded-lg border border-indigo-200 transition-colors"
+                              title="এই ইউজারের প্রোফাইলে প্রবেশ করুন"
+                            >
+                              প্রবেশ করুন
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setSelectedUserDetails(user)}
+                            className="text-xs text-slate-700 hover:text-slate-900 font-bold px-2.5 py-1 rounded-lg hover:bg-slate-100 border border-slate-200 transition-colors"
+                          >
+                            বিস্তারিত
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Quick Approve Modal */}
+        {approvingUser && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4"
+            onClick={() => setApprovingUser(null)}
           >
-            <h2 className="text-xl font-bold mb-4 text-slate-800">নতুন ইউজার তৈরি করুন</h2>
-            <form onSubmit={handleCreateUser} className="space-y-4" autoComplete="off">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">নাম</label>
-                <input required type="text" name="user-name-new" autoComplete="new-password" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">ইমেইল</label>
-                <input required type="email" name="user-email-new" autoComplete="new-password" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">ফোন নম্বর</label>
-                <input type="tel" pattern="[0-9]+" title="শুধুমাত্র নম্বর ব্যবহার করুন" name="user-phone-new" autoComplete="new-password" value={newUser.phone} onChange={e => {
-                  const val = e.target.value.replace(/[^0-9]/g, '');
-                  setNewUser({...newUser, phone: val});
-                }} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">পাসওয়ার্ড</label>
-                <input required type="password" name="user-password-new" autoComplete="new-password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">ইউজারের ধরন</label>
-                <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50">
-                  <option value="GENERAL">সাধারণ ইউজার</option>
-                  <option value="MADRASA">মাদরাসা</option>
-                  <option value="MUALLIM">মুয়াল্লিম</option>
-                  <option value="TRAINER">প্রশিক্ষক</option>
-                  <option value="VISITOR">পরিদর্শক</option>
-                  <option value="ADMIN">অ্যাডমিন</option>
-                </select>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors">বাতিল</button>
-                <button type="submit" disabled={isCreating} className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-70">
-                  {isCreating ? "তৈরি হচ্ছে..." : "সংরক্ষণ করুন"}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 border border-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm sm:text-base">ইউজার অনুমোদন ও রোল নির্ধারণ</h3>
+                    <p className="text-[11px] text-slate-500">অনুমোদনের পর ইউজার তার ড্যাশবোর্ডে প্রবেশ করতে পারবে</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setApprovingUser(null)}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
-    </div>
-  );
+
+              <div className="p-3 bg-slate-50 rounded-xl space-y-1 border border-slate-200/80 text-xs">
+                <p className="text-slate-500 font-medium">আবেদনকারীর নাম: <b className="text-slate-900">{approvingUser.name || "অজানা"}</b></p>
+                <p className="text-slate-500 font-medium">ইমেইল: <b className="text-slate-900 font-mono">{approvingUser.email}</b></p>
+                <p className="text-slate-500 font-medium">ফোন: <b className="text-slate-900 font-mono">{approvingUser.phone || "—"}</b></p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  ইউজারের অনুমোদিত রোল (Role) নির্বাচন করুন:
+                </label>
+                <div className="space-y-1.5">
+                  {[
+                    { id: "MADRASA", label: "মাদরাসা (MADRASA)", desc: "মাদরাসা প্রোফাইল ও শিক্ষার্থী পরিচালনা" },
+                    { id: "MUALLIM", label: "মুয়াল্লিম (MUALLIM)", desc: "শিক্ষক ও মুয়াল্লিম প্যানেল" },
+                    { id: "TRAINER", label: "প্রশিক্ষক (TRAINER)", desc: "প্রশিক্ষণ কোর্স ও ব্যাচ পরিচালনা" },
+                    { id: "VISITOR", label: "পরিদর্শক (VISITOR)", desc: "পরিদর্শন ও রিপোর্ট তৈরি" },
+                    { id: "ADMIN", label: "অ্যাডমিন (ADMIN)", desc: "পূর্ণ প্রশাসনিক এক্সেস" },
+                  ].map((r) => (
+                    <label
+                      key={r.id}
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        approvalRole === r.id
+                          ? "bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-200"
+                          : "bg-white hover:bg-slate-50 border-slate-200"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="approvalRoleRadio"
+                        value={r.id}
+                        checked={approvalRole === r.id}
+                        onChange={(e) => setApprovalRole(e.target.value)}
+                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">{r.label}</span>
+                        <span className="text-[10.5px] text-slate-500">{r.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setApprovingUser(null)}
+                  className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleRoleChange(approvingUser._id, approvalRole);
+                    setApprovingUser(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                  <span>✓ অনুমোদন নিশ্চিত করুন</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* User Details Modal */}
+        {selectedUserDetails && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4"
+            onClick={() => setSelectedUserDetails(null)}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 border border-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-base">ইউজারের বিস্তারিত তথ্য</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedUserDetails(null)}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2.5 text-xs text-slate-700">
+                <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 border border-slate-200/80">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">নাম:</span>
+                    <span className="font-bold text-slate-900">{selectedUserDetails.name || "অজানা"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">ইমেইল:</span>
+                    <span className="font-mono text-slate-900 font-semibold">{selectedUserDetails.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">ফোন নম্বর:</span>
+                    <span className="font-mono text-slate-900 font-semibold">{selectedUserDetails.phone || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">ইউজারের রোল:</span>
+                    <span className="font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                      {selectedUserDetails.role}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">স্ট্যাটাস:</span>
+                    <span className={`font-bold px-2 py-0.5 rounded ${
+                      (selectedUserDetails.role || "").trim().toUpperCase() === "GENERAL"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}>
+                      {(selectedUserDetails.role || "").trim().toUpperCase() === "GENERAL" ? "পেন্ডিং / সাধারণ" : "অ্যাক্টিভ"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">অ্যাকাউন্ট তৈরির তারিখ:</span>
+                    <span className="font-semibold text-slate-800">
+                      {selectedUserDetails.createdAt
+                        ? new Date(selectedUserDetails.createdAt).toLocaleString("bn-BD", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">ইউজার আইডি:</span>
+                    <span className="font-mono text-[10px] text-slate-400 select-all">{selectedUserDetails._id}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                {/* If pending, allow approving directly from details modal */}
+                {(selectedUserDetails.role || "").trim().toUpperCase() === "GENERAL" && (
+                  <button
+                    onClick={() => {
+                      const u = selectedUserDetails;
+                      setSelectedUserDetails(null);
+                      setApprovingUser(u);
+                      setApprovalRole("MADRASA");
+                    }}
+                    className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>✓ অনুমোদন দিন</span>
+                  </button>
+                )}
+                {selectedUserDetails._id !== 'master_admin_id' && (
+                  <button
+                    onClick={() => {
+                      handleImpersonate(selectedUserDetails._id);
+                      setSelectedUserDetails(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                  >
+                    এই আইডিতে প্রবেশ করুন
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedUserDetails(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                >
+                  বন্ধ করুন
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Create User Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-bold mb-4 text-slate-800">নতুন ইউজার তৈরি করুন</h2>
+              <form onSubmit={handleCreateUser} className="space-y-4" autoComplete="off">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">নাম</label>
+                  <input required type="text" name="user-name-new" autoComplete="new-password" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">ইমেইল</label>
+                  <input required type="email" name="user-email-new" autoComplete="new-password" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">ফোন নম্বর</label>
+                  <input type="tel" pattern="[0-9]+" title="শুধুমাত্র নম্বর ব্যবহার করুন" name="user-phone-new" autoComplete="new-password" value={newUser.phone} onChange={e => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setNewUser({...newUser, phone: val});
+                  }} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">পাসওয়ার্ড</label>
+                  <input required type="password" name="user-password-new" autoComplete="new-password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">ইউজারের ধরন</label>
+                  <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary/50">
+                    <option value="GENERAL">সাধারণ ইউজার</option>
+                    <option value="MADRASA">মাদরাসা</option>
+                    <option value="MUALLIM">মুয়াল্লিম</option>
+                    <option value="TRAINER">প্রশিক্ষক</option>
+                    <option value="VISITOR">পরিদর্শক</option>
+                    <option value="ADMIN">অ্যাডমিন</option>
+                  </select>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors">বাতিল</button>
+                  <button type="submit" disabled={isCreating} className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-70">
+                    {isCreating ? "তৈরি হচ্ছে..." : "সংরক্ষণ করুন"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderMadrasaManagement = () => (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
-  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2
+  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
 
@@ -131,6 +131,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   const [ownerName, setOwnerName] = useState(initialState?.ownerName || "");
   const [instituteName, setInstituteName] = useState(initialState?.instituteName || "");
   const [contactNo, setContactNo] = useState(initialState?.contactNo || "");
+  const [customerEmail, setCustomerEmail] = useState(initialState?.customerEmail || "");
+  const [customerPassword, setCustomerPassword] = useState(initialState?.customerPassword || "");
   const [address, setAddress] = useState(initialState?.address || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -247,6 +249,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
         body: JSON.stringify({
           customerName: ownerName,
           customerPhone: contactNo,
+          customerEmail: customerEmail.trim() || undefined,
+          password: customerPassword.trim() || undefined,
           instituteId: instituteName,
           items,
           notes: `${address}${ilhakText}`,
@@ -276,7 +280,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[90vh]">
         <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
           <h2 className="font-bold text-slate-800 text-lg">অর্ডার নিশ্চিত করুন</h2>
-          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, address, searchStatus, paymentStep })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address, searchStatus, paymentStep })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
@@ -296,12 +300,12 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                         if (searchStatus !== "idle") setSearchStatus("idle");
                       }}
                       placeholder="যেমন: 1234 বা 01XXXXXXXXX"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
                     />
                     <button
                       onClick={searchIlhak}
                       disabled={isLoading || !ilhak.trim()}
-                      className="px-5 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50 flex-shrink-0"
+                      className="px-4 py-2.5 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50 flex-shrink-0 text-sm"
                     >
                       {isLoading ? "খুঁজছি..." : "খুঁজুন"}
                     </button>
@@ -310,65 +314,98 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   {searchStatus === "not_found" && <p className="text-xs text-amber-600 mt-1.5 font-medium">⚠ {ilhak.trim().length === 11 && ilhak.trim().startsWith("01") ? "মোবাইল নম্বর" : "ইলহাক"} পাওয়া যায়নি। নতুন তথ্য সেভ করা হবে।</p>}
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">মালিকের নাম <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">মালিকের নাম <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
                       placeholder="আপনার পুরো নাম"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">প্রতিষ্ঠানের নাম <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">প্রতিষ্ঠানের নাম <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={instituteName}
                       onChange={(e) => setInstituteName(e.target.value)}
                       placeholder="মাদরাসা/প্রতিষ্ঠানের নাম"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">মোবাইল নম্বর</label>
-                  <input
-                    type="tel"
-                    value={contactNo}
-                    onChange={(e) => setContactNo(e.target.value)}
-                    placeholder="01XXXXXXXXX"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">মোবাইল নম্বর <span className="text-red-500">*</span></label>
+                    <input
+                      type="tel"
+                      value={contactNo}
+                      onChange={(e) => setContactNo(e.target.value)}
+                      placeholder="01XXXXXXXXX"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">ইমেইল <span className="text-slate-400 font-normal">(ঐচ্ছিক)</span></label>
+                    <input
+                      type="email"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      placeholder="user@example.com"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
+                    />
+                  </div>
                 </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-primary" />
+                    <label className="block text-xs font-bold text-slate-700">
+                      অ্যাকাউন্ট পাসওয়ার্ড <span className="text-[11px] text-slate-500 font-normal">(ঐচ্ছিক / লগইনের জন্য)</span>
+                    </label>
+                  </div>
+                  <input
+                    type="password"
+                    value={customerPassword}
+                    onChange={(e) => setCustomerPassword(e.target.value)}
+                    placeholder="পাসওয়ার্ড দিন (না দিলে স্বয়ংক্রিয় পাসওয়ার্ড তৈরি হবে)"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white text-sm"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    💡 এই তথ্য দিয়ে পরবর্তীতে ওয়েবসাইটে লগইন করে আপনার সব অর্ডার ও তথ্য ট্র্যাক করতে পারবেন।
+                  </p>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span></label>
                   <textarea
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="গ্রাম/মহল্লা, ডাকঘর, উপজেলা, জেলা"
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none bg-slate-50 focus:bg-white"
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none bg-slate-50 focus:bg-white text-sm"
                   ></textarea>
                 </div>
               </div>
 
-              <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between">
-                <span className="font-bold text-slate-500">সর্বমোট বিল:</span>
-                <span className="text-2xl font-black text-primary">৳{total.toFixed(2)}</span>
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="font-bold text-slate-500 text-sm">সর্বমোট বিল:</span>
+                <span className="text-xl font-black text-primary">৳{total.toFixed(2)}</span>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-3 mt-4">
                 <button
-                  onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, address, searchStatus, paymentStep })}
-                  className="w-1/2 py-4 bg-slate-100 text-slate-700 rounded-xl font-bold text-lg hover:bg-slate-200 transition-all border border-slate-200"
+                  onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address, searchStatus, paymentStep })}
+                  className="w-1/2 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all border border-slate-200"
                 >
                   আরও পণ্য যোগ করুন
                 </button>
                 <button
                   onClick={validateAndProceed}
-                  className="w-1/2 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 active:scale-[0.98]"
+                  className="w-1/2 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/25 active:scale-[0.98]"
                 >
                   পেমেন্ট অপশন
                 </button>
@@ -586,6 +623,43 @@ export default function StorePage() {
   const [loading, setLoading] = useState(true);
   const [successOrder, setSuccessOrder] = useState<any>(null);
   const [orderFormState, setOrderFormState] = useState<any>(null);
+  const [customPasswordInput, setCustomPasswordInput] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSaveStatus, setPasswordSaveStatus] = useState<string | null>(null);
+
+  const handleSetPassword = async () => {
+    if (!customPasswordInput || customPasswordInput.trim().length < 4) {
+      setPasswordSaveStatus("error:পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে");
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const res = await fetch("/api/auth/set-order-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: successOrder?.userAccount?.id,
+          phone: successOrder?.userAccount?.phone,
+          email: successOrder?.userAccount?.email,
+          newPassword: customPasswordInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update password");
+      setPasswordSaveStatus("success:পাসওয়ার্ড সফলভাবে সংরক্ষিত হয়েছে!");
+      setSuccessOrder((prev: any) => ({
+        ...prev,
+        userAccount: {
+          ...prev.userAccount,
+          initialPassword: customPasswordInput.trim(),
+        }
+      }));
+    } catch (err: any) {
+      setPasswordSaveStatus(`error:${err.message}`);
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const printInvoice = (orderToPrint = successOrder) => {
     if (!orderToPrint) return;
@@ -1202,27 +1276,93 @@ export default function StorePage() {
       {/* Success Modal */}
       {successOrder && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle className="w-8 h-8" />
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col items-center text-center max-h-[90vh] overflow-y-auto">
+            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3 flex-shrink-0">
+              <CheckCircle className="w-7 h-7" />
             </div>
-            <h3 className="font-black text-2xl text-slate-800 mb-2">অর্ডার সফল হয়েছে!</h3>
-            <p className="text-slate-500 mb-6">আপনার অর্ডারটি আমাদের সিস্টেমে গ্রহণ করা হয়েছে। আপনার ইনভয়েস আইডি:</p>
-            <div className="bg-slate-100 text-slate-800 font-black text-xl px-4 py-2 rounded-lg mb-6 border border-slate-200 shadow-inner flex items-center justify-between gap-4">
-              <span>{successOrder.invoiceId}</span>
+            <h3 className="font-black text-2xl text-slate-800 mb-1">অর্ডার সফল হয়েছে!</h3>
+            <p className="text-slate-500 text-sm mb-4">আপনার অর্ডারটি আমাদের সিস্টেমে গ্রহণ করা হয়েছে। আপনার ইনভয়েস আইডি:</p>
+            
+            <div className="w-full bg-slate-100 text-slate-800 font-black text-lg px-4 py-2.5 rounded-xl mb-4 border border-slate-200 shadow-inner flex items-center justify-between gap-4">
+              <span className="tracking-wider">{successOrder.invoiceId}</span>
               <button
                 onClick={() => navigator.clipboard.writeText(successOrder.invoiceId)}
                 title="কপি করুন"
-                className="p-1.5 hover:bg-slate-200 rounded-md text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-1.5 hover:bg-slate-200 rounded-md text-slate-500 hover:text-slate-700 transition-colors"
               >
-                <Copy className="w-5 h-5" />
+                <Copy className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex flex-col gap-3 w-full">
-              <button onClick={() => printInvoice(successOrder)} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
+
+            {/* User Account Info Banner */}
+            {successOrder.userAccount && (
+              <div className="w-full mb-4 text-left bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs mb-2">
+                  <UserCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{successOrder.userAccount.isNew ? "🎉 নতুন ইউজার অ্যাকাউন্ট তৈরি হয়েছে!" : "✓ বিদ্যমান অ্যাকাউন্টে অর্ডার সংরক্ষিত হয়েছে"}</span>
+                </div>
+                <div className="space-y-1 text-xs text-slate-700">
+                  <p><strong className="text-slate-500">নাম:</strong> {successOrder.userAccount.name}</p>
+                  <p><strong className="text-slate-500">লগইন আইডি / ফোন:</strong> {successOrder.userAccount.phone || successOrder.userAccount.email}</p>
+                  {successOrder.userAccount.email && (
+                    <p><strong className="text-slate-500">ইমেইল:</strong> {successOrder.userAccount.email}</p>
+                  )}
+                  
+                  {successOrder.userAccount.isNew && (
+                    <div className="mt-2 pt-2 border-t border-emerald-200/80">
+                      <div className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-emerald-300/80 mb-2">
+                        <span className="text-[11px] text-slate-600 font-medium">লগইন পাসওয়ার্ড:</span>
+                        <span className="font-mono font-bold text-emerald-700 text-xs">{successOrder.userAccount.initialPassword || "আপনার সেট করা পাসওয়ার্ড"}</span>
+                      </div>
+                      
+                      {/* Interactive password customize option */}
+                      <div className="mt-2">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          পাসওয়ার্ড পরিবর্তন/সেট করতে চান?
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            placeholder="নতুন পাসওয়ার্ড লিখুন..."
+                            value={customPasswordInput}
+                            onChange={(e) => {
+                              setCustomPasswordInput(e.target.value);
+                              setPasswordSaveStatus(null);
+                            }}
+                            className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 bg-white"
+                          />
+                          <button
+                            onClick={handleSetPassword}
+                            disabled={passwordSaving || !customPasswordInput.trim()}
+                            className="px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 disabled:opacity-50 transition-colors flex-shrink-0"
+                          >
+                            {passwordSaving ? "..." : "সংরক্ষণ"}
+                          </button>
+                        </div>
+                        {passwordSaveStatus && (
+                          <p className={`text-[11px] mt-1 font-medium ${passwordSaveStatus.startsWith("success") ? "text-emerald-700" : "text-red-600"}`}>
+                            {passwordSaveStatus.replace(/^(success|error):/, "")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2.5 w-full">
+              <button onClick={() => printInvoice(successOrder)} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 text-sm">
                 ইনভয়েস প্রিন্ট করুন
               </button>
-              <button onClick={() => setSuccessOrder(null)} className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+              <button
+                onClick={() => {
+                  setSuccessOrder(null);
+                  setCustomPasswordInput("");
+                  setPasswordSaveStatus(null);
+                }}
+                className="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors text-sm"
+              >
                 বন্ধ করুন
               </button>
             </div>

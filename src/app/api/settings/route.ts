@@ -17,6 +17,36 @@ export interface HeroSlide {
   buttonLink?: string;
 }
 
+const DEFAULT_HERO_SLIDES: HeroSlide[] = [
+  {
+    id: "slide-default-1",
+    imageUrl: "/images/hero/slide1.jpg",
+    title: "খুলনা নূরানী বোর্ডে স্বাগতম",
+    subtitle: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
+    description: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
+    buttonText: "মাদরাসা নিবন্ধন করুন",
+    buttonLink: "/register"
+  },
+  {
+    id: "slide-default-2",
+    imageUrl: "/images/hero/slide2.jpg",
+    title: "ইসলামি শিক্ষায় শ্রেষ্ঠত্ব",
+    subtitle: "আজই আমাদের মাদরাসার বিশাল নেটওয়ার্কে যুক্ত হোন এবং জ্ঞান অর্জনে নিবেদিত একটি ক্রমবর্ধমান সম্প্রদায়ের অংশ হন।",
+    description: "আজই আমাদের মাদরাসার বিশাল নেটওয়ার্কে যুক্ত হোন এবং জ্ঞান অর্জনে নিবেদিত একটি ক্রমবর্ধমান সম্প্রদায়ের অংশ হন।",
+    buttonText: "আরও জানুন",
+    buttonLink: "/about"
+  },
+  {
+    id: "slide-default-3",
+    imageUrl: "/images/hero/slide3.jpg",
+    title: "আপনার মাদরাসা এখনই নিবন্ধন করুন",
+    subtitle: "নতুন মাদরাসাগুলির জন্য সহজ নিবন্ধন প্রক্রিয়া। অনুমোদন পান এবং আমাদের নির্দেশিকায় কাজ শুরু করুন।",
+    description: "নতুন মাদরাসাগুলির জন্য সহজ নিবন্ধন প্রক্রিয়া। অনুমোদন পান এবং আমাদের নির্দেশিকায় কাজ শুরু করুন।",
+    buttonText: "মাদরাসা নিবন্ধন করুন",
+    buttonLink: "/register"
+  }
+];
+
 async function getCoverFlags(): Promise<{
   showCoverAboveNavbar: boolean;
   showCoverInPageHeader: boolean;
@@ -26,17 +56,42 @@ async function getCoverFlags(): Promise<{
 }> {
   try {
     const record = await prisma.pageContent.findUnique({ where: { slug: FLAGS_SLUG } });
-    if (!record) return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: [] };
+    if (!record) {
+      const initial = {
+        showCoverAboveNavbar: false,
+        showCoverInPageHeader: false,
+        scrollingNotice: "",
+        showScrollingNotice: false,
+        heroSlides: DEFAULT_HERO_SLIDES,
+      };
+      await prisma.pageContent.create({
+        data: { slug: FLAGS_SLUG, content: JSON.stringify(initial) }
+      }).catch(() => {});
+      return initial;
+    }
     const parsed = JSON.parse(record.content);
+    const slides = Array.isArray(parsed.heroSlides) && parsed.heroSlides.length > 0
+      ? parsed.heroSlides
+      : DEFAULT_HERO_SLIDES;
+
+    // If heroSlides was empty in DB, persist default slides into DB
+    if (!Array.isArray(parsed.heroSlides) || parsed.heroSlides.length === 0) {
+      const updatedContent = { ...parsed, heroSlides: DEFAULT_HERO_SLIDES };
+      await prisma.pageContent.update({
+        where: { slug: FLAGS_SLUG },
+        data: { content: JSON.stringify(updatedContent) }
+      }).catch(() => {});
+    }
+
     return {
       showCoverAboveNavbar:  parsed.showCoverAboveNavbar  ?? false,
       showCoverInPageHeader: parsed.showCoverInPageHeader ?? false,
       scrollingNotice:       parsed.scrollingNotice ?? "",
       showScrollingNotice:   parsed.showScrollingNotice ?? false,
-      heroSlides:            Array.isArray(parsed.heroSlides) ? parsed.heroSlides : [],
+      heroSlides:            slides,
     };
   } catch {
-    return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: [] };
+    return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: DEFAULT_HERO_SLIDES };
   }
 }
 

@@ -1,12 +1,86 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import connectDB from "@/lib/mongodb";
+import User from "@/lib/models/User";
+import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
   try {
-    const { customerName, customerPhone, instituteId, items, notes, paymentOption, paymentProvider, trxId, receiptNumber } = await request.json();
+    const {
+      customerName,
+      customerPhone,
+      customerEmail,
+      password,
+      instituteId,
+      items,
+      notes,
+      paymentOption,
+      paymentProvider,
+      trxId,
+      receiptNumber,
+      remainingOption,
+      remainingProvider,
+      remainingTrxId,
+    } = await request.json();
     
     if (!customerName || !items || items.length === 0) {
       return NextResponse.json({ error: "customerName and items are required" }, { status: 400 });
+    }
+
+    // Auto-create or link User Account
+    let userAccountInfo: any = null;
+    try {
+      await connectDB();
+      const phoneClean = customerPhone ? String(customerPhone).trim() : "";
+      const emailClean = customerEmail ? String(customerEmail).trim().toLowerCase() : "";
+
+      let matchedUser: any = null;
+      const orConditions: any[] = [];
+      if (phoneClean) orConditions.push({ phone: phoneClean });
+      if (emailClean) orConditions.push({ email: emailClean });
+
+      if (orConditions.length > 0) {
+        matchedUser = await User.findOne({ $or: orConditions });
+      }
+
+      if (matchedUser) {
+        userAccountInfo = {
+          id: matchedUser._id.toString(),
+          name: matchedUser.name || customerName,
+          phone: matchedUser.phone || phoneClean,
+          email: matchedUser.email || emailClean,
+          role: matchedUser.role || "GENERAL",
+          isNew: false,
+        };
+      } else {
+        // Create new account
+        const rawPassword = (password && String(password).trim().length >= 4)
+          ? String(password).trim()
+          : (phoneClean && phoneClean.length >= 6 ? phoneClean.slice(-6) : "123456");
+        
+        const hashedPassword = await bcrypt.hash(rawPassword, 10);
+        const finalEmail = emailClean || (phoneClean ? `${phoneClean}@nuraniboard.com` : `user_${Date.now()}@nuraniboard.com`);
+
+        const newUser = await User.create({
+          name: customerName.trim(),
+          phone: phoneClean || undefined,
+          email: finalEmail,
+          password: hashedPassword,
+          role: "GENERAL",
+        });
+
+        userAccountInfo = {
+          id: newUser._id.toString(),
+          name: newUser.name,
+          phone: newUser.phone,
+          email: newUser.email,
+          role: newUser.role,
+          isNew: true,
+          initialPassword: password ? undefined : rawPassword,
+        };
+      }
+    } catch (userErr: any) {
+      console.warn("User link/create warning in store order:", userErr?.message);
     }
 
     // Verify Money Receipt before proceeding if selected
@@ -170,7 +244,10 @@ export async function POST(request: Request) {
       include: { items: { include: { product: true } }, payments: true }
     });
 
-    return NextResponse.json(updatedSale);
+    return NextResponse.json({
+      ...updatedSale,
+      userAccount: userAccountInfo,
+    });
   } catch (error) {
     console.error("Failed to create online order:", error);
     return NextResponse.json({ error: "Failed to create online order: " + (error as any)?.message }, { status: 500 });

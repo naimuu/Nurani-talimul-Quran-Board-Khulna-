@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Briefcase, Users, Phone, Building2, Upload, Link as LinkIcon, Globe, RefreshCw, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Briefcase, Users, Phone, Building2, Upload, Link as LinkIcon, Globe, RefreshCw, ExternalLink, Layers, Sidebar as SidebarIcon } from "lucide-react";
+import SliderMediaSidebar from "@/components/admin/SliderMediaSidebar";
 import toast from "react-hot-toast";
 
 interface ContactInfo {
@@ -205,6 +206,7 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
     heroSlides: (settings?.heroSlides || []) as HeroSlide[],
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [uploadingSlide, setUploadingSlide] = useState(false);
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [urlSlideForm, setUrlSlideForm] = useState({
@@ -223,8 +225,22 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
   useEffect(() => {
     const saved = localStorage.getItem('boardSettingsGeneralDraft');
     if (saved) {
-      try { setFormData(JSON.parse(saved)); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed) {
+          const slides = Array.isArray(parsed.heroSlides) && parsed.heroSlides.length > 0
+            ? parsed.heroSlides
+            : (settings?.heroSlides && settings.heroSlides.length > 0 ? settings.heroSlides : DEFAULT_HERO_SLIDES);
+          setFormData({
+            ...parsed,
+            heroSlides: slides,
+          });
+        }
+      } catch (e) {}
     } else if (settings) {
+      const slides = Array.isArray(settings.heroSlides) && settings.heroSlides.length > 0
+        ? settings.heroSlides
+        : DEFAULT_HERO_SLIDES;
       setFormData({
         name: settings.name || "",
         address: settings.address || "",
@@ -232,7 +248,7 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
         coverUrl: settings.coverUrl || "",
         showCoverAboveNavbar: settings.showCoverAboveNavbar ?? false,
         showCoverInPageHeader: settings.showCoverInPageHeader ?? false,
-        heroSlides: settings.heroSlides || [],
+        heroSlides: slides,
       });
     }
   }, [settings]);
@@ -535,338 +551,48 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
           </label>
         </div>
 
-        {/* Hero Slider Images Management */}
-        <div className="bg-slate-50 rounded-xl p-4 sm:p-5 border border-slate-200 space-y-4">
+        {/* Hero Slider Images Management & Sidebar */}
+        <div className="bg-slate-50 rounded-2xl p-4 sm:p-6 border border-slate-200 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
             <div>
               <h4 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-emerald-700" />
-                <span>হোমপেজ টপ ব্যানার স্লাইডার (Hero Slider Images)</span>
+                <span>হোমপেজ টপ ব্যানার স্লাইডার (Hero Slider Images & Media List)</span>
               </h4>
               <p className="text-xs text-slate-500 mt-0.5">
-                হোমপেজের নেভবারের নিচে একের পর এক স্বয়ংক্রিয়ভাবে স্লাইড হওয়া ছবি ও ব্যানারসমূহ ফাইল বা সরাসরি লিংক দিয়ে পরিচালনা করুন।
+                হোমপেজে ব্যবহৃত সকল ছবির লিঙ্ক, আপলোড ফাইল, অপসারণ এবং নতুন ইমেজ কন্ট্রোল করুন।
               </p>
             </div>
 
-            {/* Action Buttons: Upload File, Add Link, Load Defaults */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                onClick={() => slideFileInputRef.current?.click()}
-                disabled={uploadingSlide}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
-                title="সরাসরি কম্পিউটার/মোবাইল থেকে ছবি আপলোড করুন"
+                onClick={() => setIsSidebarOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer shrink-0"
+                title="পূর্ণ সাইডবার প্যানেল ওপেন করুন"
               >
-                <Upload className="w-3.5 h-3.5 text-amber-300" />
-                <span>{uploadingSlide ? "আপলোড হচ্ছে..." : "+ ফাইল আপলোড"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowUrlModal(!showUrlModal)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer shrink-0"
-                title="ছবির সরাসরি ওয়েব লিংক বা পাথ দিয়ে যোগ করুন"
-              >
-                <LinkIcon className="w-3.5 h-3.5 text-blue-200" />
-                <span>+ লিংক দিয়ে যোগ করুন</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={loadDefaultSlides}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-semibold transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer shrink-0"
-                title="বোর্ডের ৩টি ডিফল্ট স্লাইডার ছবি লোড করুন"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-slate-300" />
-                <span>ডিফল্ট স্লাইড লোড</span>
+                <SidebarIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>📋 সাইডবার ড্রয়ার ভিউ</span>
               </button>
             </div>
+          </div>
 
-            {/* Hidden File inputs */}
-            <input
-              type="file"
-              ref={slideFileInputRef}
-              onChange={handleSlideUpload}
-              accept="image/*"
-              className="hidden"
-            />
-            <input
-              type="file"
-              ref={replaceFileInputRef}
-              onChange={handleReplaceSlideUpload}
-              accept="image/*"
-              className="hidden"
+          {/* Embedded Slider Media Sidebar List & Controls */}
+          <div className="w-full">
+            <SliderMediaSidebar
+              slides={formData.heroSlides || []}
+              onUpdateSlides={(newSlides) => setFormData((prev) => ({ ...prev, heroSlides: newSlides }))}
             />
           </div>
 
-          {/* Add via Link / URL Card Form */}
-          {showUrlModal && (
-            <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                  <Globe className="w-4 h-4 text-blue-600" />
-                  ইমেজ লিংক / সরাসরি URL দিয়ে স্লাইড যোগ করুন
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowUrlModal(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    ছবির সরাসরি লিংক / URL (Image Link/Path) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="উদাঃ https://images.unsplash.com/... অথবা /images/hero/slide1.jpg"
-                    value={urlSlideForm.imageUrl}
-                    onChange={e => setUrlSlideForm({ ...urlSlideForm, imageUrl: e.target.value })}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-blue-200 bg-white focus:outline-none focus:border-blue-600 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    ব্যানার শিরোনাম (Title - ঐচ্ছিক)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="উদাঃ খুলনা নূরানী বোর্ডে স্বাগতম"
-                    value={urlSlideForm.title}
-                    onChange={e => setUrlSlideForm({ ...urlSlideForm, title: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-blue-200 bg-white focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    সাবটাইটেল / বিবরণ (Description - ঐচ্ছিক)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="উদাঃ আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষা"
-                    value={urlSlideForm.description}
-                    onChange={e => setUrlSlideForm({ ...urlSlideForm, description: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-blue-200 bg-white focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    বাটন লেখা (Button Text - ঐচ্ছিক)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="উদাঃ মাদরাসা নিবন্ধন করুন"
-                    value={urlSlideForm.buttonText}
-                    onChange={e => setUrlSlideForm({ ...urlSlideForm, buttonText: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-blue-200 bg-white focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    বাটন লিংক (Button Link - ঐচ্ছিক)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="উদাঃ /register বা /about"
-                    value={urlSlideForm.buttonLink}
-                    onChange={e => setUrlSlideForm({ ...urlSlideForm, buttonLink: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-blue-200 bg-white focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-              </div>
-
-              {urlSlideForm.imageUrl && (
-                <div className="mt-2 flex items-center gap-3 bg-white p-2 rounded-xl border border-blue-100">
-                  <div className="w-20 h-12 rounded-lg bg-slate-900 overflow-hidden shrink-0">
-                    <img src={urlSlideForm.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                  </div>
-                  <span className="text-[11px] text-slate-500 truncate">ছবির প্রিভিউ</span>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowUrlModal(false)}
-                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddUrlSlide}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs"
-                >
-                  + স্লাইড যুক্ত করুন
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Slides List */}
-          {(!formData.heroSlides || formData.heroSlides.length === 0) ? (
-            <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-300 text-slate-400 space-y-3">
-              <ImageIcon className="w-10 h-10 mx-auto text-slate-300" />
-              <p className="text-sm font-semibold text-slate-600">এখনও কোনো কাস্টম স্লাইডার ছবি যোগ করা হয়নি।</p>
-              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                বর্তমানে হোমপেজে ডিফল্ট ৩টি ইসলামিক ব্যানার স্বয়ংক্রিয়ভাবে প্রদর্শিত হচ্ছে। আপনি যেকোনো সময় ফাইল আপলোড বা সরাসরি ছবির লিংক দিয়ে নতুন স্লাইড যুক্ত করতে পারেন অথবা নিচের বাটনে ক্লিক করে ডিফল্ট স্লাইডগুলো এডিট করতে পারেন।
-              </p>
-              <div className="flex items-center justify-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={loadDefaultSlides}
-                  className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-xs"
-                >
-                  ডিফল্ট ৩টি স্লাইড লোড ও এডিট করুন
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {formData.heroSlides.map((slide, index) => (
-                <div
-                  key={slide.id || index}
-                  className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col md:flex-row gap-4 items-start relative group"
-                >
-                  {/* Thumbnail & Change File Action */}
-                  <div className="w-full md:w-52 flex flex-col gap-2 shrink-0">
-                    <div className="w-full h-28 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 relative group/thumb">
-                      <img
-                        src={slide.imageUrl}
-                        alt={`Slide ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e: any) => { e.currentTarget.src = "/images/hero/slide1.jpg"; }}
-                      />
-                      <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                        স্লাইড #{index + 1}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReplacingIndex(index);
-                        replaceFileInputRef.current?.click();
-                      }}
-                      className="w-full py-1 px-2 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded-lg text-[11px] font-semibold transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Upload className="w-3 h-3 text-emerald-600" />
-                      <span>ছবি পরিবর্তন (ফাইল)</span>
-                    </button>
-                  </div>
-
-                  {/* Form Inputs for Image Link & Overlay Text */}
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
-                    
-                    {/* Direct Image Link / URL Input */}
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-bold text-slate-700 mb-0.5 flex items-center gap-1">
-                        <LinkIcon className="w-3 h-3 text-emerald-600" />
-                        <span>ছবির লিংক / সোর্স পাথ (Image URL / Path):</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="https://... অথবা /uploads/... অথবা /images/..."
-                        value={slide.imageUrl || ""}
-                        onChange={e => updateSlideField(index, 'imageUrl', e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono bg-slate-50/50"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                        ব্যানার শিরোনাম (Title - ঐচ্ছিক)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="উদাঃ খুলনা নূরানী বোর্ডে স্বাগতম"
-                        value={slide.title || ""}
-                        onChange={e => updateSlideField(index, 'title', e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                        সাবটাইটেল / বিবরণ (Description - ঐচ্ছিক)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="উদাঃ আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষা"
-                        value={slide.description || slide.subtitle || ""}
-                        onChange={e => updateSlideField(index, 'description', e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                        বাটন লেখা (Button Text - ঐচ্ছিক)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="উদাঃ মাদরাসা নিবন্ধন করুন"
-                        value={slide.buttonText || ""}
-                        onChange={e => updateSlideField(index, 'buttonText', e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                        বাটন লিংক (Button Link - ঐচ্ছিক)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="উদাঃ /register বা /about"
-                        value={slide.buttonLink || ""}
-                        onChange={e => updateSlideField(index, 'buttonLink', e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Actions (Reorder, Delete) */}
-                  <div className="flex md:flex-col items-center gap-1.5 shrink-0 self-end md:self-center border-t md:border-t-0 md:border-l border-slate-100 pt-2 md:pt-0 md:pl-3 w-full md:w-auto justify-end">
-                    <button
-                      type="button"
-                      onClick={() => moveSlide(index, 'up')}
-                      disabled={index === 0}
-                      className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 disabled:opacity-30"
-                      title="উপরে নিন"
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSlide(index, 'down')}
-                      disabled={index === (formData.heroSlides?.length || 0) - 1}
-                      className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 disabled:opacity-30"
-                      title="নিচে নিন"
-                    >
-                      ▼
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeSlide(index)}
-                      className="p-1.5 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50"
-                      title="মুছে ফেলুন"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Slide-out Drawer Panel (when triggered via button) */}
+          <SliderMediaSidebar
+            isDrawer={true}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            slides={formData.heroSlides || []}
+            onUpdateSlides={(newSlides) => setFormData((prev) => ({ ...prev, heroSlides: newSlides }))}
+          />
         </div>
 
       </div>
