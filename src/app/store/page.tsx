@@ -25,49 +25,49 @@ function StarDisplay({ rating, reviews }: { rating: number; reviews: number }) {
   );
 }
 
-function ListProductRow({ 
-  product, index, cartQty, updateCartQty, setDetailProduct 
-}: { 
+function ListProductRow({
+  product, index, cartQty, updateCartQty, setDetailProduct
+}: {
   product: Product, index: number, cartQty: number,
-  updateCartQty: (p:Product, q:number)=>void, setDetailProduct: (p:Product)=>void 
+  updateCartQty: (p: Product, q: number) => void, setDetailProduct: (p: Product) => void
 }) {
   return (
     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors bg-slate-100/50">
-       <td className="p-3 text-center font-bold text-slate-800 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
-       <td className="p-2 hidden sm:table-cell">
-          <div className="w-12 h-12 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-sm">
-             {product.imageUrl ? (
-               <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-             ) : (
-               <Package className="w-6 h-6 text-slate-300" />
-             )}
-          </div>
-       </td>
-       <td className="p-3 text-center text-sm font-bold text-slate-700 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
-       <td className="p-3">
-          <h3 className="font-bold text-slate-800 text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2" onClick={() => setDetailProduct(product)}>{product.name}</h3>
-       </td>
-       <td className="p-3 text-center text-xs sm:text-sm font-bold text-slate-600">
-          {product.className ? `${product.className}${product.subject ? ` - ${product.subject}` : ''}` : '-'}
-       </td>
-       <td className="p-3 text-center text-xs sm:text-sm font-bold text-slate-600 hidden sm:table-cell">
-          {product.category}
-       </td>
-       <td className="p-3 text-center font-bold text-slate-800">{product.price.toFixed(2)}</td>
-       <td className="p-3">
-          <div className="flex items-center justify-center gap-1 mx-auto w-fit">
-             <button onClick={()=>updateCartQty(product, Math.max(0, cartQty-1))} className="w-7 h-7 bg-slate-400 text-white flex items-center justify-center rounded-sm font-bold text-lg leading-none">-</button>
-             <input 
-               type="number" 
-               value={cartQty || ""} 
-               onChange={(e) => updateCartQty(product, parseInt(e.target.value) || 0)} 
-               onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-               className="w-10 sm:w-16 h-7 text-center text-sm font-bold border border-slate-300 rounded-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-             />
-             <button onClick={()=>updateCartQty(product, cartQty+1)} className="w-7 h-7 bg-[#2f8c5b] hover:bg-[#2f8c5b]/90 text-white flex items-center justify-center rounded-sm font-bold text-lg leading-none">+</button>
-          </div>
-       </td>
-       <td className="p-3 text-right pr-6 font-bold text-slate-800 hidden sm:table-cell">{(product.price * cartQty).toFixed(2)}</td>
+      <td className="p-3 text-center font-bold text-slate-800 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
+      <td className="p-2 hidden sm:table-cell">
+        <div className="w-12 h-12 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-sm">
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <Package className="w-6 h-6 text-slate-300" />
+          )}
+        </div>
+      </td>
+      <td className="p-3 text-center text-sm font-bold text-slate-700 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
+      <td className="p-3">
+        <h3 className="font-bold text-slate-800 text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2" onClick={() => setDetailProduct(product)}>{product.name}</h3>
+      </td>
+      <td className="p-3 text-center text-xs sm:text-sm font-bold text-slate-600">
+        {product.className ? `${product.className}${product.subject ? ` - ${product.subject}` : ''}` : '-'}
+      </td>
+      <td className="p-3 text-center text-xs sm:text-sm font-bold text-slate-600 hidden sm:table-cell">
+        {product.category}
+      </td>
+      <td className="p-3 text-center font-bold text-slate-800">{product.price.toFixed(2)}</td>
+      <td className="p-3">
+        <div className="flex items-center justify-center gap-1 mx-auto w-fit">
+          <button onClick={() => updateCartQty(product, Math.max(0, cartQty - 1))} className="w-7 h-7 bg-slate-400 text-white flex items-center justify-center rounded-sm font-bold text-lg leading-none">-</button>
+          <input
+            type="number"
+            value={cartQty || ""}
+            onChange={(e) => updateCartQty(product, parseInt(e.target.value) || 0)}
+            onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
+            className="w-10 sm:w-16 h-7 text-center text-sm font-bold border border-slate-300 rounded-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <button onClick={() => updateCartQty(product, cartQty + 1)} className="w-7 h-7 bg-[#2f8c5b] hover:bg-[#2f8c5b]/90 text-white flex items-center justify-center rounded-sm font-bold text-lg leading-none">+</button>
+        </div>
+      </td>
+      <td className="p-3 text-right pr-6 font-bold text-slate-800 hidden sm:table-cell">{(product.price * cartQty).toFixed(2)}</td>
     </tr>
   );
 }
@@ -142,12 +142,12 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   const [trxId, setTrxId] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
   const [copied, setCopied] = useState(false);
-  const [receiptVerifyStatus, setReceiptVerifyStatus] = useState<'idle'|'verifying'|'valid'|'invalid'>('idle');
+  const [receiptVerifyStatus, setReceiptVerifyStatus] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
   const [receiptVerifyMsg, setReceiptVerifyMsg] = useState("");
   const [receiptBalance, setReceiptBalance] = useState(0);
   // For partial receipt payment
-  const [remainingOption, setRemainingOption] = useState<'pay_now'|'pay_later'|'skip_receipt'>('pay_later');
-  const [remainingProvider, setRemainingProvider] = useState<'bKash'|'Nagad'|'Rocket'|'Bank'>('bKash');
+  const [remainingOption, setRemainingOption] = useState<'pay_now' | 'pay_later' | 'skip_receipt'>('pay_later');
+  const [remainingProvider, setRemainingProvider] = useState<'bKash' | 'Nagad' | 'Rocket' | 'Bank'>('bKash');
   const [remainingTrxId, setRemainingTrxId] = useState("");
   const [remainingCopied, setRemainingCopied] = useState(false);
 
@@ -234,9 +234,9 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           body: JSON.stringify({ code: ilhak, name: instituteName, ownerName, contactNo, address }),
         });
       }
-      
+
       const ilhakText = (ilhak.trim() && !isMobileIlhak) ? ` (ইলহাক: ${ilhak.trim()})` : '';
-      
+
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
       // Determine what to actually send:
       // If 'skip_receipt' chosen (user ignores verified receipt), treat as pay_later
@@ -244,11 +244,11 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       const res = await fetch("/api/store/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          customerName: ownerName, 
-          customerPhone: contactNo, 
-          instituteId: instituteName, 
-          items, 
+        body: JSON.stringify({
+          customerName: ownerName,
+          customerPhone: contactNo,
+          instituteId: instituteName,
+          items,
           notes: `${address}${ilhakText}`,
           paymentOption: effectivePaymentOption,
           paymentProvider: effectivePaymentOption === 'pay_now' ? paymentProvider : undefined,
@@ -288,17 +288,17 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">ইলহাক বা মোবাইল নম্বর (পুরাতন তথ্যের জন্য)</label>
                   <div className="flex gap-2">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={ilhak}
                       onChange={(e) => {
                         setIlhak(e.target.value);
                         if (searchStatus !== "idle") setSearchStatus("idle");
                       }}
-                      placeholder="যেমন: 1234 বা 01XXXXXXXXX" 
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white" 
+                      placeholder="যেমন: 1234 বা 01XXXXXXXXX"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
                     />
-                    <button 
+                    <button
                       onClick={searchIlhak}
                       disabled={isLoading || !ilhak.trim()}
                       className="px-5 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50 flex-shrink-0"
@@ -313,60 +313,60 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">মালিকের নাম <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      placeholder="আপনার পুরো নাম" 
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white" 
+                      placeholder="আপনার পুরো নাম"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">প্রতিষ্ঠানের নাম <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={instituteName}
                       onChange={(e) => setInstituteName(e.target.value)}
-                      placeholder="মাদরাসা/প্রতিষ্ঠানের নাম" 
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white" 
+                      placeholder="মাদরাসা/প্রতিষ্ঠানের নাম"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">মোবাইল নম্বর</label>
-                  <input 
-                    type="tel" 
+                  <input
+                    type="tel"
                     value={contactNo}
                     onChange={(e) => setContactNo(e.target.value)}
-                    placeholder="01XXXXXXXXX" 
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white" 
+                    placeholder="01XXXXXXXXX"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span></label>
-                  <textarea 
+                  <textarea
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="গ্রাম/মহল্লা, ডাকঘর, উপজেলা, জেলা" 
-                    rows={3} 
+                    placeholder="গ্রাম/মহল্লা, ডাকঘর, উপজেলা, জেলা"
+                    rows={3}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none bg-slate-50 focus:bg-white"
                   ></textarea>
                 </div>
               </div>
-              
+
               <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between">
                 <span className="font-bold text-slate-500">সর্বমোট বিল:</span>
                 <span className="text-2xl font-black text-primary">৳{total.toFixed(2)}</span>
               </div>
-              
+
               <div className="flex gap-3 mt-6">
-                <button 
+                <button
                   onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, address, searchStatus, paymentStep })}
                   className="w-1/2 py-4 bg-slate-100 text-slate-700 rounded-xl font-bold text-lg hover:bg-slate-200 transition-all border border-slate-200"
                 >
                   আরও পণ্য যোগ করুন
                 </button>
-                <button 
+                <button
                   onClick={validateAndProceed}
                   className="w-1/2 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 active:scale-[0.98]"
                 >
@@ -378,13 +378,13 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
             <div className="animate-in slide-in-from-right-4">
               <h3 className="font-bold text-slate-700 mb-4 text-center">কিভাবে পেমেন্ট করতে চান?</h3>
               {errorMsg && <p className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{errorMsg}</p>}
-              
+
               <div className="space-y-3 mb-6">
                 <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${paymentOption === 'pay_now' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-200 hover:border-primary/50'}`}>
                   <input type="radio" name="payment_opt" checked={paymentOption === 'pay_now'} onChange={() => setPaymentOption('pay_now')} className="w-5 h-5 text-primary" />
                   <span className="font-bold text-slate-700">এখনই পেমেন্ট করুন</span>
                 </label>
-                
+
                 {paymentOption === 'pay_now' && (
                   <div className="pl-12 pr-4 pb-4 animate-in fade-in">
                     <div className="grid grid-cols-4 gap-2 mb-4">
@@ -394,9 +394,9 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                         { id: 'Rocket', name: 'Rocket', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Rocket_mobile_banking_logo.svg/512px-Rocket_mobile_banking_logo.svg.png' },
                         { id: 'Bank', name: 'Bank' }
                       ].map(p => (
-                        <button 
-                          key={p.id} 
-                          onClick={() => setPaymentProvider(p.id as any)} 
+                        <button
+                          key={p.id}
+                          onClick={() => setPaymentProvider(p.id as any)}
                           className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all border-2 ${paymentProvider === p.id ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-300 bg-white'}`}
                         >
                           <div className="h-10 flex items-center justify-center">
@@ -413,12 +413,12 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       <div>
                         <p className="text-sm text-blue-800 font-medium mb-1">এই নাম্বারে টাকা পাঠিয়ে TrxID দিন:</p>
                         <p className="text-lg font-black text-blue-900 tracking-wider">
-                          {paymentProvider === 'bKash' ? '01700000000 (bKash)' : 
-                           paymentProvider === 'Nagad' ? '01700000000 (Nagad)' : 
-                           paymentProvider === 'Rocket' ? '01700000000 (Rocket)' : 'A/C: 123456789, Islami Bank'}
+                          {paymentProvider === 'bKash' ? '01700000000 (bKash)' :
+                            paymentProvider === 'Nagad' ? '01700000000 (Nagad)' :
+                              paymentProvider === 'Rocket' ? '01700000000 (Rocket)' : 'A/C: 123456789, Islami Bank'}
                         </p>
                       </div>
-                      <button 
+                      <button
                         onClick={handleCopy}
                         className="flex flex-col items-center justify-center bg-white border border-blue-200 text-blue-600 rounded-lg w-12 h-12 hover:bg-blue-100 transition-colors flex-shrink-0"
                         title="নম্বর কপি করুন"
@@ -438,15 +438,15 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   <input type="radio" name="payment_opt" checked={paymentOption === 'money_receipt'} onChange={() => setPaymentOption('money_receipt')} className="w-5 h-5 text-primary" />
                   <span className="font-bold text-slate-700">মানি রিসিট আছে</span>
                 </label>
-                
+
                 {paymentOption === 'money_receipt' && (
                   <div className="pl-12 pr-4 pb-4 animate-in fade-in space-y-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">মানি রিসিট নম্বর <span className="text-red-500">*</span></label>
                       <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          value={receiptNumber} 
+                        <input
+                          type="text"
+                          value={receiptNumber}
                           onChange={e => {
                             setReceiptNumber(e.target.value);
                             if (receiptVerifyStatus !== 'idle') {
@@ -454,11 +454,11 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                               setReceiptVerifyMsg('');
                               setReceiptBalance(0);
                             }
-                          }} 
-                          placeholder="Receipt Number" 
+                          }}
+                          placeholder="Receipt Number"
                           className={`flex-1 px-4 py-2.5 rounded-lg border focus:outline-none focus:border-primary transition-all ${receiptVerifyStatus === 'valid' ? 'border-emerald-400 bg-emerald-50' : receiptVerifyStatus === 'invalid' ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}
                         />
-                        <button 
+                        <button
                           onClick={verifyReceipt}
                           disabled={receiptVerifyStatus === 'verifying' || !receiptNumber.trim()}
                           className="px-4 py-2.5 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 text-sm flex-shrink-0"
@@ -496,7 +496,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                         {/* Options for remaining */}
                         <div className="bg-white p-3 space-y-2">
                           <p className="text-xs font-bold text-slate-700 mb-2">বাকি টাকা কিভাবে দিবেন?</p>
-                          
+
                           {/* Pay now for remaining */}
                           <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm ${remainingOption === 'pay_now' ? 'border-primary bg-primary/5' : 'border-slate-200'}`}>
                             <input type="radio" checked={remainingOption === 'pay_now'} onChange={() => setRemainingOption('pay_now')} className="w-4 h-4 text-primary" />
@@ -513,7 +513,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                                   { id: 'Bank' }
                                 ].map(p => (
                                   <button key={p.id} onClick={() => setRemainingProvider(p.id as any)}
-                                    className={`flex items-center justify-center p-1.5 rounded-lg border-2 transition-all ${ remainingProvider === p.id ? 'border-primary bg-primary/5' : 'border-slate-100 bg-white'}`}
+                                    className={`flex items-center justify-center p-1.5 rounded-lg border-2 transition-all ${remainingProvider === p.id ? 'border-primary bg-primary/5' : 'border-slate-100 bg-white'}`}
                                   >
                                     {p.logo ? <img src={p.logo} alt={p.id} className="h-7 object-contain" /> : <Building2 className="w-6 h-6 text-slate-500" />}
                                   </button>
@@ -565,7 +565,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 <button onClick={() => setPaymentStep(false)} className="px-5 py-4 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors">
                   ফিরে যান
                 </button>
-                <button 
+                <button
                   onClick={submitOrder}
                   disabled={isSubmitting}
                   className="flex-1 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 disabled:opacity-70"
@@ -704,8 +704,8 @@ export default function StorePage() {
 
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-    return () => { 
-      document.body.style.overflow = "auto"; 
+    return () => {
+      document.body.style.overflow = "auto";
       document.documentElement.style.overflow = "auto";
     };
   }, []);
@@ -781,7 +781,7 @@ export default function StorePage() {
       <div className="bg-white border-b border-slate-200 z-30 shadow-sm flex-shrink-0">
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 flex items-center justify-between gap-3">
           <h1 className="text-lg font-black text-slate-800 whitespace-nowrap hidden sm:block">বই ও স্টেশনারি</h1>
-          
+
           {/* Search & Filters */}
           <div className="flex flex-1 items-center gap-2">
             <Link href="/" className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center flex-shrink-0 lg:hidden">
@@ -797,7 +797,7 @@ export default function StorePage() {
               />
               {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>}
             </div>
-            
+
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center flex-shrink-0">
               <Filter className="w-5 h-5" />
             </button>
@@ -812,13 +812,13 @@ export default function StorePage() {
               <option value="price-desc">মূল্য: বেশি থেকে কম</option>
               <option value="name">নামানুসারে</option>
             </select>
-            
-            <button 
+
+            <button
               onClick={() => {
                 const newMode = viewMode === "card" ? "list" : "card";
                 setViewMode(newMode);
-                try { localStorage.setItem("store_view_mode", newMode); } catch {}
-              }} 
+                try { localStorage.setItem("store_view_mode", newMode); } catch { }
+              }}
               className="p-2.5 bg-slate-100 text-slate-600 rounded-xl transition-colors hover:bg-slate-200 flex items-center justify-center"
             >
               {viewMode === "card" ? <List className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
@@ -879,144 +879,144 @@ export default function StorePage() {
           {/* Scrollable Products Area */}
           <div className="flex-1 overflow-y-auto pr-1 pb-10">
 
-          {/* CARD VIEW */}
-          {viewMode === "card" && (
-            <>
-              {!loading && filtered.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-                  <Package className="w-16 h-16 mb-4 text-slate-200" />
-                  <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
-                  <p className="text-sm mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করুন</p>
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,240px)] justify-stretch sm:justify-start gap-4 sm:gap-5">
-              {loading ? Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse flex flex-row sm:flex-col">
-                  <div className="w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 bg-slate-100" />
-                  <div className="p-3 sm:p-4 flex flex-col gap-2 flex-1">
-                    <div className="h-4 bg-slate-100 rounded w-3/4" />
-                    <div className="h-3 bg-slate-100 rounded w-1/2" />
-                    <div className="h-6 bg-slate-100 rounded w-1/3 mt-auto pt-2" />
+            {/* CARD VIEW */}
+            {viewMode === "card" && (
+              <>
+                {!loading && filtered.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                    <Package className="w-16 h-16 mb-4 text-slate-200" />
+                    <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
+                    <p className="text-sm mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করুন</p>
                   </div>
-                </div>
-              )) : filtered.map(product => {
-                const r = getProductRating(product.id);
-                const isFav = favourites.has(product.id);
-                const cartItem = cart.find(c => c.product.id === product.id);
-                const cartQty = cartItem ? cartItem.qty : 0;
-                
-                return (
-                  <div key={product.id} onClick={() => setDetailProduct(product)} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-row sm:flex-col cursor-pointer">
-                    <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 flex items-center justify-center overflow-hidden border-r sm:border-r-0 sm:border-b border-slate-100">
-                      {product.imageUrl ? (
-                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <Package className="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform" />
-                      )}
-                      <span className="absolute bottom-2 left-2 text-[10px] sm:text-xs text-primary font-bold bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm z-10 max-w-[calc(100%-16px)] truncate">
-                        {product.category}
-                      </span>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,240px)] justify-stretch sm:justify-start gap-4 sm:gap-5">
+                  {loading ? Array.from({ length: 10 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse flex flex-row sm:flex-col">
+                      <div className="w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 bg-slate-100" />
+                      <div className="p-3 sm:p-4 flex flex-col gap-2 flex-1">
+                        <div className="h-4 bg-slate-100 rounded w-3/4" />
+                        <div className="h-3 bg-slate-100 rounded w-1/2" />
+                        <div className="h-6 bg-slate-100 rounded w-1/3 mt-auto pt-2" />
+                      </div>
                     </div>
-                    <div className="flex flex-1 min-w-0">
-                      <div className="p-3 flex flex-col flex-1 min-w-0 border-r border-slate-50 border-dashed">
-                        <h3 className="font-bold text-slate-800 mb-1 line-clamp-2 sm:line-clamp-1">{product.name}</h3>
-                        {product.className && (
-                          <p className="text-xs sm:text-sm text-slate-500 font-medium truncate">
-                            {product.className}{product.subject ? ` - ${product.subject}` : ''}
-                          </p>
-                        )}
-                        <div className="mt-auto pt-2">
-                          <span className="text-xl font-black text-primary">৳{product.price}</span>
+                  )) : filtered.map(product => {
+                    const r = getProductRating(product.id);
+                    const isFav = favourites.has(product.id);
+                    const cartItem = cart.find(c => c.product.id === product.id);
+                    const cartQty = cartItem ? cartItem.qty : 0;
+
+                    return (
+                      <div key={product.id} onClick={() => setDetailProduct(product)} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-row sm:flex-col cursor-pointer">
+                        <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 flex items-center justify-center overflow-hidden border-r sm:border-r-0 sm:border-b border-slate-100">
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          ) : (
+                            <Package className="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform" />
+                          )}
+                          <span className="absolute bottom-2 left-2 text-[10px] sm:text-xs text-primary font-bold bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm z-10 max-w-[calc(100%-16px)] truncate">
+                            {product.category}
+                          </span>
+                        </div>
+                        <div className="flex flex-1 min-w-0">
+                          <div className="p-3 flex flex-col flex-1 min-w-0 border-r border-slate-50 border-dashed">
+                            <h3 className="font-bold text-slate-800 mb-1 line-clamp-2 sm:line-clamp-1">{product.name}</h3>
+                            {product.className && (
+                              <p className="text-xs sm:text-sm text-slate-500 font-medium truncate">
+                                {product.className}{product.subject ? ` - ${product.subject}` : ''}
+                              </p>
+                            )}
+                            <div className="mt-auto pt-2">
+                              <span className="text-xl font-black text-primary">৳{product.price}</span>
+                            </div>
+                          </div>
+                          <div className="w-14 flex flex-col items-center justify-center bg-slate-50/50 p-2">
+                            {cartQty > 0 ? (
+                              <div className="flex flex-col items-center gap-1 h-full justify-between w-full" onClick={e => e.stopPropagation()}>
+                                <button onClick={() => updateCartQty(product, cartQty + 1)}
+                                  className="w-full h-8 bg-primary rounded text-white text-xl font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
+                                <span className="w-full flex-1 flex items-center justify-center text-sm font-black text-slate-800 py-1">{cartQty}</span>
+                                <button onClick={() => updateCartQty(product, cartQty - 1)}
+                                  className="w-full h-8 bg-slate-200 rounded text-slate-600 text-xl font-medium flex items-center justify-center hover:bg-slate-300 transition-colors">−</button>
+                              </div>
+                            ) : (
+                              <button onClick={(e) => { e.stopPropagation(); addToCart(product); }}
+                                className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center hover:bg-primary hover:text-white transition-colors shadow-sm">
+                                <ShoppingCart className="w-5 h-5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="w-14 flex flex-col items-center justify-center bg-slate-50/50 p-2">
-                         {cartQty > 0 ? (
-                           <div className="flex flex-col items-center gap-1 h-full justify-between w-full" onClick={e => e.stopPropagation()}>
-                             <button onClick={() => updateCartQty(product, cartQty + 1)}
-                               className="w-full h-8 bg-primary rounded text-white text-xl font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
-                             <span className="w-full flex-1 flex items-center justify-center text-sm font-black text-slate-800 py-1">{cartQty}</span>
-                             <button onClick={() => updateCartQty(product, cartQty - 1)}
-                               className="w-full h-8 bg-slate-200 rounded text-slate-600 text-xl font-medium flex items-center justify-center hover:bg-slate-300 transition-colors">−</button>
-                           </div>
-                         ) : (
-                           <button onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-                             className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center hover:bg-primary hover:text-white transition-colors shadow-sm">
-                             <ShoppingCart className="w-5 h-5" />
-                           </button>
-                         )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            </>
-          )}
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
-          {/* LIST VIEW */}
-          {viewMode === "list" && (
-            <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden flex-1 mb-4 flex flex-col">
-              <div className="bg-[#e8f3ec] text-[#2f8c5b] py-3 text-center font-black text-xl border-b border-slate-200">
-                বই ও স্টেশনারী আইটেম অনলাইন-এ অর্ডার করুন
-              </div>
-              <div className="flex-1 overflow-auto">
-                <table className="w-full text-left border-collapse min-w-full sm:min-w-[800px]">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-[#2f8c5b] text-white text-sm">
-                      <th className="p-3 font-bold text-center border-r border-white/20 w-16 hidden sm:table-cell">ক্রম</th>
-                      <th className="p-3 font-bold text-center border-r border-white/20 w-16 sm:w-20 hidden sm:table-cell">ছবি</th>
-                      <th className="p-3 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell">কোড</th>
-                      <th className="p-3 font-bold text-center border-r border-white/20">পণ্যের নাম</th>
-                      <th className="p-3 font-bold text-center border-r border-white/20 w-24">শ্রেণী</th>
-                      <th className="p-3 font-bold text-center border-r border-white/20 w-28 hidden sm:table-cell">ক্যাটাগরি</th>
-                      <th className="p-3 font-bold text-center border-r border-white/20 w-20 sm:w-32">মূল্য(৳)</th>
-                      <th className="p-3 font-bold text-center border-r border-white/20 w-28 sm:w-48">পরিমাণ</th>
-                      <th className="p-3 font-bold text-right pr-6 w-36 hidden sm:table-cell">পরিমাণ*মূল্য(৳)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {!loading && filtered.length === 0 && (
-                      <tr>
-                        <td colSpan={8}>
-                          <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-                            <Package className="w-16 h-16 mb-4 text-slate-200" />
-                            <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
-                            <p className="text-sm mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করুন</p>
-                          </div>
-                        </td>
+            {/* LIST VIEW */}
+            {viewMode === "list" && (
+              <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden flex-1 mb-4 flex flex-col">
+                <div className="bg-[#e8f3ec] text-[#2f8c5b] py-3 text-center font-black text-xl border-b border-slate-200">
+                  বই ও স্টেশনারী আইটেম অনলাইন-এ অর্ডার করুন
+                </div>
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-left border-collapse min-w-full sm:min-w-[800px]">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-[#2f8c5b] text-white text-sm">
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-16 hidden sm:table-cell">ক্রম</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-16 sm:w-20 hidden sm:table-cell">ছবি</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell">কোড</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20">পণ্যের নাম</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-24">শ্রেণী</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 hidden sm:table-cell">ক্যাটাগরি</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 sm:w-32">মূল্য(৳)</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 sm:w-48">পরিমাণ</th>
+                        <th className="p-3 font-bold text-right pr-6 w-36 hidden sm:table-cell">পরিমাণ*মূল্য(৳)</th>
                       </tr>
-                    )}
-                    {loading ? Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="border-b border-slate-100 animate-pulse">
-                        <td colSpan={8} className="p-4"><div className="h-8 bg-slate-100 rounded w-full" /></td>
+                    </thead>
+                    <tbody>
+                      {!loading && filtered.length === 0 && (
+                        <tr>
+                          <td colSpan={8}>
+                            <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                              <Package className="w-16 h-16 mb-4 text-slate-200" />
+                              <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
+                              <p className="text-sm mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করুন</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {loading ? Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i} className="border-b border-slate-100 animate-pulse">
+                          <td colSpan={8} className="p-4"><div className="h-8 bg-slate-100 rounded w-full" /></td>
+                        </tr>
+                      )) : filtered.map((product, index) => {
+                        const cartItem = cart.find(c => c.product.id === product.id);
+                        return (
+                          <ListProductRow
+                            key={product.id} product={product} index={index}
+                            cartQty={cartItem ? cartItem.qty : 0}
+                            updateCartQty={updateCartQty} setDetailProduct={setDetailProduct}
+                          />
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="sticky bottom-0 z-10 bg-white">
+                      <tr className="bg-slate-50 font-bold border-t border-slate-200 hidden sm:table-row">
+                        <td colSpan={8} className="p-4 text-right text-slate-800">সর্বমোট অর্ডারকৃত পণ্যের মূল্য(৳) =</td>
+                        <td className="p-4 text-right pr-6 text-lg text-slate-900">{cartTotal.toFixed(2)}</td>
                       </tr>
-                    )) : filtered.map((product, index) => {
-                      const cartItem = cart.find(c => c.product.id === product.id);
-                      return (
-                        <ListProductRow 
-                          key={product.id} product={product} index={index}
-                          cartQty={cartItem ? cartItem.qty : 0} 
-                          updateCartQty={updateCartQty} setDetailProduct={setDetailProduct} 
-                        />
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="sticky bottom-0 z-10 bg-white">
-                    <tr className="bg-slate-50 font-bold border-t border-slate-200 hidden sm:table-row">
-                      <td colSpan={8} className="p-4 text-right text-slate-800">সর্বমোট অর্ডারকৃত পণ্যের মূল্য(৳) =</td>
-                      <td className="p-4 text-right pr-6 text-lg text-slate-900">{cartTotal.toFixed(2)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </tfoot>
+                  </table>
+                </div>
+                <div className="bg-white border-t border-slate-200 p-6 hidden sm:flex flex-col items-center">
+                  <p className="text-red-500 font-bold text-lg mb-4 text-center">অর্ডারকৃত পণ্যের পরিমাণ সঠিকভাবে বসানোর পর নিচের "বিলে যুক্ত করুন" বাটনে ক্লিক করুন</p>
+                  <button onClick={() => setIsOrderModalOpen(true)} className="px-8 py-3 bg-[#2d3282] hover:bg-[#2d3282]/90 text-white rounded font-bold transition-colors shadow-md">
+                    বিলে যুক্ত করুন
+                  </button>
+                </div>
               </div>
-              <div className="bg-white border-t border-slate-200 p-6 hidden sm:flex flex-col items-center">
-                 <p className="text-red-500 font-bold text-lg mb-4 text-center">অর্ডারকৃত পণ্যের পরিমাণ সঠিকভাবে বসানোর পর নিচের "বিলে যুক্ত করুন" বাটনে ক্লিক করুন</p>
-                 <button onClick={() => setIsOrderModalOpen(true)} className="px-8 py-3 bg-[#2d3282] hover:bg-[#2d3282]/90 text-white rounded font-bold transition-colors shadow-md">
-                   বিলে যুক্ত করুন
-                 </button>
-              </div>
-            </div>
-          )}
+            )}
           </div>
         </div>
 
@@ -1048,24 +1048,24 @@ export default function StorePage() {
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <div className="flex justify-between items-start">
-                           <p className="font-bold text-slate-900 text-base line-clamp-1 pr-2">{item.product.name}</p>
-                           <button onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))} className="text-slate-300 hover:text-red-500 transition-colors mt-0.5 bg-slate-50 hover:bg-red-50 rounded-full p-1">
-                             <X className="w-3.5 h-3.5" />
-                           </button>
+                          <p className="font-bold text-slate-900 text-base line-clamp-1 pr-2">{item.product.name}</p>
+                          <button onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))} className="text-slate-300 hover:text-red-500 transition-colors mt-0.5 bg-slate-50 hover:bg-red-50 rounded-full p-1">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">
                           {item.product.category}
                           {item.product.className && <span className="ml-1 text-slate-500 font-medium">({item.product.className})</span>}
                         </p>
                         <div className="flex items-center justify-between mt-3">
-                           <span className="font-bold text-slate-900 text-base">৳{(item.product.price * item.qty).toFixed(2)}</span>
-                           <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-1.5 py-1.5 border border-slate-200">
-                             <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
-                               className="w-7 h-7 bg-white rounded-md shadow-sm text-slate-600 text-lg font-medium flex items-center justify-center hover:bg-slate-100 transition-colors">−</button>
-                             <span className="w-5 text-center text-sm font-bold text-slate-800">{item.qty}</span>
-                             <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
-                               className="w-7 h-7 bg-primary rounded-md shadow-sm text-white text-lg font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
-                           </div>
+                          <span className="font-bold text-slate-900 text-base">৳{(item.product.price * item.qty).toFixed(2)}</span>
+                          <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-1.5 py-1.5 border border-slate-200">
+                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
+                              className="w-7 h-7 bg-white rounded-md shadow-sm text-slate-600 text-lg font-medium flex items-center justify-center hover:bg-slate-100 transition-colors">−</button>
+                            <span className="w-5 text-center text-sm font-bold text-slate-800">{item.qty}</span>
+                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
+                              className="w-7 h-7 bg-primary rounded-md shadow-sm text-white text-lg font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1140,24 +1140,24 @@ export default function StorePage() {
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <div className="flex justify-between items-start">
-                           <p className="font-bold text-slate-900 text-base line-clamp-1 pr-2">{item.product.name}</p>
-                           <button onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))} className="text-slate-300 hover:text-red-500 transition-colors mt-0.5 bg-slate-50 hover:bg-red-50 rounded-full p-1">
-                             <X className="w-3.5 h-3.5" />
-                           </button>
+                          <p className="font-bold text-slate-900 text-base line-clamp-1 pr-2">{item.product.name}</p>
+                          <button onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))} className="text-slate-300 hover:text-red-500 transition-colors mt-0.5 bg-slate-50 hover:bg-red-50 rounded-full p-1">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                         <p className="text-sm text-slate-400 mt-0.5">
                           {item.product.category}
                           {item.product.className && <span className="ml-1 text-slate-500 font-medium">({item.product.className})</span>}
                         </p>
                         <div className="flex items-center justify-between mt-3">
-                           <span className="font-bold text-slate-900 text-lg">৳{(item.product.price * item.qty).toFixed(2)}</span>
-                           <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-1.5 py-1.5 border border-slate-200">
-                             <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
-                               className="w-7 h-7 bg-white rounded-md shadow-sm text-slate-600 text-lg font-medium flex items-center justify-center hover:bg-slate-100 transition-colors">−</button>
-                             <span className="w-5 text-center text-sm font-bold text-slate-800">{item.qty}</span>
-                             <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
-                               className="w-7 h-7 bg-primary rounded-md shadow-sm text-white text-lg font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
-                           </div>
+                          <span className="font-bold text-slate-900 text-lg">৳{(item.product.price * item.qty).toFixed(2)}</span>
+                          <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-1.5 py-1.5 border border-slate-200">
+                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
+                              className="w-7 h-7 bg-white rounded-md shadow-sm text-slate-600 text-lg font-medium flex items-center justify-center hover:bg-slate-100 transition-colors">−</button>
+                            <span className="w-5 text-center text-sm font-bold text-slate-800">{item.qty}</span>
+                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
+                              className="w-7 h-7 bg-primary rounded-md shadow-sm text-white text-lg font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1181,14 +1181,14 @@ export default function StorePage() {
       )}
 
       {isOrderModalOpen && (
-        <OrderFormModal 
+        <OrderFormModal
           initialState={orderFormState}
           onClose={(savedState) => {
             if (savedState) setOrderFormState(savedState);
             setIsOrderModalOpen(false);
-          }} 
-          total={cartTotal} 
-          cart={cart} 
+          }}
+          total={cartTotal}
+          cart={cart}
           onSuccess={(data) => {
             setSuccessOrder(data);
             setCart([]);
@@ -1196,7 +1196,7 @@ export default function StorePage() {
             setIsOrderModalOpen(false);
             setCartOpen(false);
             setTimeout(() => printInvoice(data), 500);
-        }} />
+          }} />
       )}
 
       {/* Success Modal */}
@@ -1210,7 +1210,7 @@ export default function StorePage() {
             <p className="text-slate-500 mb-6">আপনার অর্ডারটি আমাদের সিস্টেমে গ্রহণ করা হয়েছে। আপনার ইনভয়েস আইডি:</p>
             <div className="bg-slate-100 text-slate-800 font-black text-xl px-4 py-2 rounded-lg mb-6 border border-slate-200 shadow-inner flex items-center justify-between gap-4">
               <span>{successOrder.invoiceId}</span>
-              <button 
+              <button
                 onClick={() => navigator.clipboard.writeText(successOrder.invoiceId)}
                 title="কপি করুন"
                 className="p-1.5 hover:bg-slate-200 rounded-md text-slate-400 hover:text-slate-600 transition-colors"

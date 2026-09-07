@@ -1,8 +1,5 @@
 import NoticeBoard from "@/components/home/NoticeBoard";
-import Image from "next/image";
-import Link from "next/link";
 import EditableContent from "@/components/EditableContent";
-import ProfileCard from "@/components/sidebar/ProfileCard";
 
 export default function OurActivitiesPage() {
   return (
@@ -11,12 +8,12 @@ export default function OurActivitiesPage() {
         
         {/* Main Content Area */}
         <div className="lg:col-span-8">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 md:p-12 h-full">
-            <h1 className="text-3xl md:text-4xl font-bold text-center text-slate-800 mb-2">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-10 h-full">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-center text-slate-800 mb-2">
               আমাদের কার্যক্রম
             </h1>
-            <div className="flex justify-center mb-8">
-              <div className="h-1 w-24 bg-red-600 rounded"></div>
+            <div className="flex justify-center mb-6">
+              <div className="h-1 w-20 bg-emerald-600 rounded-full"></div>
             </div>
 
             <EditableContent 
@@ -69,20 +66,9 @@ export default function OurActivitiesPage() {
 
         {/* Sidebar Area */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="h-[400px]">
+          <div className="sticky top-20">
             <NoticeBoard />
           </div>
-          
-          {/* Chairman Profile Card */}
-          <ProfileCard
-            slug="chairman"
-            name="চেয়ারম্যান"
-            title="চেয়ারম্যান"
-            imageSrc="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=200&auto=format&fit=crop"
-            link="/about/chairman"
-            defaultExcerpt="বিসমিল্লাহির রাহমানির রাহিম। নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ-এর নিজস্ব ওয়েবসাইটে আপনাকে স্বাগতম। কুরআনুল কারীমের সহীহ তেলাওয়াত বিস্তার এবং শিশু মনে দ্বীনি শিক্ষার মৌলিক ভিত্তি তৈরিতে আমাদের এই অনলাইন প্ল্যাটফর্ম এক নতুন সংযোজন। আধুনিক তথ্যপ্রযুক্তির সুফল কাজে লাগিয়ে..."
-          />
-
         </div>
 
       </div>

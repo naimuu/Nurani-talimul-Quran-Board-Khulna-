@@ -2,22 +2,22 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { 
-  Menu, 
-  X, 
-  ChevronDown, 
-  ChevronRight, 
-  User, 
-  LogOut, 
-  LayoutDashboard, 
-  ShoppingBag, 
-  BookOpen, 
-  ClipboardList, 
-  MapPin, 
-  Building2, 
-  Users, 
-  FileText, 
-  Settings, 
+import {
+  Menu,
+  X,
+  ChevronDown,
+  ChevronRight,
+  User,
+  LogOut,
+  LayoutDashboard,
+  ShoppingBag,
+  BookOpen,
+  ClipboardList,
+  MapPin,
+  Building2,
+  Users,
+  FileText,
+  Settings,
   Search,
   Phone,
   CalendarDays,
@@ -83,13 +83,13 @@ interface NavItem {
 
 function QuranIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg 
-      className={className} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
       strokeLinejoin="round"
     >
       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
@@ -134,7 +134,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
   const [currentDate, setCurrentDate] = useState("");
   const [settings, setSettings] = useState<BoardSettings | null>(null);
   const [logoError, setLogoError] = useState(false);
-  
+
   // Mobile Quick Dropdown Bottom-Sheet state
   const [activeMobileDropdown, setActiveMobileDropdown] = useState<NavItem | null>(null);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
@@ -181,7 +181,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
           setSettings(data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     // Listen for realtime settings update events from Admin
     const handler = (e: Event) => {
@@ -206,6 +206,32 @@ export default function Navbar({ user }: { user?: UserPayload }) {
 
   // Ref for mobile horizontally scrollable nav
   const mobileScrollRef = useRef<HTMLDivElement>(null);
+
+  // Scroll detection to hide mobile menu bar on scroll
+  const [isMenuHidden, setIsMenuHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY <= 20) {
+        // At the top of page - always visible
+        setIsMenuHidden(false);
+      } else if (currentScrollY > lastScrollY.current && currentScrollY > 40) {
+        // Scrolling DOWN - hide smoothly
+        setIsMenuHidden(true);
+      } else if (currentScrollY < lastScrollY.current - 5) {
+        // Scrolling UP - show smoothly
+        setIsMenuHidden(false);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const scrollButtonToCenter = (el: HTMLElement | null) => {
     if (el) {
@@ -291,8 +317,8 @@ export default function Navbar({ user }: { user?: UserPayload }) {
         { title: "পরীক্ষার নোটিশ", href: "/notices?type=exam_notice", icon: Bell },
         { title: "পরীক্ষার রুটিন", href: "/academic/routine", icon: Calendar },
         { title: "প্রশ্নের অর্ডার", href: "/academic/question-order", icon: BookMarked },
-        { 
-          title: "বোর্ড পরীক্ষা", 
+        {
+          title: "বোর্ড পরীক্ষা",
           subtitle: "নিবন্ধন, ফি ও রেজাল্ট",
           href: "#",
           icon: Award,
@@ -332,11 +358,11 @@ export default function Navbar({ user }: { user?: UserPayload }) {
 
   return (
     <header className="sticky top-0 z-50 shadow-md font-sans w-full">
-      
+
       {/* ─── 1. TOP PROFESSIONAL BAR ────────────────────────────────────── */}
       <div className="bg-[#052e23] text-emerald-100 text-xs sm:text-sm border-b border-[#0d4f3b] relative z-20">
         <div className="w-full max-w-[1780px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-1.5 flex items-center justify-between gap-1.5 sm:gap-2">
-          
+
           {/* Left: Hotline */}
           <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-200 text-[11px] sm:text-xs md:text-sm flex-1 min-w-0">
             <Phone className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
@@ -367,8 +393,8 @@ export default function Navbar({ user }: { user?: UserPayload }) {
               </div>
             )}
 
-            <button 
-              onClick={() => setIsTrackModalOpen(true)} 
+            <button
+              onClick={() => setIsTrackModalOpen(true)}
               className="flex items-center gap-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-md shadow-sm transition-all active:scale-95 text-[10px] sm:text-xs flex-shrink-0"
               title="অর্ডার ও ইলহাক ট্র্যাক"
             >
@@ -382,23 +408,23 @@ export default function Navbar({ user }: { user?: UserPayload }) {
       {/* ─── 2. MAIN BRANDING & NAVIGATION BAR ─────────────────────────── */}
       <div className="bg-[#095738] text-white border-b-[3px] border-amber-400 shadow-lg relative">
         <div className="w-full max-w-[1780px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-2.5 flex justify-between items-center gap-2 sm:gap-4">
-          
+
           {/* LEFT: BRANDING (Auto-uploaded Logo + Board Name + Address underneath) */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 xl:flex-initial">
-            <button 
+            <button
               className="xl:hidden text-white hover:text-amber-300 p-1 sm:p-1.5 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle Menu"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6 sm:w-7 sm:h-7" /> : <Menu className="w-6 h-6 sm:w-7 sm:h-7" />}
             </button>
-            
+
             <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group hover:opacity-95 transition-opacity min-w-0">
               {/* Official Board Logo with Automatic Fallback (Round shape) */}
               <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-amber-300 ring-1 ring-amber-400/40">
-                <img 
-                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"} 
-                  alt="বোর্ড লোগো" 
+                <img
+                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"}
+                  alt="বোর্ড লোগো"
                   className="w-full h-full object-contain rounded-full"
                   onError={() => setLogoError(true)}
                 />
@@ -423,38 +449,36 @@ export default function Navbar({ user }: { user?: UserPayload }) {
           <nav className="hidden xl:flex items-center gap-0.5 2xl:gap-1.5 font-bold text-[13px] 2xl:text-[15px] flex-shrink-0">
             {navItems.map((item, idx) => {
               const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-              
+
               return (
                 <div key={idx} className="relative group">
                   {item.subItems ? (
-                    <div className={`flex items-center gap-1 cursor-pointer px-2 2xl:px-3 py-1.5 2xl:py-2 rounded-lg transition-all duration-200 select-none whitespace-nowrap ${
-                      isActive 
-                        ? 'bg-black/20 text-amber-300 font-extrabold' 
+                    <div className={`flex items-center gap-1 cursor-pointer px-2 2xl:px-3 py-1.5 2xl:py-2 rounded-lg transition-all duration-200 select-none whitespace-nowrap ${isActive
+                        ? 'bg-black/20 text-amber-300 font-extrabold'
                         : 'text-white hover:text-amber-200 hover:bg-white/10'
-                    }`}>
+                      }`}>
                       <span>{item.title}</span>
                       <ChevronDown className="w-3.5 h-3.5 opacity-75 group-hover:rotate-180 transition-transform duration-200" />
                     </div>
                   ) : (
-                    <Link 
-                      href={item.href} 
-                      className={`px-2 2xl:px-3 py-1.5 2xl:py-2 rounded-lg transition-all duration-200 block whitespace-nowrap ${
-                        isActive 
-                          ? 'bg-black/20 text-amber-300 font-extrabold' 
+                    <Link
+                      href={item.href}
+                      className={`px-2 2xl:px-3 py-1.5 2xl:py-2 rounded-lg transition-all duration-200 block whitespace-nowrap ${isActive
+                          ? 'bg-black/20 text-amber-300 font-extrabold'
                           : 'text-white hover:text-amber-200 hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       {item.title}
                     </Link>
                   )}
-                  
+
                   {/* Desktop Dropdown Menu with Glassmorphism & Icons */}
                   {item.subItems && (
                     <div className="absolute top-full left-0 pt-1.5 w-72 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top group-hover:scale-100 scale-95">
                       <div className="bg-white/85 text-slate-800 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.18)] border border-white/80 p-2 backdrop-blur-2xl">
                         {item.subItems.map((sub, sIdx) => {
                           const SubIcon = sub.icon;
-                          
+
                           return (
                             <div key={sIdx} className="relative group/sub">
                               {sub.subItems ? (
@@ -468,7 +492,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-emerald-600 group-hover/sub:translate-x-1 transition-transform" />
                                   </div>
-                                  
+
                                   {/* Level 2 Nested Flyout Submenu with Glassmorphism */}
                                   <div className="absolute left-full top-0 pl-1.5 w-76 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 z-50">
                                     <div className="bg-white/90 text-slate-800 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-white/80 p-2 backdrop-blur-2xl">
@@ -493,7 +517,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                                   </div>
                                 </>
                               ) : (
-                                <Link 
+                                <Link
                                   href={sub.href}
                                   className="flex items-center gap-2.5 px-3 py-2.5 text-[14px] font-medium text-slate-700 hover:bg-emerald-50 hover:text-[#095738] rounded-xl transition-colors"
                                 >
@@ -532,18 +556,18 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                     <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
                     <p className="text-xs text-emerald-700 font-bold uppercase truncate">{user.role}</p>
                   </div>
-                  
+
                   {user.role !== 'GENERAL' && (
-                    <Link 
-                      href={`/${user.role.toLowerCase()}`} 
+                    <Link
+                      href={`/${user.role.toLowerCase()}`}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-[#095738] rounded-lg transition-colors"
                     >
                       <LayoutDashboard className="w-4 h-4 text-emerald-600" /> ড্যাশবোর্ড
                     </Link>
                   )}
-                  
+
                   {user.isImpersonating && (
-                    <button 
+                    <button
                       onClick={async () => {
                         const res = await fetch('/api/admin/revert-impersonate', { method: 'POST' });
                         const data = await res.json();
@@ -554,8 +578,8 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                       অ্যাডমিনে ফিরে যান
                     </button>
                   )}
-                  
-                  <button 
+
+                  <button
                     onClick={async () => {
                       await fetch('/api/auth/logout', { method: 'POST' });
                       window.location.href = '/';
@@ -568,14 +592,14 @@ export default function Navbar({ user }: { user?: UserPayload }) {
               </div>
             ) : (
               <div className="flex items-center gap-1 sm:gap-2">
-                <Link 
-                  href="/login" 
+                <Link
+                  href="/login"
                   className="bg-white/10 hover:bg-white/20 border border-white/30 text-white px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg font-bold transition-all text-xs sm:text-sm"
                 >
                   লগইন
                 </Link>
-                <Link 
-                  href="/signup" 
+                <Link
+                  href="/signup"
                   className="bg-amber-400 hover:bg-amber-300 text-slate-950 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg font-black transition-all shadow-md active:scale-95 text-xs sm:text-sm hidden xs:inline-block"
                 >
                   সাইন আপ
@@ -586,13 +610,19 @@ export default function Navbar({ user }: { user?: UserPayload }) {
         </div>
       </div>
 
-      {/* ─── 3. MOBILE SCROLLABLE BUTTON BAR (Auto Centers On Click) ─────── */}
-      <div className="xl:hidden bg-[#063f29] border-b border-[#0d563a] shadow-inner py-1.5 px-2">
+      {/* ─── 3. MOBILE SCROLLABLE BUTTON BAR (Auto Centers On Click & Hides On Scroll) ─────── */}
+      <div
+        className={`xl:hidden bg-[#063f29] border-[#0d563a] shadow-inner transition-all duration-300 ease-in-out overflow-hidden ${
+          isMenuHidden
+            ? 'max-h-0 opacity-0 py-0 border-b-0 pointer-events-none -translate-y-1'
+            : 'max-h-16 opacity-100 py-1.5 px-2 border-b'
+        }`}
+      >
         <div ref={mobileScrollRef} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth px-1">
           {navItems.map((item, idx) => {
             const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
             const ItemIcon = item.icon;
-            
+
             if (item.subItems) {
               return (
                 <button
@@ -602,11 +632,10 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                     scrollButtonToCenter(e.currentTarget);
                     openMobileDropdown(item);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${
-                    activeMobileDropdown?.title === item.title || isActive 
-                      ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold' 
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${activeMobileDropdown?.title === item.title || isActive
+                      ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
                       : 'bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15'
-                  }`}
+                    }`}
                 >
                   <ItemIcon className="w-3.5 h-3.5 opacity-90" />
                   <span>{item.title}</span>
@@ -623,18 +652,17 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                 onClick={(e) => {
                   scrollButtonToCenter(e.currentTarget);
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${
-                  isActive 
-                    ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold' 
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${isActive
+                    ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
                     : 'bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15'
-                }`}
+                  }`}
               >
                 <ItemIcon className="w-3.5 h-3.5 opacity-90" />
                 <span>{item.title}</span>
               </Link>
             );
           })}
-          
+
           {/* Quick Track Pill */}
           <button
             onClick={(e) => {
@@ -650,24 +678,21 @@ export default function Navbar({ user }: { user?: UserPayload }) {
       </div>
 
       {/* ─── 4. SMART TOUCH-FRIENDLY MOBILE DROPDOWN BOTTOM-SHEET MODAL (Smooth Open & Collapse) ─── */}
-      <div 
-        className={`xl:hidden fixed inset-0 z-[70] flex flex-col justify-end transition-all duration-300 ${
-          activeMobileDropdown ? "visible pointer-events-auto" : "invisible pointer-events-none"
-        }`}
+      <div
+        className={`xl:hidden fixed inset-0 z-[70] flex flex-col justify-end transition-all duration-300 ${activeMobileDropdown ? "visible pointer-events-auto" : "invisible pointer-events-none"
+          }`}
       >
         {/* Backdrop with rich blur and smooth fade */}
-        <div 
-          className={`fixed inset-0 bg-slate-950/50 backdrop-blur-md transition-opacity duration-350 ease-out ${
-            isDropdownVisible ? "opacity-100" : "opacity-0"
-          }`}
+        <div
+          className={`fixed inset-0 bg-slate-950/50 backdrop-blur-md transition-opacity duration-350 ease-out ${isDropdownVisible ? "opacity-100" : "opacity-0"
+            }`}
           onClick={closeMobileDropdown}
         />
 
         {/* Bottom Sheet Card - Glassmorphic Full 80% Height with Smooth Slide Up & Collapse */}
-        <div 
-          className={`relative bg-white/80 backdrop-blur-2xl rounded-t-3xl shadow-[0_-15px_50px_rgba(0,0,0,0.25)] h-[80vh] max-h-[80vh] overflow-hidden flex flex-col z-10 border-t-2 border-emerald-400/80 transition-transform duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            isDropdownVisible ? "translate-y-0" : "translate-y-full"
-          }`}
+        <div
+          className={`relative bg-white/80 backdrop-blur-2xl rounded-t-3xl shadow-[0_-15px_50px_rgba(0,0,0,0.25)] h-[80vh] max-h-[80vh] overflow-hidden flex flex-col z-10 border-t-2 border-emerald-400/80 transition-transform duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] ${isDropdownVisible ? "translate-y-0" : "translate-y-full"
+            }`}
         >
           {activeMobileDropdown && (
             <>
@@ -686,7 +711,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                   </div>
                 </div>
 
-                <button 
+                <button
                   onClick={closeMobileDropdown}
                   className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
                   aria-label="Close"
@@ -696,7 +721,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
               </div>
 
               {/* List with Glassmorphism and 50px+ Touch Targets - Smoothly Scrollable with Momentum Touch */}
-              <div 
+              <div
                 className="p-3.5 drawer-scroll flex-1 min-h-0 flex flex-col gap-2 pb-28 touch-pan-y"
                 style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
               >
@@ -706,11 +731,10 @@ export default function Navbar({ user }: { user?: UserPayload }) {
 
                   if (sub.subItems) {
                     return (
-                      <div 
-                        key={sIdx} 
-                        className={`rounded-2xl border transition-all duration-300 overflow-hidden shadow-xs touch-pan-y ${
-                          isExpanded ? 'border-emerald-500/80 bg-white/95 shadow-md ring-2 ring-emerald-500/15' : 'border-white/90 bg-white/70 hover:bg-white/90'
-                        }`}
+                      <div
+                        key={sIdx}
+                        className={`rounded-2xl border transition-all duration-300 overflow-hidden shadow-xs touch-pan-y ${isExpanded ? 'border-emerald-500/80 bg-white/95 shadow-md ring-2 ring-emerald-500/15' : 'border-white/90 bg-white/70 hover:bg-white/90'
+                          }`}
                       >
                         <button
                           type="button"
@@ -719,14 +743,12 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                             e.stopPropagation();
                             setExpandedNestedItem(prev => (prev === sub.title ? null : sub.title));
                           }}
-                          className={`w-full flex items-center justify-between p-3.5 min-h-[52px] text-left transition-all touch-pan-y active:scale-[0.99] ${
-                            isExpanded ? 'bg-emerald-50/90 text-emerald-950' : 'hover:bg-white/80 active:bg-emerald-50/60'
-                          }`}
+                          className={`w-full flex items-center justify-between p-3.5 min-h-[52px] text-left transition-all touch-pan-y active:scale-[0.99] ${isExpanded ? 'bg-emerald-50/90 text-emerald-950' : 'hover:bg-white/80 active:bg-emerald-50/60'
+                            }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xs transition-colors ${
-                              isExpanded ? 'bg-[#095738] text-white shadow-sm' : 'bg-amber-100/90 text-amber-900'
-                            }`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xs transition-colors ${isExpanded ? 'bg-[#095738] text-white shadow-sm' : 'bg-amber-100/90 text-amber-900'
+                              }`}>
                               <SubIcon className="w-5 h-5" />
                             </div>
                             <div className="flex flex-col">
@@ -794,11 +816,11 @@ export default function Navbar({ user }: { user?: UserPayload }) {
       {/* ─── 5. FULL MOBILE SIDEBAR DRAWER (Luxury Islamic Frosted Glass) ─── */}
       <div className={`xl:hidden fixed inset-0 z-[60] flex transition-all duration-300 ${isMobileMenuOpen ? "visible" : "invisible pointer-events-none"}`}>
         {/* Backdrop with rich blur */}
-        <div 
-          className={`fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0"}`} 
+        <div
+          className={`fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity duration-300 ${isMobileMenuOpen ? "opacity-100" : "opacity-0"}`}
           onClick={() => setIsMobileMenuOpen(false)}
         />
-        
+
         {/* Sidebar Drawer Container - Luxury Deep Emerald Surface */}
         <div className={`relative w-[85vw] max-w-[340px] bg-gradient-to-b from-[#021d15] via-[#052e23] to-[#01140e] text-white h-full shadow-[25px_0_60px_rgba(0,0,0,0.6)] border-r border-emerald-500/30 flex flex-col overflow-hidden transition-transform duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
           {/* Subtle Islamic Ambient Glow */}
@@ -809,10 +831,10 @@ export default function Navbar({ user }: { user?: UserPayload }) {
           <div className="sticky top-0 z-10 px-4 sm:px-5 py-4 flex items-center justify-between border-b border-white/10 bg-[#021d15]/90 backdrop-blur-xl flex-shrink-0 shadow-md">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-full bg-white p-0.5 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-amber-400/60 overflow-hidden">
-                <img 
-                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"} 
-                  alt="Logo" 
-                  className="w-full h-full object-contain rounded-full" 
+                <img
+                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"}
+                  alt="Logo"
+                  className="w-full h-full object-contain rounded-full"
                   onError={() => setLogoError(true)}
                 />
               </div>
@@ -821,7 +843,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                 <span className="text-[10.5px] text-emerald-200/90 truncate">{settings?.address || "মুহাম্মাদনগর, লবণচরা, খুলনা"}</span>
               </div>
             </div>
-            <button 
+            <button
               className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors active:scale-95 flex-shrink-0 border border-white/15"
               onClick={() => setIsMobileMenuOpen(false)}
               aria-label="Close"
@@ -829,16 +851,16 @@ export default function Navbar({ user }: { user?: UserPayload }) {
               <X className="w-4 h-4" />
             </button>
           </div>
-          
+
           {user?.role === 'ADMIN' && (
             <div className="flex bg-white/10 backdrop-blur-md p-1 m-3 rounded-2xl border border-white/15 shadow-inner flex-shrink-0">
-              <button 
+              <button
                 onClick={() => setMobileTab("admin")}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${mobileTab === 'admin' ? 'bg-amber-400 text-slate-950 shadow-md font-black' : 'text-emerald-200 hover:text-white'}`}
               >
                 অ্যাডমিন প্যানেল
               </button>
-              <button 
+              <button
                 onClick={() => setMobileTab("user")}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${mobileTab === 'user' ? 'bg-amber-400 text-slate-950 shadow-md font-black' : 'text-emerald-200 hover:text-white'}`}
               >
@@ -846,9 +868,9 @@ export default function Navbar({ user }: { user?: UserPayload }) {
               </button>
             </div>
           )}
-          
+
           {/* Scrollable Menu Items Container */}
-          <div 
+          <div
             className="px-3.5 py-3 flex flex-col gap-2.5 flex-1 min-h-0 drawer-scroll pb-28 touch-pan-y"
             style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
           >
@@ -856,6 +878,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
               <div className="flex flex-col gap-1.5 mt-1">
                 {[
                   { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
+                  { id: "batches", icon: GraduationCap, label: "প্রশিক্ষণ ব্যাচ" },
                   { id: "store", icon: ShoppingBag, label: "স্টোর পরিচালনা" },
                   { id: "curriculum", icon: BookOpen, label: "কারিকুলাম" },
                   { id: "applications", icon: ClipboardList, label: "আবেদন" },
@@ -875,7 +898,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                     <span>{item.label}</span>
                   </Link>
                 ))}
-                <button 
+                <button
                   onClick={async () => {
                     await fetch('/api/auth/logout', { method: 'POST' });
                     window.location.href = '/';
@@ -905,22 +928,20 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                   ][idx % 10];
 
                   return (
-                    <div 
-                      key={idx} 
-                      className={`shrink-0 rounded-2xl border transition-all duration-300 overflow-hidden touch-pan-y ${
-                        isExpanded 
-                          ? 'border-amber-400/70 bg-gradient-to-br from-white/[0.14] to-emerald-950/90 ring-1 ring-amber-400/30 shadow-[0_8px_30px_rgba(0,0,0,0.5)]' 
+                    <div
+                      key={idx}
+                      className={`shrink-0 rounded-2xl border transition-all duration-300 overflow-hidden touch-pan-y ${isExpanded
+                          ? 'border-amber-400/70 bg-gradient-to-br from-white/[0.14] to-emerald-950/90 ring-1 ring-amber-400/30 shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
                           : 'border-white/[0.1] bg-white/[0.06] hover:bg-white/[0.1] hover:border-white/[0.2] shadow-sm'
-                      }`}
+                        }`}
                     >
                       {item.subItems ? (
                         <div>
                           <button
                             type="button"
                             onClick={() => toggleMobileMenu(idx)}
-                            className={`w-full flex items-center justify-between p-3 min-h-[54px] text-left font-bold transition-all touch-pan-y active:scale-[0.99] ${
-                              isExpanded ? 'bg-white/[0.08] text-white' : 'text-slate-100 hover:text-white'
-                            }`}
+                            className={`w-full flex items-center justify-between p-3 min-h-[54px] text-left font-bold transition-all touch-pan-y active:scale-[0.99] ${isExpanded ? 'bg-white/[0.08] text-white' : 'text-slate-100 hover:text-white'
+                              }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 font-extrabold ${palette.iconBg}`}>
@@ -935,7 +956,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                               <ChevronDown className={`w-4 h-4 text-amber-300 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-amber-400 font-bold' : 'text-emerald-300/70'}`} />
                             </div>
                           </button>
-                          
+
                           {isExpanded && (
                             <div className="px-2.5 pb-2.5 flex flex-col gap-1.5 border-t border-white/10 pt-2 bg-black/25 backdrop-blur-md touch-pan-y animate-in fade-in slide-in-from-top-2 duration-200">
                               {item.subItems.map((sub, sIdx) => {
@@ -948,9 +969,8 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                                         <button
                                           type="button"
                                           onClick={() => toggleMobileSubMenu(sIdx)}
-                                          className={`w-full flex items-center justify-between py-2.5 px-3 min-h-[44px] text-xs font-bold transition-colors ${
-                                            isSubExpanded ? 'bg-amber-400 text-slate-950 font-black shadow-sm' : 'text-emerald-200 hover:bg-white/[0.08]'
-                                          }`}
+                                          className={`w-full flex items-center justify-between py-2.5 px-3 min-h-[44px] text-xs font-bold transition-colors ${isSubExpanded ? 'bg-amber-400 text-slate-950 font-black shadow-sm' : 'text-emerald-200 hover:bg-white/[0.08]'
+                                            }`}
                                         >
                                           <div className="flex items-center gap-2">
                                             <SubIcon className="w-3.5 h-3.5" />
@@ -958,7 +978,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                                           </div>
                                           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSubExpanded ? 'rotate-180' : ''}`} />
                                         </button>
-                                        
+
                                         {isSubExpanded && (
                                           <div className="px-2 py-1.5 flex flex-col gap-1 border-t border-white/10 bg-black/40 animate-in fade-in slide-in-from-top-1 duration-150">
                                             {sub.subItems.map((nested, nIdx) => {
@@ -982,8 +1002,8 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                                         )}
                                       </div>
                                     ) : (
-                                      <Link 
-                                        href={sub.href} 
+                                      <Link
+                                        href={sub.href}
                                         onClick={() => setIsMobileMenuOpen(false)}
                                         className="flex items-center justify-between text-xs sm:text-[13px] text-emerald-100 hover:text-white bg-white/[0.06] hover:bg-emerald-500/20 active:bg-emerald-500/30 py-2.5 px-3 min-h-[44px] rounded-xl font-bold transition-all border border-white/[0.08] shadow-2xs touch-pan-y"
                                       >
@@ -1003,8 +1023,8 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                           )}
                         </div>
                       ) : (
-                        <Link 
-                          href={item.href} 
+                        <Link
+                          href={item.href}
                           onClick={() => setIsMobileMenuOpen(false)}
                           className="flex items-center gap-3 font-bold p-3 min-h-[54px] text-slate-100 hover:text-white hover:bg-white/[0.08] transition-colors text-[15px] touch-pan-y active:scale-[0.99]"
                         >
@@ -1020,10 +1040,10 @@ export default function Navbar({ user }: { user?: UserPayload }) {
                     </div>
                   );
                 })}
-                
+
                 {/* Mobile Track and Auth Buttons */}
                 <div className="mt-3 pt-3.5 border-t border-white/15 flex flex-col gap-2.5 shrink-0">
-                  <button 
+                  <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                       setIsTrackModalOpen(true);
@@ -1036,15 +1056,15 @@ export default function Navbar({ user }: { user?: UserPayload }) {
 
                   {!user && (
                     <div className="grid grid-cols-2 gap-2 mt-0.5 shrink-0">
-                      <Link 
-                        href="/login" 
+                      <Link
+                        href="/login"
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="bg-white/10 hover:bg-white/20 border border-white/20 text-center text-white py-2.5 rounded-xl font-extrabold transition-all text-xs sm:text-sm active:scale-95 shadow-xs"
                       >
                         লগইন
                       </Link>
-                      <Link 
-                        href="/signup" 
+                      <Link
+                        href="/signup"
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="bg-gradient-to-r from-emerald-500 to-[#095738] hover:from-emerald-400 hover:to-emerald-600 text-center text-white py-2.5 rounded-xl font-extrabold transition-all shadow-md text-xs sm:text-sm active:scale-95 border border-emerald-400/40"
                       >
@@ -1058,7 +1078,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
           </div>
         </div>
       </div>
-      
+
       <TrackOrderModal isOpen={isTrackModalOpen} onClose={() => setIsTrackModalOpen(false)} />
     </header>
   );

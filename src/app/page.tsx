@@ -8,7 +8,6 @@ import HomeMobileNavModals from "@/components/home/HomeMobileNavModals";
 import { getUserSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { ShoppingBag, BookOpen, FileQuestion, ArrowRight } from "lucide-react";
 
 export default async function Home() {
   const user = await getUserSession();
@@ -64,46 +63,6 @@ export default async function Home() {
           </div>
         )}
 
-        {/* ─── ৬ নং: বই ও প্রশ্ন অর্ডার Showcase Bar ─────────────────────────────── */}
-        <div className="w-full max-w-[1850px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 pt-4 pb-1">
-          <div className="bg-gradient-to-r from-[#052e23] via-emerald-900 to-[#0a4233] rounded-2xl p-3.5 sm:p-4 text-white shadow-md border border-emerald-700/60 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold shrink-0 border border-amber-400/30 shadow-xs">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base text-white flex items-center gap-2">
-                  <span>বই ও প্রশ্নপত্র সরাসরি অর্ডার</span>
-                  <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full shadow-2xs">সরাসরি</span>
-                </h3>
-                <p className="text-xs text-emerald-200">সারাদেশের নূরানী মাদরাসার জন্য কেন্দ্রীয় পরীক্ষার প্রশ্ন ও সাজানো পাঠ্যবই অর্ডার</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
-              {/* প্রশ্ন অর্ডার -> /academic/question-order */}
-              <Link
-                href="/academic/question-order"
-                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all hover:scale-105 active:scale-95"
-              >
-                <FileQuestion className="w-4 h-4 text-amber-300" />
-                <span>প্রশ্ন অর্ডার</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-
-              {/* বই অর্ডার -> /store */}
-              <Link
-                href="/store"
-                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 text-xs sm:text-sm font-black rounded-xl shadow-sm transition-all hover:scale-105 active:scale-95"
-              >
-                <BookOpen className="w-4 h-4" />
-                <span>বই অর্ডার করুন</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-        
         {/* Middle Section: 
             - Desktop (lg+): 3-Column Layout [TOC Left (Sticky)] + [Training Middle (Expanded)] + [Notice Right (Sticky)]
             - Mobile (< lg): Top Scrollable Quick Bar (Click to open Popup Modal) + Training Cards (Clean & Focused)

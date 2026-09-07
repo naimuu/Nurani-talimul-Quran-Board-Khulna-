@@ -37,13 +37,13 @@ export default function AboutBoard() {
             <div className="flex items-start">
               <Phone className="w-4 h-4 text-emerald-600 mt-0.5 mr-2 flex-shrink-0" />
               <p className="text-xs text-slate-700">
-                <strong>পরীক্ষা ও সনদ:</strong> 01820-58 05 60 | <strong>হিসাব:</strong> 01893-43 23 13
+                <strong>পরীক্ষা ও সনদ:</strong> <a href="tel:01820580560" className="text-emerald-800 hover:text-emerald-950 hover:underline font-bold font-mono">01820-580560</a> | <strong>হিসাব:</strong> <a href="tel:01893432313" className="text-emerald-800 hover:text-emerald-950 hover:underline font-bold font-mono">01893-432313</a>
               </p>
             </div>
             <div className="flex items-start">
               <Phone className="w-4 h-4 text-emerald-600 mt-0.5 mr-2 flex-shrink-0" />
               <p className="text-xs text-slate-700">
-                <strong>বই ও স্টেশনারি:</strong> 01312-13 58 62 | <strong>প্রশিক্ষণ:</strong> 01966-93 58 32
+                <strong>বই ও স্টেশনারি:</strong> <a href="tel:01312135862" className="text-emerald-800 hover:text-emerald-950 hover:underline font-bold font-mono">01312-135862</a> | <strong>প্রশিক্ষণ:</strong> <a href="tel:01966935832" className="text-emerald-800 hover:text-emerald-950 hover:underline font-bold font-mono">01966-935832</a>
               </p>
             </div>
           </div>

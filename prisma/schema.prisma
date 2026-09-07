@@ -270,3 +270,24 @@ model CurriculumExamResource {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 }
+
+model TrainingBatch {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  medium       String   // "bangla" | "arabic"
+  title        String   // e.g. "মুয়াল্লিম প্রশিক্ষণ (বাংলা)"
+  subtitle     String   // e.g. "৩০ দিন ব্যাপী বিশেষ শিক্ষক প্রশিক্ষণ কোর্স"
+  badge        String?  // e.g. "বাংলা মাধ্যম"
+  durationDays String   // e.g. "৩০"
+  durationText String?  // e.g. "দিন মেয়াদী প্রশিক্ষণ"
+  price        String   // e.g. "৳ ৫,৫০০"
+  location     String   // e.g. "খুলনা বিভাগীয় কার্যালয় ও জেলা কেন্দ্র"
+  date         String   // e.g. "চলমান / নতুন সেশন"
+  batch        String   // e.g. "ব্যাচ নং: ১২৪ (বাংলা)"
+  phone        String   // e.g. "01966-935832, 01988-977209"
+  link         String?  // e.g. "/training/moallem-bangla"
+  regLink      String?  @default("/register")
+  isActive     Boolean  @default(true)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

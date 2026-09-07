@@ -1,6 +1,5 @@
 import NoticeBoard from "@/components/home/NoticeBoard";
 import EditableContent from "@/components/EditableContent";
-import ProfileCard from "@/components/sidebar/ProfileCard";
 
 export default function FormsPage({ params }: { params: { slug: string } }) {
   const titleMap: Record<string, string> = {
@@ -21,12 +20,12 @@ export default function FormsPage({ params }: { params: { slug: string } }) {
         
         {/* Main Content Area */}
         <div className="lg:col-span-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 md:p-12 h-full">
-            <h1 className="text-3xl md:text-4xl font-bold text-center text-slate-800 mb-2">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-10 h-full">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-center text-slate-800 mb-2">
               {title}
             </h1>
-            <div className="flex justify-center mb-8">
-              <div className="h-1 w-24 bg-emerald-600 rounded"></div>
+            <div className="flex justify-center mb-6">
+              <div className="h-1 w-20 bg-emerald-600 rounded-full"></div>
             </div>
 
             <EditableContent 
@@ -38,18 +37,9 @@ export default function FormsPage({ params }: { params: { slug: string } }) {
 
         {/* Sidebar Area */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="h-[400px]">
+          <div className="sticky top-20">
             <NoticeBoard />
           </div>
-          
-          <ProfileCard
-            slug="secretary"
-            name="মহাসচিব"
-            title="মহাসচিব"
-            imageSrc="https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=200&auto=format&fit=crop"
-            link="/about/secretary"
-            defaultExcerpt="বোর্ডের ইলহাক ও অন্যান্য অফিসিয়াল ফরমের নিয়মাবলী ও ডাউনলোড সম্পর্কিত তথ্য এখানে সংরক্ষিত আছে।"
-          />
         </div>
 
       </div>

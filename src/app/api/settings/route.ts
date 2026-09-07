@@ -7,29 +7,53 @@ export const dynamic = 'force-dynamic';
 // This avoids needing `npx prisma generate` for new BoardSettings fields.
 const FLAGS_SLUG = 'cover-display-flags';
 
-async function getCoverFlags(): Promise<{ showCoverAboveNavbar: boolean; showCoverInPageHeader: boolean; scrollingNotice: string; showScrollingNotice: boolean }> {
+export interface HeroSlide {
+  id: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  imageUrl: string;
+  buttonText?: string;
+  buttonLink?: string;
+}
+
+async function getCoverFlags(): Promise<{
+  showCoverAboveNavbar: boolean;
+  showCoverInPageHeader: boolean;
+  scrollingNotice: string;
+  showScrollingNotice: boolean;
+  heroSlides: HeroSlide[];
+}> {
   try {
     const record = await prisma.pageContent.findUnique({ where: { slug: FLAGS_SLUG } });
-    if (!record) return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false };
+    if (!record) return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: [] };
     const parsed = JSON.parse(record.content);
     return {
       showCoverAboveNavbar:  parsed.showCoverAboveNavbar  ?? false,
       showCoverInPageHeader: parsed.showCoverInPageHeader ?? false,
       scrollingNotice:       parsed.scrollingNotice ?? "",
       showScrollingNotice:   parsed.showScrollingNotice ?? false,
+      heroSlides:            Array.isArray(parsed.heroSlides) ? parsed.heroSlides : [],
     };
   } catch {
-    return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false };
+    return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: [] };
   }
 }
 
-async function setCoverFlags(flags: { showCoverAboveNavbar?: boolean; showCoverInPageHeader?: boolean; scrollingNotice?: string; showScrollingNotice?: boolean }) {
+async function setCoverFlags(flags: {
+  showCoverAboveNavbar?: boolean;
+  showCoverInPageHeader?: boolean;
+  scrollingNotice?: string;
+  showScrollingNotice?: boolean;
+  heroSlides?: HeroSlide[];
+}) {
   const current = await getCoverFlags();
   const merged = {
     showCoverAboveNavbar:  flags.showCoverAboveNavbar  ?? current.showCoverAboveNavbar,
     showCoverInPageHeader: flags.showCoverInPageHeader ?? current.showCoverInPageHeader,
     scrollingNotice:       flags.scrollingNotice ?? current.scrollingNotice,
     showScrollingNotice:   flags.showScrollingNotice ?? current.showScrollingNotice,
+    heroSlides:            flags.heroSlides !== undefined ? flags.heroSlides : current.heroSlides,
   };
   await prisma.pageContent.upsert({
     where:  { slug: FLAGS_SLUG },
@@ -122,6 +146,7 @@ export async function PUT(request: Request) {
       showCoverInPageHeader: data.showCoverInPageHeader,
       scrollingNotice:       data.scrollingNotice,
       showScrollingNotice:   data.showScrollingNotice,
+      heroSlides:            data.heroSlides,
     });
 
     return NextResponse.json({ ...settings, ...flags });

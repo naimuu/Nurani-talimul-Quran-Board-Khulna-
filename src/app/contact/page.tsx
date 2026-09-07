@@ -16,7 +16,7 @@ export default function ContactPage() {
       icon: <Award className="w-6 h-6 text-emerald-600" />,
       badge: "পরীক্ষা ও সনদ",
       color: "emerald",
-      numbers: ["01820-58 05 60"],
+      numbers: ["01820-580560"],
     },
     {
       title: "হিসাব বিভাগ",
@@ -24,7 +24,7 @@ export default function ContactPage() {
       icon: <Calculator className="w-6 h-6 text-blue-600" />,
       badge: "হিসাব",
       color: "blue",
-      numbers: ["01893-43 23 13"],
+      numbers: ["01893-432313"],
     },
     {
       title: "বই ও স্টেশনারি",
@@ -32,7 +32,7 @@ export default function ContactPage() {
       icon: <BookOpen className="w-6 h-6 text-purple-600" />,
       badge: "বিক্রয় কেন্দ্র",
       color: "purple",
-      numbers: ["01312-13 58 62"],
+      numbers: ["01312-135862"],
       link: "/store",
       linkText: "অনলাইন স্টোর দেখুন",
     },
@@ -42,7 +42,7 @@ export default function ContactPage() {
       icon: <GraduationCap className="w-6 h-6 text-amber-600" />,
       badge: "প্রশিক্ষণ",
       color: "amber",
-      numbers: ["01966-93 58 32", "01939-89 52 90"],
+      numbers: ["01966-935832", "01939-895290"],
     },
     {
       title: "বাংলা প্রশিক্ষণ",
@@ -50,7 +50,7 @@ export default function ContactPage() {
       icon: <GraduationCap className="w-6 h-6 text-rose-600" />,
       badge: "প্রশিক্ষণ",
       color: "rose",
-      numbers: ["01988-97 72 09", "01764-43 45 52"],
+      numbers: ["01988-977209", "01764-434552"],
     },
   ];
 
