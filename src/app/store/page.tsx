@@ -5,6 +5,7 @@ import {
   SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
+import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
 
 type Product = {
   id: string; name: string; category: string; price: number;
@@ -134,6 +135,25 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   const [customerEmail, setCustomerEmail] = useState(initialState?.customerEmail || "");
   const [customerPassword, setCustomerPassword] = useState(initialState?.customerPassword || "");
   const [address, setAddress] = useState(initialState?.address || "");
+  const [geoAddress, setGeoAddress] = useState<GeoAddressData>(initialState?.geoAddress || {
+    division: "",
+    district: "",
+    upazila: "",
+    union: "",
+    village: "",
+    fullAddress: initialState?.address || ""
+  });
+  const [hasSeparateDelivery, setHasSeparateDelivery] = useState<boolean>(initialState?.hasSeparateDelivery || false);
+  const [deliveryAddress, setDeliveryAddress] = useState<GeoAddressData>(initialState?.deliveryAddress || {
+    division: "",
+    district: "",
+    upazila: "",
+    union: "",
+    village: "",
+    fullAddress: ""
+  });
+  const [missingFieldsNotice, setMissingFieldsNotice] = useState<string>("");
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchStatus, setSearchStatus] = useState<"idle" | "found" | "not_found" | "error">(initialState?.searchStatus || "idle");
@@ -187,6 +207,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
     if (!ilhak.trim()) return;
     setIsLoading(true);
     setSearchStatus("idle");
+    setMissingFieldsNotice("");
     try {
       const res = await fetch(`/api/madrasa/by-code?code=${encodeURIComponent(ilhak)}`);
       if (res.ok) {
@@ -194,8 +215,32 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
         setInstituteName(data.name || "");
         setOwnerName(data.ownerName || "");
         setContactNo(data.contactNo || "");
-        setAddress(data.address || "");
+        const rawAddr = data.address || "";
+        const populatedGeo: GeoAddressData = {
+          division: data.division || "",
+          district: data.district || "",
+          upazila: data.upazila || "",
+          union: data.union || "",
+          village: data.village || rawAddr,
+          fullAddress: rawAddr
+        };
+        setGeoAddress(populatedGeo);
+        setAddress(rawAddr);
         setSearchStatus("found");
+
+        // Check for missing data fields
+        const missing: string[] = [];
+        if (!data.name?.trim()) missing.push("মাদরাসার নাম");
+        if (!data.ownerName?.trim()) missing.push("মুহতামিম/আবেদনকারী");
+        if (!data.contactNo?.trim()) missing.push("মোবাইল নম্বর");
+        if (!data.division?.trim()) missing.push("বিভাগ");
+        if (!data.district?.trim()) missing.push("জেলা");
+        if (!data.upazila?.trim()) missing.push("উপজেলা");
+        if (!data.village?.trim() && !rawAddr.trim()) missing.push("গ্রাম/যাতায়াত ঠিকানা");
+
+        if (missing.length > 0) {
+          setMissingFieldsNotice(`পূর্বের তথ্য পাওয়া গেছে, তবে (${missing.join(", ")}) অনুপস্থিত। অনুগ্রহ করে বাকি তথ্য পূরণ করুন।`);
+        }
       } else if (res.status === 404) {
         setSearchStatus("not_found");
       } else {
@@ -210,8 +255,13 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
 
   const validateAndProceed = () => {
     setErrorMsg("");
-    if (!ownerName || !instituteName || !address) {
-      setErrorMsg("অনুগ্রহ করে মালিকের নাম, প্রতিষ্ঠানের নাম এবং ঠিকানা প্রদান করুন।");
+    const effectiveAddress = geoAddress.fullAddress || address;
+    if (!ownerName.trim() || !instituteName.trim() || !contactNo.trim() || !effectiveAddress.trim()) {
+      setErrorMsg("অনুগ্রহ করে মুহতামিম/আবেদনকারী, মাদরাসার নাম, মোবাইল নম্বর এবং সম্পূর্ণ ঠিকানা প্রদান করুন।");
+      return;
+    }
+    if (hasSeparateDelivery && !deliveryAddress.fullAddress.trim()) {
+      setErrorMsg("অনুগ্রহ করে ডেলিভারি ঠিকানা নির্বাচন বা লিখে পূরণ করুন।");
       return;
     }
     setPaymentStep(true);
@@ -229,15 +279,28 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
 
       const isMobileIlhak = ilhak.trim().length === 11 && ilhak.trim().startsWith("01");
 
+      const effectiveAddress = geoAddress.fullAddress || address;
       if (ilhak.trim() && searchStatus !== "found" && !isMobileIlhak) {
         await fetch("/api/madrasa/ilhak", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: ilhak, name: instituteName, ownerName, contactNo, address }),
+          body: JSON.stringify({
+            code: ilhak,
+            name: instituteName,
+            ownerName,
+            contactNo,
+            address: effectiveAddress,
+            division: geoAddress.division,
+            district: geoAddress.district,
+            upazila: geoAddress.upazila,
+            union: geoAddress.union,
+            village: geoAddress.village,
+          }),
         });
       }
 
       const ilhakText = (ilhak.trim() && !isMobileIlhak) ? ` (ইলহাক: ${ilhak.trim()})` : '';
+      const deliveryNote = hasSeparateDelivery && deliveryAddress.fullAddress ? ` | ডেলিভারি ঠিকানা: ${deliveryAddress.fullAddress}` : '';
 
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
       // Determine what to actually send:
@@ -253,7 +316,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           password: customerPassword.trim() || undefined,
           instituteId: instituteName,
           items,
-          notes: `${address}${ilhakText}`,
+          notes: `${effectiveAddress}${deliveryNote}${ilhakText}`,
           paymentOption: effectivePaymentOption,
           paymentProvider: effectivePaymentOption === 'pay_now' ? paymentProvider : undefined,
           trxId: effectivePaymentOption === 'pay_now' ? trxId : undefined,
@@ -277,10 +340,13 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   };
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg sm:max-w-xl overflow-hidden relative animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[92vh]">
         <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
-          <h2 className="font-bold text-slate-800 text-lg">অর্ডার নিশ্চিত করুন</h2>
-          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address, searchStatus, paymentStep })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+          <div>
+            <h2 className="font-bold text-slate-800 text-lg">অর্ডার নিশ্চিত করুন</h2>
+            <p className="text-xs text-slate-500">মাদরাসা ও ডেলিভারির সঠিক তথ্য প্রদান করুন</p>
+          </div>
+          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
@@ -298,6 +364,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       onChange={(e) => {
                         setIlhak(e.target.value);
                         if (searchStatus !== "idle") setSearchStatus("idle");
+                        if (missingFieldsNotice) setMissingFieldsNotice("");
                       }}
                       placeholder="যেমন: 1234 বা 01XXXXXXXXX"
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
@@ -310,18 +377,27 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       {isLoading ? "খুঁজছি..." : "খুঁজুন"}
                     </button>
                   </div>
-                  {searchStatus === "found" && <p className="text-xs text-emerald-600 mt-1.5 font-medium">✓ {ilhak.trim().length === 11 && ilhak.trim().startsWith("01") ? "মোবাইল নম্বর" : "ইলহাক"} পাওয়া গেছে, তথ্য অটো-ফিল করা হয়েছে!</p>}
-                  {searchStatus === "not_found" && <p className="text-xs text-amber-600 mt-1.5 font-medium">⚠ {ilhak.trim().length === 11 && ilhak.trim().startsWith("01") ? "মোবাইল নম্বর" : "ইলহাক"} পাওয়া যায়নি। নতুন তথ্য সেভ করা হবে।</p>}
+                  {searchStatus === "found" && (
+                    <div className="space-y-1 mt-1.5">
+                      <p className="text-xs text-emerald-600 font-medium">✓ {ilhak.trim().length === 11 && ilhak.trim().startsWith("01") ? "মোবাইল নম্বর" : "ইলহাক"} অনুযায়ী পূর্বের তথ্য অটো-ফিল করা হয়েছে!</p>
+                      {missingFieldsNotice && (
+                        <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
+                          ⚠️ {missingFieldsNotice}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {searchStatus === "not_found" && <p className="text-xs text-amber-600 mt-1.5 font-medium">⚠ {ilhak.trim().length === 11 && ilhak.trim().startsWith("01") ? "মোবাইল নম্বর" : "ইলহাক"} পাওয়া যায়নি। নতুন তথ্য পূরণ করুন।</p>}
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">মালিকের নাম <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">মুহতামিম / আবেদনকারীর নাম <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      placeholder="আপনার পুরো নাম"
+                      placeholder="যেমন: মাওলানা মো: আবদুল্লাহ"
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
                     />
                   </div>
@@ -381,15 +457,20 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span></label>
-                  <textarea
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="গ্রাম/মহল্লা, ডাকঘর, উপজেলা, জেলা"
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none bg-slate-50 focus:bg-white text-sm"
-                  ></textarea>
+                {/* Geo Cascade Address Selector with Separate Delivery Option */}
+                <div className="pt-2 border-t border-slate-100">
+                  <GeoAddressSelector
+                    label="মাদরাসার পূর্ণাঙ্গ ঠিকানা *"
+                    value={geoAddress}
+                    onChange={(newVal) => {
+                      setGeoAddress(newVal);
+                      setAddress(newVal.fullAddress);
+                    }}
+                    hasSeparateDelivery={hasSeparateDelivery}
+                    onSeparateDeliveryChange={setHasSeparateDelivery}
+                    deliveryValue={deliveryAddress}
+                    onDeliveryChange={setDeliveryAddress}
+                  />
                 </div>
               </div>
 
@@ -400,7 +481,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
 
               <div className="flex gap-3 mt-4">
                 <button
-                  onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address, searchStatus, paymentStep })}
+                  onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep })}
                   className="w-1/2 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all border border-slate-200"
                 >
                   আরও পণ্য যোগ করুন

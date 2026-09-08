@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
+import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
 
 type QuestionItem = {
   id: string;
@@ -194,6 +195,23 @@ export default function QuestionOrderPage() {
   const [instituteName, setInstituteName] = useState("");
   const [contactNo, setContactNo] = useState("");
   const [address, setAddress] = useState("");
+  const [geoAddress, setGeoAddress] = useState<GeoAddressData>({
+    division: "",
+    district: "",
+    upazila: "",
+    union: "",
+    village: "",
+    fullAddress: "",
+  });
+  const [hasSeparateDelivery, setHasSeparateDelivery] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState<GeoAddressData>({
+    division: "",
+    district: "",
+    upazila: "",
+    union: "",
+    village: "",
+    fullAddress: "",
+  });
   const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "found" | "not_found" | "error">("idle");
 
   // Payment States
@@ -233,6 +251,9 @@ export default function QuestionOrderPage() {
         if (data.ownerName) setOwnerName(data.ownerName);
         if (data.contactNo) setContactNo(data.contactNo);
         if (data.address) setAddress(data.address);
+        if (data.geoAddress) setGeoAddress(data.geoAddress);
+        if (data.hasSeparateDelivery !== undefined) setHasSeparateDelivery(data.hasSeparateDelivery);
+        if (data.deliveryAddress) setDeliveryAddress(data.deliveryAddress);
       }
 
       const savedMode = localStorage.getItem("question_view_mode");
@@ -259,10 +280,19 @@ export default function QuestionOrderPage() {
     try {
       localStorage.setItem(
         "nurani_question_order_customer",
-        JSON.stringify({ ilhak, instituteName, ownerName, contactNo, address })
+        JSON.stringify({
+          ilhak,
+          instituteName,
+          ownerName,
+          contactNo,
+          address: geoAddress.fullAddress || address,
+          geoAddress,
+          hasSeparateDelivery,
+          deliveryAddress,
+        })
       );
     } catch {}
-  }, [ilhak, instituteName, ownerName, contactNo, address, isHydrated]);
+  }, [ilhak, instituteName, ownerName, contactNo, address, geoAddress, hasSeparateDelivery, deliveryAddress, isHydrated]);
 
   const changeViewMode = (mode: "table" | "card") => {
     setViewMode(mode);
@@ -437,15 +467,37 @@ export default function QuestionOrderPage() {
       const res = await fetch(`/api/madrasa/by-code?code=${encodeURIComponent(ilhak.trim())}`);
       if (res.ok) {
         const data = await res.json();
-        setInstituteName(data.name || "");
-        setOwnerName(data.ownerName || "");
-        setContactNo(data.contactNo || "");
-        setAddress(data.address || "");
+        if (data.name) setInstituteName(data.name);
+        if (data.ownerName) setOwnerName(data.ownerName);
+        if (data.contactNo) setContactNo(data.contactNo);
+        if (data.ilhak) setIlhak(data.ilhak);
+
+        const newGeo: GeoAddressData = {
+          division: data.division || geoAddress.division || "",
+          district: data.district || geoAddress.district || "",
+          upazila: data.upazila || geoAddress.upazila || "",
+          union: data.union || geoAddress.union || "",
+          village: data.village || (!data.division && data.address ? data.address : geoAddress.village) || "",
+          fullAddress: data.address || [data.village, data.union, data.upazila, data.district, data.division].filter(Boolean).join(", "),
+        };
+        setGeoAddress(newGeo);
+        setAddress(newGeo.fullAddress);
+
         setSearchStatus("found");
-        toast.success("মাদরাসার তথ্য পাওয়া গেছে!");
+        const missingFields = [];
+        if (!data.name) missingFields.push("মাদরাসার নাম");
+        if (!data.ownerName) missingFields.push("মুহতামিমের নাম");
+        if (!data.contactNo) missingFields.push("মোবাইল নম্বর");
+        if (!newGeo.division || !newGeo.district) missingFields.push("ঠিকানা");
+
+        if (missingFields.length > 0) {
+          toast.success(`মাদরাসা পাওয়া গেছে! অনুগ্রহ করে অনুপস্থিত (${missingFields.join(", ")}) পূরণ করুন।`, { duration: 4000 });
+        } else {
+          toast.success("মাদরাসার সকল তথ্য স্বয়ংক্রিয়ভাবে যুক্ত হয়েছে!");
+        }
       } else {
         setSearchStatus("not_found");
-        toast.error("ইলহাক পাওয়া যায়নি, অনুগ্রহ করে তথ্য ম্যানুয়ালি লিখুন");
+        toast.error("ইলহাক বা নম্বর পাওয়া যায়নি, অনুগ্রহ করে তথ্য ম্যানুয়ালি লিখুন");
       }
     } catch {
       setSearchStatus("error");
@@ -484,7 +536,8 @@ export default function QuestionOrderPage() {
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ownerName.trim() || !instituteName.trim() || !contactNo.trim() || !address.trim()) {
+    const effectiveAddress = geoAddress.fullAddress || address;
+    if (!ownerName.trim() || !instituteName.trim() || !contactNo.trim() || !effectiveAddress.trim()) {
       toast.error("অনুগ্রহ করে নাম, প্রতিষ্ঠান, মোবাইল নম্বর ও ঠিকানা পূরণ করুন");
       return;
     }
@@ -532,11 +585,12 @@ export default function QuestionOrderPage() {
       }
 
       const ilhakNote = ilhak.trim() ? ` (ইলহাক: ${ilhak.trim()})` : "";
+      const deliveryNote = hasSeparateDelivery && deliveryAddress.fullAddress ? ` | ডেলিভারি ঠিকানা: ${deliveryAddress.fullAddress}` : "";
       const questionOrderDetails = Object.values(cart)
         .map((c) => `[${c.item.name}: ${c.qty} সেট]`)
         .join(", ");
 
-      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${address}${ilhakNote}`;
+      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}`;
 
       const res = await fetch("/api/store/orders", {
         method: "POST",
@@ -1415,17 +1469,22 @@ export default function QuestionOrderPage() {
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-semibold focus:outline-emerald-600"
                   />
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">ঠিকানা *</label>
-                  <input
-                    type="text"
-                    required
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="গ্রাম, ডাকঘর, থানা, জেলা"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-semibold focus:outline-emerald-600"
-                  />
-                </div>
+              </div>
+
+              {/* Geo Cascade Address Selector with Delivery Option */}
+              <div className="pt-2 border-t border-slate-100">
+                <GeoAddressSelector
+                  label="মাদরাসার পূর্ণাঙ্গ ঠিকানা *"
+                  value={geoAddress}
+                  onChange={(newVal) => {
+                    setGeoAddress(newVal);
+                    setAddress(newVal.fullAddress);
+                  }}
+                  hasSeparateDelivery={hasSeparateDelivery}
+                  onSeparateDeliveryChange={setHasSeparateDelivery}
+                  deliveryValue={deliveryAddress}
+                  onDeliveryChange={setDeliveryAddress}
+                />
               </div>
 
               <div className="pt-2 border-t border-slate-100 space-y-2">
