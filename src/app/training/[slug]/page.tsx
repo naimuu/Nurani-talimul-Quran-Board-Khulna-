@@ -16,6 +16,7 @@ import {
   FileText,
   DollarSign
 } from "lucide-react";
+import CourseApplyButton from "@/components/training/CourseApplyButton";
 
 export default async function TrainingPage({ params }: { params: { slug: string } }) {
   const isBangla = params.slug === 'moallem-bangla';
@@ -260,12 +261,13 @@ export default async function TrainingPage({ params }: { params: { slug: string 
 
                         <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
                           <span className="text-[11px] text-slate-500 font-semibold">{b.durationDays} দিন মেয়াদ</span>
-                          <Link
-                            href={b.regLink && b.regLink !== '/register' ? b.regLink : `/training/admission?batchId=${b._id || b.id}&medium=${b.medium || (isBangla ? 'bangla' : 'arabic')}`}
-                            className={`px-3.5 py-1.5 rounded-xl ${themeColors.btn} text-white font-bold text-xs shadow-2xs transition-all hover:scale-105 active:scale-95`}
+                          <CourseApplyButton
+                            batchId={b._id || b.id}
+                            medium={b.medium || (isBangla ? 'bangla' : 'arabic')}
+                            className={`px-3.5 py-1.5 rounded-xl ${themeColors.btn} text-white font-bold text-xs shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer`}
                           >
                             আবেদন করুন
-                          </Link>
+                          </CourseApplyButton>
                         </div>
                       </div>
                     ))}
@@ -311,13 +313,14 @@ export default async function TrainingPage({ params }: { params: { slug: string 
                   </p>
                 </div>
 
-                <Link
-                  href="/register"
-                  className="px-6 py-2.5 rounded-xl bg-[#052e23] hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-sm transition-all hover:scale-105 active:scale-95 shrink-0 inline-flex items-center gap-2"
+                <CourseApplyButton
+                  batchId={primaryBatch?._id || primaryBatch?.id || ''}
+                  medium={isBangla ? 'bangla' : 'arabic'}
+                  className="px-6 py-2.5 rounded-xl bg-[#052e23] hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-sm transition-all hover:scale-105 active:scale-95 shrink-0 inline-flex items-center gap-2 cursor-pointer"
                 >
                   <span>অনলাইন আবেদন</span>
                   <ArrowRight className="w-4 h-4 text-amber-300" />
-                </Link>
+                </CourseApplyButton>
               </div>
 
               {/* Editable Content block for custom admin notes/updates */}

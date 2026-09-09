@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import AdmissionModal from "@/components/training/AdmissionModal";
 
 export interface BatchData {
   id?: string;
@@ -78,11 +79,13 @@ const fallbackArabicBatches: BatchData[] = [
 function MediumTrainingCard({
   batches,
   medium,
-  autoSlideInterval = 5500
+  autoSlideInterval = 5500,
+  onApply
 }: {
   batches: BatchData[];
   medium: "bangla" | "arabic";
   autoSlideInterval?: number;
+  onApply?: (batchId: string, medium: string) => void;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<"next" | "prev">("next");
@@ -308,12 +311,17 @@ function MediumTrainingCard({
 
       {/* Bottom Action Buttons */}
       <div className="pt-3 mt-1 flex items-center gap-2 relative z-10">
-        <Link
-          href={activeBatch.regLink && activeBatch.regLink !== '/register' ? activeBatch.regLink : `/training/admission?batchId=${activeBatch._id || activeBatch.id}&medium=${activeBatch.medium}`}
-          className={`flex-1 py-2 px-3 sm:px-4 rounded-xl ${theme.btnPrimary} text-xs sm:text-sm font-bold text-center transition-all duration-200 active:scale-95`}
+        <button
+          type="button"
+          onClick={() => {
+            if (onApply) {
+              onApply(activeBatch._id || activeBatch.id || '', activeBatch.medium || medium);
+            }
+          }}
+          className={`flex-1 py-2 px-3 sm:px-4 rounded-xl ${theme.btnPrimary} text-xs sm:text-sm font-bold text-center transition-all duration-200 active:scale-95 cursor-pointer`}
         >
           আবেদন করুন
-        </Link>
+        </button>
         <Link
           href={activeBatch.link || (isBangla ? "/training/moallem-bangla" : "/training/moallem-arabic")}
           className={`py-2 px-3 sm:px-4 rounded-xl ${theme.btnSecondary} text-xs sm:text-sm font-bold transition-all duration-200 text-center active:scale-95`}
@@ -328,6 +336,11 @@ function MediumTrainingCard({
 export default function TrainingSchedule() {
   const [banglaBatches, setBanglaBatches] = useState<BatchData[]>(fallbackBanglaBatches);
   const [arabicBatches, setArabicBatches] = useState<BatchData[]>(fallbackArabicBatches);
+  const [admissionModal, setAdmissionModal] = useState<{ isOpen: boolean; batchId?: string; medium?: string }>({ isOpen: false });
+
+  const handleOpenAdmission = (batchId: string, med: string) => {
+    setAdmissionModal({ isOpen: true, batchId, medium: med });
+  };
 
   useEffect(() => {
     async function loadBatches() {
@@ -381,6 +394,7 @@ export default function TrainingSchedule() {
           batches={banglaBatches}
           medium="bangla"
           autoSlideInterval={5500}
+          onApply={handleOpenAdmission}
         />
 
         {/* Right Grid: Arabic Batches Slider */}
@@ -388,8 +402,17 @@ export default function TrainingSchedule() {
           batches={arabicBatches}
           medium="arabic"
           autoSlideInterval={6500}
+          onApply={handleOpenAdmission}
         />
       </div>
+
+      {/* Admission Popup Modal */}
+      <AdmissionModal
+        isOpen={admissionModal.isOpen}
+        onClose={() => setAdmissionModal(prev => ({ ...prev, isOpen: false }))}
+        batchId={admissionModal.batchId}
+        medium={admissionModal.medium}
+      />
 
       {/* Footer Callout */}
       <div className="p-3 sm:p-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 shrink-0">

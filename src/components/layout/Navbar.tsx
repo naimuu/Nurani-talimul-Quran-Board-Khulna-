@@ -207,31 +207,81 @@ export default function Navbar({ user }: { user?: UserPayload }) {
   // Ref for mobile horizontally scrollable nav
   const mobileScrollRef = useRef<HTMLDivElement>(null);
 
-  // Scroll detection to hide mobile menu bar on scroll
+  // Smart scroll detection with transition cooldown lock to eliminate blinking/dancing completely
   const [isMenuHidden, setIsMenuHidden] = useState(false);
   const lastScrollY = useRef(0);
+  const isAnimating = useRef(false);
+  const animationTimer = useRef<NodeJS.Timeout | null>(null);
+  const isTicking = useRef(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+    lastScrollY.current = Math.max(0, window.scrollY);
 
-      if (currentScrollY <= 20) {
-        // At the top of page - always visible
-        setIsMenuHidden(false);
-      } else if (currentScrollY > lastScrollY.current && currentScrollY > 40) {
-        // Scrolling DOWN - hide smoothly
-        setIsMenuHidden(true);
-      } else if (currentScrollY < lastScrollY.current - 5) {
-        // Scrolling UP - show smoothly
-        setIsMenuHidden(false);
+    const triggerState = (hidden: boolean) => {
+      setIsMenuHidden(prev => {
+        if (prev === hidden) return prev;
+        isAnimating.current = true;
+        if (animationTimer.current) clearTimeout(animationTimer.current);
+        animationTimer.current = setTimeout(() => {
+          isAnimating.current = false;
+          lastScrollY.current = Math.max(0, window.scrollY);
+        }, 320); // Matches the 300ms CSS animation duration
+        return hidden;
+      });
+    };
+
+    const updateScrollState = () => {
+      const currentScrollY = Math.max(0, window.scrollY);
+      const delta = currentScrollY - lastScrollY.current;
+
+      // Always keep visible when near the top of the page
+      if (currentScrollY <= 50) {
+        triggerState(false);
+        lastScrollY.current = currentScrollY;
+        isTicking.current = false;
+        return;
+      }
+
+      // If currently animating/transitioning, ignore scroll deltas to prevent layout-shift feedback loops
+      if (isAnimating.current) {
+        lastScrollY.current = currentScrollY;
+        isTicking.current = false;
+        return;
+      }
+
+      // 1. Scrolling UP: Expand immediately without waiting to scroll more
+      if (delta < -2) {
+        triggerState(false);
+      }
+      // 2. Scrolling DOWN past top header area: Collapse smoothly at its own speed
+      else if (delta > 6 && currentScrollY > 70) {
+        triggerState(true);
       }
 
       lastScrollY.current = currentScrollY;
+      isTicking.current = false;
+    };
+
+    const handleScroll = () => {
+      if (isMobileMenuOpen || activeMobileDropdown) return;
+      if (!isTicking.current) {
+        window.requestAnimationFrame(updateScrollState);
+        isTicking.current = true;
+      }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (animationTimer.current) clearTimeout(animationTimer.current);
+    };
+  }, [isMobileMenuOpen, activeMobileDropdown]);
+
+  // Always show menu on route change
+  useEffect(() => {
+    setIsMenuHidden(false);
+    isAnimating.current = false;
+  }, [pathname]);
 
   const scrollButtonToCenter = (el: HTMLElement | null) => {
     if (el) {
@@ -406,7 +456,7 @@ export default function Navbar({ user }: { user?: UserPayload }) {
       </div>
 
       {/* ─── 2. MAIN BRANDING & NAVIGATION BAR ─────────────────────────── */}
-      <div className="bg-[#095738] text-white border-b-[3px] border-amber-400 shadow-lg relative">
+      <div className="bg-[#095738] text-white border-b-[3px] border-amber-400 shadow-lg relative z-20">
         <div className="w-full max-w-[1780px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-2.5 flex justify-between items-center gap-2 sm:gap-4">
 
           {/* LEFT: BRANDING (Auto-uploaded Logo + Board Name + Address underneath) */}
@@ -612,10 +662,10 @@ export default function Navbar({ user }: { user?: UserPayload }) {
 
       {/* ─── 3. MOBILE SCROLLABLE BUTTON BAR (Auto Centers On Click & Hides On Scroll) ─────── */}
       <div
-        className={`xl:hidden bg-[#063f29] border-[#0d563a] shadow-inner transition-all duration-300 ease-in-out overflow-hidden ${
+        className={`xl:hidden bg-[#063f29] border-[#0d563a] shadow-inner transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden relative z-10 ${
           isMenuHidden
-            ? 'max-h-0 opacity-0 py-0 border-b-0 pointer-events-none -translate-y-1'
-            : 'max-h-16 opacity-100 py-1.5 px-2 border-b'
+            ? 'max-h-0 opacity-0 py-0 border-b-0 pointer-events-none -translate-y-2'
+            : 'max-h-14 opacity-100 py-1.5 px-2 border-b translate-y-0'
         }`}
       >
         <div ref={mobileScrollRef} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth px-1">

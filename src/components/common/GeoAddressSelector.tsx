@@ -37,14 +37,14 @@ type LocationItem = {
 };
 
 const DEFAULT_DIVISIONS = [
-  { _id: "div_khulna", name: "Khulna", bn_name: "খুলনা", type: "DIVISION", parentId: null },
-  { _id: "div_dhaka", name: "Dhaka", bn_name: "ঢাকা", type: "DIVISION", parentId: null },
-  { _id: "div_chittagong", name: "Chittagong", bn_name: "চট্টগ্রাম", type: "DIVISION", parentId: null },
-  { _id: "div_rajshahi", name: "Rajshahi", bn_name: "রাজশাহী", type: "DIVISION", parentId: null },
-  { _id: "div_rangpur", name: "Rangpur", bn_name: "রংপুর", type: "DIVISION", parentId: null },
-  { _id: "div_sylhet", name: "Sylhet", bn_name: "সিলেট", type: "DIVISION", parentId: null },
-  { _id: "div_barisal", name: "Barisal", bn_name: "বরিশাল", type: "DIVISION", parentId: null },
-  { _id: "div_mymensingh", name: "Mymensingh", bn_name: "ময়মনসিংহ", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a01", name: "Khulna", bn_name: "খুলনা", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a02", name: "Dhaka", bn_name: "ঢাকা", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a03", name: "Chittagong", bn_name: "চট্টগ্রাম", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a04", name: "Rajshahi", bn_name: "রাজশাহী", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a05", name: "Rangpur", bn_name: "রংপুর", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a06", name: "Barisal", bn_name: "বরিশাল", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a07", name: "Sylhet", bn_name: "সিলেট", type: "DIVISION", parentId: null },
+  { _id: "6aa1e9117ca55e95b01d0a08", name: "Mymensingh", bn_name: "ময়মনসিংহ", type: "DIVISION", parentId: null },
 ];
 
 export default function GeoAddressSelector({
@@ -66,11 +66,19 @@ export default function GeoAddressSelector({
   const [upazilas, setUpazilas] = useState<LocationItem[]>([]);
   const [unions, setUnions] = useState<LocationItem[]>([]);
 
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingUpazilas, setLoadingUpazilas] = useState(false);
+  const [loadingUnions, setLoadingUnions] = useState(false);
+
   // Delivery Address state
   const [delDivisions, setDelDivisions] = useState<LocationItem[]>([]);
   const [delDistricts, setDelDistricts] = useState<LocationItem[]>([]);
   const [delUpazilas, setDelUpazilas] = useState<LocationItem[]>([]);
   const [delUnions, setDelUnions] = useState<LocationItem[]>([]);
+
+  const [loadingDelDistricts, setLoadingDelDistricts] = useState(false);
+  const [loadingDelUpazilas, setLoadingDelUpazilas] = useState(false);
+  const [loadingDelUnions, setLoadingDelUnions] = useState(false);
 
   // 1. Fetch Divisions on mount
   useEffect(() => {
@@ -95,112 +103,130 @@ export default function GeoAddressSelector({
   useEffect(() => {
     if (!value.division) {
       setDistricts([]);
+      setLoadingDistricts(false);
       return;
     }
     const selectedDivObj = divisions.find(
-      (d) => d.bn_name === value.division || d.name.toLowerCase() === value.division.toLowerCase()
+      (d) => d.bn_name === value.division || d.name?.toLowerCase() === value.division?.toLowerCase() || d._id === value.division
     );
-    const parentParam = selectedDivObj ? `&parentId=${selectedDivObj._id}` : "";
+    const parentParam = selectedDivObj ? `&parentId=${selectedDivObj._id}` : `&parentId=${encodeURIComponent(value.division)}`;
+    setLoadingDistricts(true);
     fetch(`/api/admin/locations?type=DISTRICT${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDistricts(Array.isArray(data.locations) ? data.locations : []);
       })
-      .catch(() => setDistricts([]));
+      .catch(() => setDistricts([]))
+      .finally(() => setLoadingDistricts(false));
   }, [value.division, divisions]);
 
   // 3. Fetch Main Upazilas when District changes
   useEffect(() => {
     if (!value.district) {
       setUpazilas([]);
+      setLoadingUpazilas(false);
       return;
     }
     const selectedDistObj = districts.find(
-      (d) => d.bn_name === value.district || d.name.toLowerCase() === value.district.toLowerCase()
+      (d) => d.bn_name === value.district || d.name?.toLowerCase() === value.district?.toLowerCase() || d._id === value.district
     );
-    const parentParam = selectedDistObj ? `&parentId=${selectedDistObj._id}` : "";
+    const parentParam = selectedDistObj ? `&parentId=${selectedDistObj._id}` : `&parentId=${encodeURIComponent(value.district)}`;
+    setLoadingUpazilas(true);
     fetch(`/api/admin/locations?type=UPAZILA${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setUpazilas(Array.isArray(data.locations) ? data.locations : []);
       })
-      .catch(() => setUpazilas([]));
+      .catch(() => setUpazilas([]))
+      .finally(() => setLoadingUpazilas(false));
   }, [value.district, districts]);
 
   // 4. Fetch Main Unions when Upazila changes
   useEffect(() => {
     if (!value.upazila) {
       setUnions([]);
+      setLoadingUnions(false);
       return;
     }
     const selectedUpzObj = upazilas.find(
-      (u) => u.bn_name === value.upazila || u.name.toLowerCase() === value.upazila.toLowerCase()
+      (u) => u.bn_name === value.upazila || u.name?.toLowerCase() === value.upazila?.toLowerCase() || u._id === value.upazila
     );
-    const parentParam = selectedUpzObj ? `&parentId=${selectedUpzObj._id}` : "";
+    const parentParam = selectedUpzObj ? `&parentId=${selectedUpzObj._id}` : `&parentId=${encodeURIComponent(value.upazila)}`;
+    setLoadingUnions(true);
     fetch(`/api/admin/locations?type=UNION${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setUnions(Array.isArray(data.locations) ? data.locations : []);
       })
-      .catch(() => setUnions([]));
+      .catch(() => setUnions([]))
+      .finally(() => setLoadingUnions(false));
   }, [value.upazila, upazilas]);
 
   // 5. Fetch Delivery Districts when Delivery Division changes
   useEffect(() => {
     if (!deliveryValue?.division) {
       setDelDistricts([]);
+      setLoadingDelDistricts(false);
       return;
     }
     const selectedDivObj = delDivisions.find(
-      (d) => d.bn_name === deliveryValue.division || d.name.toLowerCase() === deliveryValue.division.toLowerCase()
+      (d) => d.bn_name === deliveryValue.division || d.name?.toLowerCase() === deliveryValue.division?.toLowerCase() || d._id === deliveryValue.division
     );
-    const parentParam = selectedDivObj ? `&parentId=${selectedDivObj._id}` : "";
+    const parentParam = selectedDivObj ? `&parentId=${selectedDivObj._id}` : `&parentId=${encodeURIComponent(deliveryValue.division)}`;
+    setLoadingDelDistricts(true);
     fetch(`/api/admin/locations?type=DISTRICT${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDelDistricts(Array.isArray(data.locations) ? data.locations : []);
       })
-      .catch(() => setDelDistricts([]));
+      .catch(() => setDelDistricts([]))
+      .finally(() => setLoadingDelDistricts(false));
   }, [deliveryValue?.division, delDivisions]);
 
   // 6. Fetch Delivery Upazilas when Delivery District changes
   useEffect(() => {
     if (!deliveryValue?.district) {
       setDelUpazilas([]);
+      setLoadingDelUpazilas(false);
       return;
     }
     const selectedDistObj = delDistricts.find(
-      (d) => d.bn_name === deliveryValue.district || d.name.toLowerCase() === deliveryValue.district.toLowerCase()
+      (d) => d.bn_name === deliveryValue.district || d.name?.toLowerCase() === deliveryValue.district?.toLowerCase() || d._id === deliveryValue.district
     );
-    const parentParam = selectedDistObj ? `&parentId=${selectedDistObj._id}` : "";
+    const parentParam = selectedDistObj ? `&parentId=${selectedDistObj._id}` : `&parentId=${encodeURIComponent(deliveryValue.district)}`;
+    setLoadingDelUpazilas(true);
     fetch(`/api/admin/locations?type=UPAZILA${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDelUpazilas(Array.isArray(data.locations) ? data.locations : []);
       })
-      .catch(() => setDelUpazilas([]));
+      .catch(() => setDelUpazilas([]))
+      .finally(() => setLoadingDelUpazilas(false));
   }, [deliveryValue?.district, delDistricts]);
 
   // 7. Fetch Delivery Unions when Delivery Upazila changes
   useEffect(() => {
     if (!deliveryValue?.upazila) {
       setDelUnions([]);
+      setLoadingDelUnions(false);
       return;
     }
     const selectedUpzObj = delUpazilas.find(
-      (u) => u.bn_name === deliveryValue.upazila || u.name.toLowerCase() === deliveryValue.upazila.toLowerCase()
+      (u) => u.bn_name === deliveryValue.upazila || u.name?.toLowerCase() === deliveryValue.upazila?.toLowerCase() || u._id === deliveryValue.upazila
     );
-    const parentParam = selectedUpzObj ? `&parentId=${selectedUpzObj._id}` : "";
+    const parentParam = selectedUpzObj ? `&parentId=${selectedUpzObj._id}` : `&parentId=${encodeURIComponent(deliveryValue.upazila)}`;
+    setLoadingDelUnions(true);
     fetch(`/api/admin/locations?type=UNION${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDelUnions(Array.isArray(data.locations) ? data.locations : []);
       })
-      .catch(() => setDelUnions([]));
+      .catch(() => setDelUnions([]))
+      .finally(() => setLoadingDelUnions(false));
   }, [deliveryValue?.upazila, delUpazilas]);
 
-  const updateMainField = (field: keyof GeoAddressData, val: string) => {
-    const updated = { ...value, [field]: val };
+  const updateMainFields = (updates: Partial<GeoAddressData>) => {
+    const updated = { ...value, ...updates };
     // Auto-calculate formatted full address
     const parts = [
       updated.village,
@@ -213,9 +239,9 @@ export default function GeoAddressSelector({
     onChange(updated);
   };
 
-  const updateDeliveryField = (field: keyof GeoAddressData, val: string) => {
+  const updateDeliveryFields = (updates: Partial<GeoAddressData>) => {
     if (!onDeliveryChange || !deliveryValue) return;
-    const updated = { ...deliveryValue, [field]: val };
+    const updated = { ...deliveryValue, ...updates };
     const parts = [
       updated.village,
       updated.union,
@@ -228,37 +254,42 @@ export default function GeoAddressSelector({
   };
 
   return (
-    <div className="space-y-3.5">
-      {/* ─── MAIN MADRASA ADDRESS ─────────────────────────────────────────── */}
-      <div className="p-3.5 sm:p-4 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-3">
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+    <div className="space-y-4">
+      {/* ─── MAIN ADDRESS ─────────────────────────────────────────── */}
+      <div className="p-4 sm:p-5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-4">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
-              <MapPin className="w-3.5 h-3.5" />
+            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+              <MapPin className="w-4 h-4" />
             </div>
-            <h4 className="font-bold text-xs sm:text-sm text-slate-800">{displayTitle}</h4>
+            <h4 className="font-extrabold text-sm sm:text-base text-slate-900">{displayTitle}</h4>
           </div>
-          {required && <span className="text-[11px] text-red-500 font-bold">* বাধ্যতামূলক</span>}
+          {required && <span className="text-xs text-red-500 font-bold">* বাধ্যতামূলক</span>}
         </div>
 
         {/* Level 1 & 2: Division & District */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1">
               ১. বিভাগ {required && <span className="text-red-500">*</span>}
             </label>
             <select
-              value={value.division || ""}
+              value={
+                divisions.find(
+                  (d) => d.bn_name === value.division || d.name?.toLowerCase() === value.division?.toLowerCase() || d._id === value.division
+                )?.bn_name || value.division || ""
+              }
               onChange={(e) => {
                 const newDiv = e.target.value;
-                updateMainField("division", newDiv);
-                // Reset child levels
-                updateMainField("district", "");
-                updateMainField("upazila", "");
-                updateMainField("union", "");
+                updateMainFields({
+                  division: newDiv,
+                  district: "",
+                  upazila: "",
+                  union: "",
+                });
               }}
               disabled={disabled}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 focus:border-emerald-600 transition-colors cursor-pointer"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="">-- বিভাগ নির্বাচন করুন --</option>
               {divisions.map((d) => (
@@ -270,21 +301,33 @@ export default function GeoAddressSelector({
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1">
               ২. জেলা {required && <span className="text-red-500">*</span>}
             </label>
             <select
-              value={value.district || ""}
+              value={
+                districts.find(
+                  (d) => d.bn_name === value.district || d.name?.toLowerCase() === value.district?.toLowerCase() || d._id === value.district
+                )?.bn_name || value.district || ""
+              }
               onChange={(e) => {
                 const newDist = e.target.value;
-                updateMainField("district", newDist);
-                updateMainField("upazila", "");
-                updateMainField("union", "");
+                updateMainFields({
+                  district: newDist,
+                  upazila: "",
+                  union: "",
+                });
               }}
-              disabled={disabled || (!value.division && districts.length === 0)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 focus:border-emerald-600 transition-colors cursor-pointer disabled:opacity-60"
+              disabled={disabled || !value.division || loadingDistricts}
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <option value="">-- জেলা নির্বাচন করুন --</option>
+              {!value.division ? (
+                <option value="">-- প্রথমে বিভাগ নির্বাচন করুন --</option>
+              ) : loadingDistricts ? (
+                <option value="">জেলা লোড হচ্ছে...</option>
+              ) : (
+                <option value="">-- জেলা নির্বাচন করুন --</option>
+              )}
               {districts.map((d) => (
                 <option key={d._id} value={d.bn_name}>
                   {d.bn_name} {d.name ? `(${d.name})` : ""}
@@ -295,22 +338,34 @@ export default function GeoAddressSelector({
         </div>
 
         {/* Level 3 & 4: Upazila & Union */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1">
               ৩. উপজেলা / থানা {required && <span className="text-red-500">*</span>}
             </label>
             <select
-              value={value.upazila || ""}
+              value={
+                upazilas.find(
+                  (u) => u.bn_name === value.upazila || u.name?.toLowerCase() === value.upazila?.toLowerCase() || u._id === value.upazila
+                )?.bn_name || value.upazila || ""
+              }
               onChange={(e) => {
                 const newUpz = e.target.value;
-                updateMainField("upazila", newUpz);
-                updateMainField("union", "");
+                updateMainFields({
+                  upazila: newUpz,
+                  union: "",
+                });
               }}
-              disabled={disabled || (!value.district && upazilas.length === 0)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 focus:border-emerald-600 transition-colors cursor-pointer disabled:opacity-60"
+              disabled={disabled || !value.district || loadingUpazilas}
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <option value="">-- উপজেলা নির্বাচন করুন --</option>
+              {!value.district ? (
+                <option value="">-- প্রথমে জেলা নির্বাচন করুন --</option>
+              ) : loadingUpazilas ? (
+                <option value="">উপজেলা লোড হচ্ছে...</option>
+              ) : (
+                <option value="">-- উপজেলা / থানা নির্বাচন করুন --</option>
+              )}
               {upazilas.map((u) => (
                 <option key={u._id} value={u.bn_name}>
                   {u.bn_name} {u.name ? `(${u.name})` : ""}
@@ -320,55 +375,74 @@ export default function GeoAddressSelector({
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1">
               ৪. ইউনিয়ন / পৌরসভা
             </label>
-            {unions.length > 0 ? (
+            {!value.upazila ? (
+              <select
+                disabled
+                className="w-full px-3.5 py-2.5 bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
+              >
+                <option value="">-- প্রথমে উপজেলা নির্বাচন করুন --</option>
+              </select>
+            ) : loadingUnions ? (
+              <select
+                disabled
+                className="w-full px-3.5 py-2.5 bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-500 cursor-wait"
+              >
+                <option value="">ইউনিয়ন লোড হচ্ছে...</option>
+              </select>
+            ) : unions.length > 0 ? (
               <select
                 value={value.union || ""}
-                onChange={(e) => updateMainField("union", e.target.value)}
+                onChange={(e) => updateMainFields({ union: e.target.value })}
                 disabled={disabled}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 focus:border-emerald-600 transition-colors cursor-pointer"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer disabled:opacity-60"
               >
                 <option value="">-- ইউনিয়ন নির্বাচন করুন --</option>
                 {unions.map((un) => (
                   <option key={un._id} value={un.bn_name}>
-                    {un.bn_name}
+                    {un.bn_name} {un.name ? `(${un.name})` : ""}
                   </option>
                 ))}
               </select>
             ) : (
-              <input
-                type="text"
-                value={value.union || ""}
-                onChange={(e) => updateMainField("union", e.target.value)}
-                placeholder="যেমন: জলমা ইউনিয়ন / পৌরসভা"
-                disabled={disabled}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 focus:border-emerald-600 transition-colors"
-              />
+              <div>
+                <input
+                  type="text"
+                  value={value.union || ""}
+                  onChange={(e) => updateMainFields({ union: e.target.value })}
+                  placeholder="উদাঃ ১নং ওয়ার্ড / সোনাডাঙ্গা আবাসিক এলাকা"
+                  disabled={disabled}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all"
+                />
+                <span className="text-[11px] text-amber-700 font-medium block mt-1">
+                  * এই থানার কোনো ইউনিয়ন তালিকা নেই (পৌরসভা/সিটি কর্পোরেশন)। আপনার ওয়ার্ড বা এলাকা লিখুন।
+                </span>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Level 5: Village / Road / Detailed Address */}
+        {/* Level 5: Village / Road / Detailed Address (Manual Type) */}
         <div>
-          <label className="block text-[11px] font-bold text-slate-600 mb-1">
-            ৫. গ্রাম / মহল্লা / রাস্তা / যাতায়াত ঠিকানা {required && <span className="text-red-500">*</span>}
+          <label className="block text-xs font-bold text-slate-700 mb-1">
+            ৫. গ্রাম ও সড়ক / বিস্তারিত ঠিকানা (ম্যানুয়ালি লিখুন) {required && <span className="text-red-500">*</span>}
           </label>
-          <textarea
-            rows={2}
+          <input
+            type="text"
             value={value.village || ""}
-            onChange={(e) => updateMainField("village", e.target.value)}
-            placeholder="যেমন: মুহাম্মাদনগর, মাদরাসা সড়ক, বড় মাদরাসার বিপরীতে..."
+            onChange={(e) => updateMainFields({ village: e.target.value })}
+            placeholder="উদাঃ গ্রাম: মুহাম্মাদনগর, সড়ক: মাদরাসা রোড, ডাকঘর: গল্লামারী"
             disabled={disabled}
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-emerald-600 focus:border-emerald-600 transition-colors resize-none leading-relaxed"
+            className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all"
           />
         </div>
 
         {/* Address Summary Preview Badge */}
         {value.fullAddress && (
-          <div className="p-2 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-[11px] text-emerald-900 flex items-center gap-1.5 font-semibold">
-            <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+          <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center gap-2 font-semibold">
+            <Check className="w-4 h-4 text-emerald-700 shrink-0" />
             <span className="truncate">পূর্ণাঙ্গ ঠিকানা: {value.fullAddress}</span>
           </div>
         )}
@@ -376,15 +450,15 @@ export default function GeoAddressSelector({
 
       {/* ─── OPTIONAL SEPARATE DELIVERY LOCATION TOGGLE ─────────────────────── */}
       {onSeparateDeliveryChange && (
-        <div className="space-y-2.5">
-          <label className="flex items-center gap-2.5 p-3 bg-white border border-slate-200 hover:border-emerald-400 rounded-xl cursor-pointer transition-all select-none shadow-2xs">
+        <div className="space-y-3">
+          <label className="flex items-center gap-2.5 p-3.5 bg-white border border-slate-200 hover:border-emerald-400 rounded-2xl cursor-pointer transition-all select-none shadow-2xs">
             <input
               type="checkbox"
               checked={hasSeparateDelivery}
               onChange={(e) => onSeparateDeliveryChange(e.target.checked)}
               className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-slate-300"
             />
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
               <Truck className="w-4 h-4 text-amber-600" />
               <span>ডেলিভারি ঠিকানা মাদরাসার ঠিকানা থেকে আলাদা (ভিন্ন ঠিকানায় পার্সেল যাবে)</span>
             </div>
@@ -392,27 +466,33 @@ export default function GeoAddressSelector({
 
           {/* Expanded Delivery Geo Selector */}
           {hasSeparateDelivery && deliveryValue && onDeliveryChange && (
-            <div className="p-3.5 sm:p-4 bg-amber-50/40 rounded-2xl border border-amber-200 space-y-3 animate-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center gap-2 border-b border-amber-200/80 pb-2">
+            <div className="p-4 sm:p-5 bg-amber-50/40 rounded-2xl border border-amber-200 space-y-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2 border-b border-amber-200/80 pb-2.5">
                 <Truck className="w-4 h-4 text-amber-700" />
-                <h4 className="font-bold text-xs sm:text-sm text-slate-800">নির্দিষ্ট ডেলিভারি ঠিকানা</h4>
+                <h4 className="font-extrabold text-sm sm:text-base text-slate-900">নির্দিষ্ট ডেলিভারি ঠিকানা</h4>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     ১. ডেলিভারি বিভাগ <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={deliveryValue.division || ""}
+                    value={
+                      delDivisions.find(
+                        (d) => d.bn_name === deliveryValue.division || d.name?.toLowerCase() === deliveryValue.division?.toLowerCase() || d._id === deliveryValue.division
+                      )?.bn_name || deliveryValue.division || ""
+                    }
                     onChange={(e) => {
                       const newDiv = e.target.value;
-                      updateDeliveryField("division", newDiv);
-                      updateDeliveryField("district", "");
-                      updateDeliveryField("upazila", "");
-                      updateDeliveryField("union", "");
+                      updateDeliveryFields({
+                        division: newDiv,
+                        district: "",
+                        upazila: "",
+                        union: "",
+                      });
                     }}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 transition-colors cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer"
                   >
                     <option value="">-- বিভাগ নির্বাচন করুন --</option>
                     {delDivisions.map((d) => (
@@ -424,21 +504,33 @@ export default function GeoAddressSelector({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     ২. ডেলিভারি জেলা <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={deliveryValue.district || ""}
+                    value={
+                      delDistricts.find(
+                        (d) => d.bn_name === deliveryValue.district || d.name?.toLowerCase() === deliveryValue.district?.toLowerCase() || d._id === deliveryValue.district
+                      )?.bn_name || deliveryValue.district || ""
+                    }
                     onChange={(e) => {
                       const newDist = e.target.value;
-                      updateDeliveryField("district", newDist);
-                      updateDeliveryField("upazila", "");
-                      updateDeliveryField("union", "");
+                      updateDeliveryFields({
+                        district: newDist,
+                        upazila: "",
+                        union: "",
+                      });
                     }}
-                    disabled={!deliveryValue.division && delDistricts.length === 0}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 transition-colors cursor-pointer disabled:opacity-60"
+                    disabled={!deliveryValue.division || loadingDelDistricts}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer disabled:opacity-60"
                   >
-                    <option value="">-- জেলা নির্বাচন করুন --</option>
+                    {!deliveryValue.division ? (
+                      <option value="">-- প্রথমে বিভাগ নির্বাচন করুন --</option>
+                    ) : loadingDelDistricts ? (
+                      <option value="">জেলা লোড হচ্ছে...</option>
+                    ) : (
+                      <option value="">-- জেলা নির্বাচন করুন --</option>
+                    )}
                     {delDistricts.map((d) => (
                       <option key={d._id} value={d.bn_name}>
                         {d.bn_name} {d.name ? `(${d.name})` : ""}
@@ -448,22 +540,34 @@ export default function GeoAddressSelector({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     ৩. ডেলিভারি উপজেলা / থানা <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={deliveryValue.upazila || ""}
+                    value={
+                      delUpazilas.find(
+                        (u) => u.bn_name === deliveryValue.upazila || u.name?.toLowerCase() === deliveryValue.upazila?.toLowerCase() || u._id === deliveryValue.upazila
+                      )?.bn_name || deliveryValue.upazila || ""
+                    }
                     onChange={(e) => {
                       const newUpz = e.target.value;
-                      updateDeliveryField("upazila", newUpz);
-                      updateDeliveryField("union", "");
+                      updateDeliveryFields({
+                        upazila: newUpz,
+                        union: "",
+                      });
                     }}
-                    disabled={!deliveryValue.district && delUpazilas.length === 0}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 transition-colors cursor-pointer disabled:opacity-60"
+                    disabled={!deliveryValue.district || loadingDelUpazilas}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer disabled:opacity-60"
                   >
-                    <option value="">-- উপজেলা নির্বাচন করুন --</option>
+                    {!deliveryValue.district ? (
+                      <option value="">-- প্রথমে জেলা নির্বাচন করুন --</option>
+                    ) : loadingDelUpazilas ? (
+                      <option value="">উপজেলা লোড হচ্ছে...</option>
+                    ) : (
+                      <option value="">-- উপজেলা নির্বাচন করুন --</option>
+                    )}
                     {delUpazilas.map((u) => (
                       <option key={u._id} value={u.bn_name}>
                         {u.bn_name} {u.name ? `(${u.name})` : ""}
@@ -473,14 +577,28 @@ export default function GeoAddressSelector({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     ৪. ডেলিভারি ইউনিয়ন / পৌরসভা
                   </label>
-                  {delUnions.length > 0 ? (
+                  {!deliveryValue.upazila ? (
+                    <select
+                      disabled
+                      className="w-full px-3.5 py-2.5 bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
+                    >
+                      <option value="">-- প্রথমে উপজেলা নির্বাচন করুন --</option>
+                    </select>
+                  ) : loadingDelUnions ? (
+                    <select
+                      disabled
+                      className="w-full px-3.5 py-2.5 bg-slate-100/70 border border-slate-200 rounded-xl text-sm font-medium text-slate-500 cursor-wait"
+                    >
+                      <option value="">ইউনিয়ন লোড হচ্ছে...</option>
+                    </select>
+                  ) : delUnions.length > 0 ? (
                     <select
                       value={deliveryValue.union || ""}
-                      onChange={(e) => updateDeliveryField("union", e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 transition-colors cursor-pointer"
+                      onChange={(e) => updateDeliveryFields({ union: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all cursor-pointer"
                     >
                       <option value="">-- ইউনিয়ন নির্বাচন করুন --</option>
                       {delUnions.map((un) => (
@@ -490,33 +608,35 @@ export default function GeoAddressSelector({
                       ))}
                     </select>
                   ) : (
-                    <input
-                      type="text"
-                      value={deliveryValue.union || ""}
-                      onChange={(e) => updateDeliveryField("union", e.target.value)}
-                      placeholder="যেমন: ইউনিয়ন / পৌরসভা"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-emerald-600 transition-colors"
-                    />
+                    <div>
+                      <input
+                        type="text"
+                        value={deliveryValue.union || ""}
+                        onChange={(e) => updateDeliveryFields({ union: e.target.value })}
+                        placeholder="উদাঃ ১নং ওয়ার্ড / পৌরসভা এলাকা"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   ৫. ডেলিভারি পয়েন্ট / কুরিয়ার বা নির্দিষ্ট ঠিকানা <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  rows={2}
+                <input
+                  type="text"
                   value={deliveryValue.village || ""}
-                  onChange={(e) => updateDeliveryField("village", e.target.value)}
-                  placeholder="যেমন: সুন্দরবন কুরিয়ার সার্ভিস শাখা, অথবা নির্দিষ্ট গন্তব্য..."
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-emerald-600 transition-colors resize-none leading-relaxed"
+                  onChange={(e) => updateDeliveryFields({ village: e.target.value })}
+                  placeholder="উদাঃ সুন্দরবন কুরিয়ার সার্ভিস শাখা, অথবা নির্দিষ্ট গন্তব্য..."
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all"
                 />
               </div>
 
               {deliveryValue.fullAddress && (
-                <div className="p-2 bg-amber-100/70 border border-amber-300 rounded-xl text-[11px] text-amber-950 flex items-center gap-1.5 font-semibold">
-                  <Truck className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <div className="p-3 bg-amber-100/70 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-center gap-2 font-semibold">
+                  <Truck className="w-4 h-4 text-amber-700 shrink-0" />
                   <span className="truncate">পূর্ণাঙ্গ ডেলিভারি ঠিকানা: {deliveryValue.fullAddress}</span>
                 </div>
               )}

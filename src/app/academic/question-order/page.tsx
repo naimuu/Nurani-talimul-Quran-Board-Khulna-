@@ -1537,7 +1537,7 @@ export default function QuestionOrderPage() {
                       required
                       value={trxId}
                       onChange={(e) => setTrxId(e.target.value)}
-                      placeholder="TrxID লিখুন *"
+                      placeholder="ট্রানজেকশন আইডি / রশিদ নং *"
                       className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-semibold focus:outline-emerald-600"
                     />
                   </div>

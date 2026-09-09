@@ -21,6 +21,7 @@ export interface ITrainingAdmission extends Document {
   division?: string;
   district?: string;
   upazila?: string;
+  union?: string;
   village?: string;
   postOffice?: string;
   paymentMethod?: string;
@@ -57,6 +58,7 @@ const TrainingAdmissionSchema = new Schema<ITrainingAdmission>(
     division: { type: String, default: '' },
     district: { type: String, default: '' },
     upazila: { type: String, default: '' },
+    union: { type: String, default: '' },
     village: { type: String, default: '' },
     postOffice: { type: String, default: '' },
     paymentMethod: { type: String, default: 'বিকাশ' },

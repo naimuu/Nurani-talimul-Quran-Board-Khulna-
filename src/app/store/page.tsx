@@ -580,8 +580,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       </button>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">ট্রানজেকশন আইডি (TrxID) <span className="text-red-500">*</span></label>
-                      <input type="text" value={trxId} onChange={e => setTrxId(e.target.value)} placeholder="Enter TrxID" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-primary" />
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">ট্রানজেকশন আইডি (TrxID) / রশিদ নং <span className="text-red-500">*</span></label>
+                      <input type="text" value={trxId} onChange={e => setTrxId(e.target.value)} placeholder="ট্রানজেকশন আইডি / রশিদ নং" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-primary" />
                     </div>
                   </div>
                 )}
@@ -685,7 +685,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                                 </button>
                               </div>
                               <input type="text" value={remainingTrxId} onChange={e => setRemainingTrxId(e.target.value)}
-                                placeholder="বাকি টাকার TrxID লিখুন"
+                                placeholder="বাকি টাকার ট্রানজেকশন আইডি / রশিদ নং লিখুন"
                                 className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-primary text-sm" />
                             </div>
                           )}

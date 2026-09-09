@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Location from "@/lib/models/Location";
 import { cookies } from "next/headers";
@@ -28,8 +29,26 @@ export async function GET(request: Request) {
     const type = searchParams.get('type');
     
     const query: any = {};
-    if (parentId !== null) {
-      query.parentId = parentId === 'null' ? null : parentId;
+    if (parentId !== null && parentId !== undefined && parentId !== '') {
+      if (parentId === 'null') {
+        query.parentId = null;
+      } else if (mongoose.isValidObjectId(parentId)) {
+        query.parentId = parentId;
+      } else {
+        await connectDB();
+        const parentLoc: any = await Location.findOne({
+          $or: [
+            { name: new RegExp(`^${parentId}$`, 'i') },
+            { bn_name: parentId }
+          ]
+        }).lean();
+        if (parentLoc) {
+          query.parentId = parentLoc._id;
+        } else {
+          // If no matching parent found, return empty locations gracefully
+          return NextResponse.json({ locations: [] });
+        }
+      }
     }
     if (type) {
       query.type = type;

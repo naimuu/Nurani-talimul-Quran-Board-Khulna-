@@ -58,6 +58,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       'division',
       'district',
       'upazila',
+      'union',
       'village',
       'postOffice',
       'paymentMethod',
