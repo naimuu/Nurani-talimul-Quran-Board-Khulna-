@@ -38,20 +38,20 @@ export async function GET() {
 export async function POST(request: Request) {
   if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const { customerName, customerPhone, instituteId, items, notes, discount = 0, paidAmount = 0, promiseDate, paymentMethod = "Cash" } = await request.json();
+    const { customerName, customerPhone, instituteId, items, notes, discount = 0, paidAmount = 0, promiseDate, paymentMethod = "Cash", deliveryCharge = 0, courierName = "পাঠাও কুরিয়ার", totalWeight = 0 } = await request.json();
     if (!customerName || !items || items.length === 0) {
       return NextResponse.json({ error: "customerName and items are required" }, { status: 400 });
     }
 
     // Calculate total
-    let totalAmount = 0;
+    let subtotal = 0;
     for (const item of items) {
       const product = await (prisma as any).storeProduct.findUnique({ where: { id: item.productId } });
       if (!product) return NextResponse.json({ error: `Product ${item.productId} not found` }, { status: 404 });
-      totalAmount += product.price * item.quantity;
+      subtotal += product.price * item.quantity;
     }
     
-    totalAmount = Math.max(0, totalAmount - discount);
+    const totalAmount = Math.max(0, subtotal - discount) + (Number(deliveryCharge) || 0);
     const status = paidAmount >= totalAmount ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
 
     // Generate invoice ID
@@ -67,6 +67,9 @@ export async function POST(request: Request) {
         totalAmount,
         paidAmount,
         discount,
+        deliveryCharge: Number(deliveryCharge) || 0,
+        courierName: courierName || "পাঠাও কুরিয়ার",
+        totalWeight: Number(totalWeight) || 0,
         status,
         promiseDate: promiseDate ? new Date(promiseDate) : null,
         notes: notes || "",

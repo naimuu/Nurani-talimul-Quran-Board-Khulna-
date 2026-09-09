@@ -38,11 +38,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const { name, category, price, stock, unit, imageUrl, barcode, className, description } = await request.json();
+    const { name, category, price, stock, unit, imageUrl, barcode, className, description, weight } = await request.json();
     
     // Convert to numbers safely
     const parsedPrice = Number(price);
     const parsedStock = Number(stock) || 0;
+    const parsedWeight = weight !== undefined && weight !== null && !isNaN(Number(weight)) ? Number(weight) : 0.25;
     
     if (!name || !category || isNaN(parsedPrice)) {
       return NextResponse.json({ error: "Valid name, category, and price are required" }, { status: 400 });
@@ -58,7 +59,8 @@ export async function POST(request: Request) {
         imageUrl: imageUrl || undefined,
         barcode: barcode?.trim() ? barcode.trim() : `__NO_BARCODE_${Date.now()}_${Math.random()}__`,
         className: className || undefined,
-        description: description || undefined
+        description: description || undefined,
+        weight: parsedWeight,
       },
     });
     return NextResponse.json(product);

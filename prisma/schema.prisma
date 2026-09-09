@@ -125,6 +125,7 @@ model StoreProduct {
   className   String?
   subject     String?
   visibility  String   @default("stationary")
+  weight      Float?   @default(0.25)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   saleItems   StoreSaleItem[]
@@ -173,6 +174,9 @@ model StoreSale {
   discount     Float          @default(0)
   previousDue  Float          @default(0)
   previousDueList Json?
+  deliveryCharge Float?       @default(0)
+  courierName  String?        @default("পাঠাও কুরিয়ার")
+  totalWeight  Float?         @default(0)
   status       String         @default("Pending") // Paid | Pending | Partial
   promiseDate  DateTime?
   notes        String?

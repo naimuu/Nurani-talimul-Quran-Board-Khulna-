@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import connectDB from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import bcrypt from "bcryptjs";
+import { calculateDeliveryCost } from "@/lib/deliveryCost";
 
 export async function POST(request: Request) {
   try {
@@ -105,13 +106,22 @@ export async function POST(request: Request) {
 
     // Process items
     const itemsToCreate: any[] = [];
-    let totalAmount = 0;
+    const itemsForDeliveryCalc: any[] = [];
+    let subtotal = 0;
     for (const item of items) {
       const product = await (prisma as any).storeProduct.findUnique({ where: { id: item.productId } });
       if (!product) return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 404 });
       itemsToCreate.push({ productId: product.id, quantity: item.quantity, unitPrice: product.price });
-      totalAmount += product.price * item.quantity;
+      itemsForDeliveryCalc.push({ product, quantity: item.quantity });
+      subtotal += product.price * item.quantity;
     }
+
+    // Calculate delivery charge according to rules
+    const deliveryInfo = calculateDeliveryCost(itemsForDeliveryCalc);
+    const deliveryCharge = deliveryInfo.deliveryCharge;
+    const totalWeight = deliveryInfo.totalWeightKg;
+    const courierName = deliveryInfo.courierName;
+    const totalAmount = subtotal + deliveryCharge;
 
     // Generate invoice ID
     const count = await (prisma as any).storeSale.count();
@@ -144,6 +154,11 @@ export async function POST(request: Request) {
       paidAmount = paymentAmountFromReceipt;
     }
 
+    const deliveryNoteSummary = deliveryCharge > 0 
+      ? ` | কুরিয়ার: ${courierName} (চার্জ: ${deliveryCharge} ৳, ওজন: ${totalWeight} কেজি)`
+      : ` | কুরিয়ার: ${courierName} (ফ্রি ডেলিভারি, ওজন: ${totalWeight} কেজি)`;
+    const finalNotes = (notes || "Online Order") + deliveryNoteSummary;
+
     // Create a StoreSale with status 'Pending Order' (does NOT deduct stock)
     let sale;
     try {
@@ -158,8 +173,11 @@ export async function POST(request: Request) {
           discount: 0,
           previousDue,
           previousDueList,
+          deliveryCharge,
+          courierName,
+          totalWeight,
           status: "Pending Order",
-          notes: notes || "Online Order",
+          notes: finalNotes,
           items: {
             create: itemsToCreate,
           },
@@ -167,28 +185,26 @@ export async function POST(request: Request) {
         include: { items: { include: { product: true } }, payments: true },
       });
     } catch (saleErr: any) {
-      // If previousDueList field doesn't exist in DB yet, retry without it
-      if (saleErr?.message?.includes('previousDue') || saleErr?.code === 'P2009') {
-        sale = await (prisma as any).storeSale.create({
-          data: {
-            invoiceId,
-            customerName,
-            customerPhone: customerPhone || null,
-            instituteId: instituteId || null,
-            totalAmount,
-            paidAmount,
-            discount: 0,
-            status: "Pending Order",
-            notes: notes || "Online Order",
-            items: {
-              create: itemsToCreate,
-            },
+      sale = await (prisma as any).storeSale.create({
+        data: {
+          invoiceId,
+          customerName,
+          customerPhone: customerPhone || null,
+          instituteId: instituteId || null,
+          totalAmount,
+          paidAmount,
+          discount: 0,
+          deliveryCharge,
+          courierName,
+          totalWeight,
+          status: "Pending Order",
+          notes: finalNotes,
+          items: {
+            create: itemsToCreate,
           },
-          include: { items: { include: { product: true } }, payments: true },
-        });
-      } else {
-        throw saleErr;
-      }
+        },
+        include: { items: { include: { product: true } }, payments: true },
+      });
     }
 
     // Handle Payment Options

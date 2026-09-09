@@ -53,6 +53,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
     if (body.className !== undefined) data.className = body.className;
     if (body.description !== undefined) data.description = body.description;
+    if (body.weight !== undefined) {
+      data.weight = body.weight !== null && !isNaN(Number(body.weight)) ? Number(body.weight) : 0.25;
+    }
     const product = await (prisma as any).storeProduct.update({ where: { id: params.id }, data });
     return NextResponse.json(product);
   } catch (error: any) {

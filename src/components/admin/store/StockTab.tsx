@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ImageCropper from './ImageCropper';
 import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Crop, Upload, Printer, Scan } from 'lucide-react';
 
-type Product = { id: string; name: string; category: string; price: number; stock: number; unit: string; updatedAt: string; imageUrl?: string | null; barcode?: string | null; className?: string | null; description?: string | null; };
+type Product = { id: string; name: string; category: string; price: number; stock: number; unit: string; updatedAt: string; imageUrl?: string | null; barcode?: string | null; className?: string | null; description?: string | null; weight?: number | null; };
 
 const toEnglishDigits = (str: string) => {
   const bnToEn: Record<string, string> = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
@@ -14,7 +14,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
   const [activeProduct, setActiveProduct] = useState<Product | null>(product || null);
   const isEdit = !!activeProduct;
   
-  const [form, setForm] = useState<{name: string, price: string, stock: string, unit: string, barcode: string, imageUrl: string, className: string, description: string}>(() => {
+  const [form, setForm] = useState<{name: string, price: string, stock: string, unit: string, barcode: string, imageUrl: string, className: string, description: string, weight: string}>(() => {
     if (!product && typeof window !== 'undefined') {
       try {
         const draft = localStorage.getItem('store_product_draft');
@@ -32,7 +32,8 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
       barcode: product?.barcode || '',
       imageUrl: product?.imageUrl || '',
       className: product?.className || defaultClass || '',
-      description: product?.description || ''
+      description: product?.description || '',
+      weight: product?.weight !== undefined && product?.weight !== null ? product.weight.toString() : '0.25'
     };
   });
   
@@ -77,7 +78,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
       if (match && !activeProduct) {
         setActiveProduct(match);
         setForm({
-          name: match.name, price: match.price.toString(), stock: match.stock.toString(), unit: match.unit || 'টি', barcode: match.barcode || '', imageUrl: match.imageUrl || '', className: match.className || '', description: match.description || ''
+          name: match.name, price: match.price.toString(), stock: match.stock.toString(), unit: match.unit || 'টি', barcode: match.barcode || '', imageUrl: match.imageUrl || '', className: match.className || '', description: match.description || '', weight: match.weight !== undefined && match.weight !== null ? match.weight.toString() : '0.25'
         });
         setSelectedCats(match.category ? match.category.split(',').map(s=>s.trim()).filter(Boolean) : []);
       }
@@ -101,7 +102,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
     const res = await fetch(isEdit ? `/api/store/products/${activeProduct!.id}` : '/api/store/products', {
       method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, category: selectedCats.join(', '), price: parseFloat(form.price), stock: parseInt(form.stock || '0') }),
+      body: JSON.stringify({ ...form, category: selectedCats.join(', '), price: parseFloat(form.price), stock: parseInt(form.stock || '0'), weight: parseFloat(form.weight || '0.25') || 0.25 }),
     });
     setLoading(false);
     if (res.ok) { 
@@ -208,7 +209,8 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
                       setForm({
                         name: match.name, price: match.price.toString(), stock: match.stock.toString(), 
                         unit: match.unit || 'টি', barcode: match.barcode || '', imageUrl: match.imageUrl || '',
-                        className: match.className || '', description: match.description || ''
+                        className: match.className || '', description: match.description || '',
+                        weight: match.weight !== undefined && match.weight !== null ? match.weight.toString() : '0.25'
                       });
                       setSelectedCats(match.category ? match.category.split(',').map(s=>s.trim()).filter(Boolean) : []);
                       setShowSuggestions(false);
@@ -378,6 +380,21 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
                 <option value="বক্স">বক্স</option>
                 <option value="প্যাকেট">প্যাকেট</option>
               </select>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-bold text-slate-700 mb-2">পণ্যের ওজন (কেজি) <span className="text-slate-400 font-normal text-xs">(ডিফল্ট ০.২৫ কেজি বা ২৫০ গ্রাম)</span></label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={form.weight}
+                onChange={e => setForm(prev => ({ ...prev, weight: toEnglishDigits(e.target.value) }))}
+                placeholder="0.25"
+                lang="en"
+                className="w-full px-4 py-3 text-lg font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
             </div>
           </div>
 
@@ -812,7 +829,10 @@ export default function StockTab() {
                 const status = stockStatus(product.stock);
                 return (
                   <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-800">{product.name}</td>
+                    <td className="px-6 py-4 font-bold text-slate-800">
+                      {product.name}
+                      <span className="text-xs text-slate-400 font-normal ml-1.5">({product.weight ?? 0.25} কেজি)</span>
+                    </td>
                     <td className="px-6 py-4 text-slate-600">{product.category}</td>
                     <td className="px-6 py-4 text-slate-700">{product.price} ৳</td>
                     <td className="px-6 py-4 font-medium text-slate-800">{product.stock} {product.unit}</td>

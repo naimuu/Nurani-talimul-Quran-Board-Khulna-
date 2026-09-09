@@ -3,11 +3,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, FileText, MoreVertical, CheckCircle, Trash2, Edit, X } from 'lucide-react';
 import { toBanglaDigits } from './BanglaDatePicker';
 
+const toEnglishDigits = (str: string) => {
+  const bnToEn: Record<string, string> = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
+  return String(str || '').replace(/[০-৯]/g, match => bnToEn[match]);
+};
+
 type SaleItem = { id: string; productId: string; quantity: number; unitPrice: number; product: { id: string, name: string, className?: string | null, stock: number, price: number } };
 type Sale = {
   id: string; invoiceId: string; customerName: string; customerPhone?: string | null; instituteId?: string | null; totalAmount: number;
   paidAmount: number; status: string; createdAt: string; items: SaleItem[];
   previousDue?: number; previousDueList?: any[]; discount?: number;
+  deliveryCharge?: number; courierName?: string; totalWeight?: number; notes?: string;
 };
 
 export default function OrderTab() {
@@ -20,6 +26,8 @@ export default function OrderTab() {
   const [confirmMode, setConfirmMode] = useState<'none' | 'partial' | 'unpaid'>('none');
   const [partialPaidAmount, setPartialPaidAmount] = useState('');
   const [promiseDate, setPromiseDate] = useState('');
+  const [orderDeliveryCharge, setOrderDeliveryCharge] = useState<string>('0');
+  const [orderDiscount, setOrderDiscount] = useState<string>('0');
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -38,10 +46,24 @@ export default function OrderTab() {
   }, []);
 
   const handleAccept = async (orderId: string, paidAmount: number, status: string, paymentMethod: string, promiseDate?: string) => {
+    const deliveryChargeVal = parseFloat(toEnglishDigits(orderDeliveryCharge)) || 0;
+    const discountVal = parseFloat(toEnglishDigits(orderDiscount)) || 0;
+    const itemsSubtotal = selectedOrder?.items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0) || 0;
+    const finalTotalAmount = Math.max(0, itemsSubtotal - discountVal) + deliveryChargeVal;
+
     await fetch(`/api/store/sales/${orderId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'acceptOrder', paidAmount, status, paymentMethod, promiseDate }),
+      body: JSON.stringify({
+        action: 'acceptOrder',
+        paidAmount,
+        status,
+        paymentMethod,
+        promiseDate,
+        deliveryCharge: deliveryChargeVal,
+        discount: discountVal,
+        totalAmount: finalTotalAmount,
+      }),
     });
     fetchOrders();
   };
@@ -66,14 +88,23 @@ export default function OrderTab() {
 
   const handleUpdateItems = async () => {
     if (!selectedOrder) return;
+    const deliveryChargeVal = parseFloat(toEnglishDigits(orderDeliveryCharge)) || 0;
+    const discountVal = parseFloat(toEnglishDigits(orderDiscount)) || 0;
     const res = await fetch(`/api/store/sales/${selectedOrder.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'updateItems', items: editedItems }),
+      body: JSON.stringify({
+        action: 'updateItems',
+        items: editedItems,
+        deliveryCharge: deliveryChargeVal,
+        discount: discountVal,
+      }),
     });
     const updatedOrder = await res.json();
     setEditMode(false);
     setSelectedOrder(updatedOrder);
+    setOrderDeliveryCharge((updatedOrder.deliveryCharge ?? 0).toString());
+    setOrderDiscount((updatedOrder.discount ?? 0).toString());
     fetchOrders();
   };
 
@@ -128,7 +159,15 @@ export default function OrderTab() {
                 </td>
                 <td className="p-4 text-right font-bold text-slate-800">{order.totalAmount.toFixed(2)} ৳</td>
                 <td className="p-4 text-right">
-                  <button onClick={() => { setSelectedOrder(order); setEditedItems(order.items.map(i => ({ productId: i.productId, quantity: i.quantity }))); setConfirmMode('none'); setPartialPaidAmount(''); setPromiseDate(''); }} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold hover:bg-blue-100 mr-2">রিভিউ</button>
+                  <button onClick={() => {
+                    setSelectedOrder(order);
+                    setEditedItems(order.items.map(i => ({ productId: i.productId, quantity: i.quantity })));
+                    setOrderDeliveryCharge((order.deliveryCharge ?? 0).toString());
+                    setOrderDiscount((order.discount ?? 0).toString());
+                    setConfirmMode('none');
+                    setPartialPaidAmount('');
+                    setPromiseDate('');
+                  }} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold hover:bg-blue-100 mr-2">রিভিউ</button>
                   <button onClick={() => handleRejectClick(order.id)} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100">বাতিল</button>
                 </td>
               </tr>
@@ -146,6 +185,11 @@ export default function OrderTab() {
                 <div className="mt-1 text-sm text-slate-600 flex flex-col">
                   <span className="font-medium text-slate-700">{selectedOrder.customerName} {selectedOrder.customerPhone && `- ${selectedOrder.customerPhone}`}</span>
                   {selectedOrder.instituteId && <span className="text-xs text-slate-500">{selectedOrder.instituteId}</span>}
+                  {selectedOrder.notes && (
+                    <span className="text-xs text-slate-500 mt-0.5">
+                      <strong>নোট / ঠিকানা:</strong> {selectedOrder.notes}
+                    </span>
+                  )}
                 </div>
               </div>
               <button onClick={() => { setSelectedOrder(null); setEditMode(false); }} className="p-2 hover:bg-slate-200 rounded-full shrink-0 transition-colors"><X className="w-5 h-5" /></button>
@@ -204,106 +248,167 @@ export default function OrderTab() {
                   </div>
                 )}
 
-                {!editMode && (
-                  <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col items-end gap-1.5 text-sm">
-                    <div className="flex justify-between w-64">
-                      <span className="text-slate-500 font-bold">বর্তমান বিল:</span>
-                      <span className="font-bold text-slate-800">{selectedOrder.totalAmount.toFixed(2)} ৳</span>
-                    </div>
-                    {selectedOrder.previousDueList && selectedOrder.previousDueList.length > 0 ? (
-                      selectedOrder.previousDueList.map((dueObj: any) => (
-                        <div key={dueObj.invoiceId} className="flex justify-between w-64">
-                          <span className="text-amber-500 font-bold">বকেয়া ({dueObj.invoiceId}):</span>
-                          <span className="font-bold text-amber-600">{(dueObj.due || 0).toFixed(2)} ৳</span>
-                        </div>
-                      ))
-                    ) : (
-                      (selectedOrder.previousDue || 0) > 0 && (
-                        <div className="flex justify-between w-64">
-                          <span className="text-amber-500 font-bold">অন্যান্য বকেয়া:</span>
-                          <span className="font-bold text-amber-600">{(selectedOrder.previousDue || 0).toFixed(2)} ৳</span>
-                        </div>
-                      )
-                    )}
-                    {(selectedOrder.discount || 0) > 0 && (
-                      <div className="flex justify-between w-64">
-                        <span className="text-green-500 font-bold">ছাড়:</span>
-                        <span className="font-bold text-green-600">-{(selectedOrder.discount || 0).toFixed(2)} ৳</span>
+                {!editMode && (() => {
+                  const itemsSubtotal = selectedOrder.items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0);
+                  const deliveryChargeVal = parseFloat(toEnglishDigits(orderDeliveryCharge)) || 0;
+                  const discountVal = parseFloat(toEnglishDigits(orderDiscount)) || 0;
+                  const currentBill = Math.max(0, itemsSubtotal - discountVal) + deliveryChargeVal;
+                  const totalPayable = currentBill + (selectedOrder.previousDue || 0);
+
+                  return (
+                    <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col items-end gap-2 text-sm">
+                      <div className="flex justify-between w-72">
+                        <span className="text-slate-500 font-bold">পণ্যের মূল্য (সাবটোটাল):</span>
+                        <span className="font-bold text-slate-800">{itemsSubtotal.toFixed(2)} ৳</span>
                       </div>
-                    )}
-                    <div className="flex justify-between w-64 pt-2 mt-1 border-t border-slate-200">
-                      <span className="text-slate-700 font-bold">সর্বমোট প্রদেয়:</span>
-                      <span className="font-black text-primary">{(selectedOrder.totalAmount + (selectedOrder.previousDue || 0) - (selectedOrder.discount || 0)).toFixed(2)} ৳</span>
+
+                      {/* Delivery Charge row with adjustment */}
+                      <div className="flex justify-between items-center w-72 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <div className="flex flex-col">
+                          <span className="text-slate-600 font-bold text-xs flex items-center gap-1">
+                            <span>🚚 {selectedOrder.courierName || 'পাঠাও কুরিয়ার'}:</span>
+                          </span>
+                          <span className="text-[10px] text-amber-700 font-medium">
+                            ওজন: {selectedOrder.totalWeight || 0} কেজি
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={orderDeliveryCharge}
+                            onChange={e => setOrderDeliveryCharge(e.target.value)}
+                            className="w-16 px-1.5 py-0.5 text-right font-bold text-xs border border-slate-300 rounded bg-white"
+                          />
+                          <span className="text-xs font-bold">৳</span>
+                          <button
+                            type="button"
+                            onClick={() => setOrderDeliveryCharge('0')}
+                            title="ফ্রি ডেলিভারি"
+                            className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold hover:bg-emerald-200 transition-colors"
+                          >
+                            ফ্রি
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Discount row with adjustment */}
+                      <div className="flex justify-between items-center w-72 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <span className="text-slate-600 font-bold text-xs">ছাড় (ডিসকাউন্ট):</span>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={orderDiscount}
+                            onChange={e => setOrderDiscount(e.target.value)}
+                            className="w-16 px-1.5 py-0.5 text-right font-bold text-xs border border-slate-300 rounded bg-white text-emerald-600"
+                          />
+                          <span className="text-xs font-bold text-emerald-600">৳</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between w-72 pt-1 border-t border-slate-200">
+                        <span className="text-slate-700 font-bold">বর্তমান বিল:</span>
+                        <span className="font-bold text-slate-800">{currentBill.toFixed(2)} ৳</span>
+                      </div>
+
+                      {selectedOrder.previousDueList && selectedOrder.previousDueList.length > 0 ? (
+                        selectedOrder.previousDueList.map((dueObj: any) => (
+                          <div key={dueObj.invoiceId} className="flex justify-between w-72">
+                            <span className="text-amber-500 font-bold">বকেয়া ({dueObj.invoiceId}):</span>
+                            <span className="font-bold text-amber-600">{(dueObj.due || 0).toFixed(2)} ৳</span>
+                          </div>
+                        ))
+                      ) : (
+                        (selectedOrder.previousDue || 0) > 0 && (
+                          <div className="flex justify-between w-72">
+                            <span className="text-amber-500 font-bold">অন্যান্য বকেয়া:</span>
+                            <span className="font-bold text-amber-600">{(selectedOrder.previousDue || 0).toFixed(2)} ৳</span>
+                          </div>
+                        )
+                      )}
+
+                      <div className="flex justify-between w-72 pt-2 mt-1 border-t border-slate-200">
+                        <span className="text-slate-700 font-bold">সর্বমোট প্রদেয়:</span>
+                        <span className="font-black text-primary text-base">{totalPayable.toFixed(2)} ৳</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
               
-              {!editMode && (
-                <div className="bg-white p-4 rounded-xl border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">অর্ডার কনফার্ম করুন</h4>
-                  
-                  {confirmMode === 'partial' || confirmMode === 'unpaid' ? (
-                    <div className="flex flex-col gap-3 bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
-                      {confirmMode === 'partial' && (
+              {!editMode && (() => {
+                const itemsSubtotal = selectedOrder.items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0);
+                const deliveryChargeVal = parseFloat(toEnglishDigits(orderDeliveryCharge)) || 0;
+                const discountVal = parseFloat(toEnglishDigits(orderDiscount)) || 0;
+                const currentBill = Math.max(0, itemsSubtotal - discountVal) + deliveryChargeVal;
+
+                return (
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <h4 className="font-bold text-slate-700 mb-4">অর্ডার কনফার্ম করুন</h4>
+                    
+                    {confirmMode === 'partial' || confirmMode === 'unpaid' ? (
+                      <div className="flex flex-col gap-3 bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
+                        {confirmMode === 'partial' && (
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">প্রদানকৃত পরিমাণ (৳)</label>
+                            <input 
+                              type="number" 
+                              value={partialPaidAmount}
+                              onChange={e => setPartialPaidAmount(e.target.value)}
+                              placeholder="0.00"
+                              className="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-primary/40 outline-none bg-white"
+                            />
+                          </div>
+                        )}
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">প্রদানকৃত পরিমাণ (৳)</label>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">পরবর্তী পেমেন্টের তারিখ (Promise Date)</label>
                           <input 
-                            type="number" 
-                            value={partialPaidAmount}
-                            onChange={e => setPartialPaidAmount(e.target.value)}
-                            placeholder="0.00"
+                            type="date" 
+                            value={promiseDate}
+                            onChange={e => setPromiseDate(e.target.value)}
                             className="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-primary/40 outline-none bg-white"
                           />
+                          <p className="text-[10px] text-slate-500 mt-1">ঐচ্ছিক (Optional): কাস্টমার কবে বকেয়া পরিশোধ করতে চেয়েছে তার তারিখ</p>
                         </div>
-                      )}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">পরবর্তী পেমেন্টের তারিখ (Promise Date)</label>
-                        <input 
-                          type="date" 
-                          value={promiseDate}
-                          onChange={e => setPromiseDate(e.target.value)}
-                          className="w-full border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-primary/40 outline-none bg-white"
-                        />
-                        <p className="text-[10px] text-slate-500 mt-1">ঐচ্ছিক (Optional): কাস্টমার কবে বকেয়া পরিশোধ করতে চেয়েছে তার তারিখ</p>
+                        <div className="flex gap-2 justify-end mt-2">
+                          <button onClick={() => setConfirmMode('none')} className="px-4 py-2 bg-slate-200 text-slate-600 font-bold rounded-lg hover:bg-slate-300">
+                            বাতিল
+                          </button>
+                          <button onClick={() => { 
+                            if (confirmMode === 'partial') {
+                              handleAccept(selectedOrder.id, Number(partialPaidAmount), 'Partial', 'Cash', promiseDate);
+                            } else {
+                              handleAccept(selectedOrder.id, 0, 'Pending', 'Cash', promiseDate);
+                            }
+                            setSelectedOrder(null); 
+                            setConfirmMode('none'); 
+                          }} className="px-6 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary/90">
+                            কনফার্ম করুন
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2 justify-end mt-2">
-                        <button onClick={() => setConfirmMode('none')} className="px-4 py-2 bg-slate-200 text-slate-600 font-bold rounded-lg hover:bg-slate-300">
-                          বাতিল
+                    ) : (
+                      <div className="grid grid-cols-3 gap-3">
+                        <button onClick={() => { handleAccept(selectedOrder.id, currentBill, 'Paid', 'Cash'); setSelectedOrder(null); }} className="bg-emerald-100 text-emerald-700 font-bold py-3 px-2 rounded-xl hover:bg-emerald-200 flex flex-col items-center justify-center text-sm text-center">
+                          <CheckCircle className="w-5 h-5 mb-1" />
+                          Full Paid (কনফার্ম)
                         </button>
-                        <button onClick={() => { 
-                          if (confirmMode === 'partial') {
-                            handleAccept(selectedOrder.id, Number(partialPaidAmount), 'Partial', 'Cash', promiseDate);
-                          } else {
-                            handleAccept(selectedOrder.id, 0, 'Pending', 'Cash', promiseDate);
-                          }
-                          setSelectedOrder(null); 
-                          setConfirmMode('none'); 
-                        }} className="px-6 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary/90">
-                          কনফার্ম করুন
+                        <button onClick={() => { setConfirmMode('partial'); setPartialPaidAmount(currentBill.toFixed(2)); }} className="bg-blue-100 text-blue-700 font-bold py-3 px-2 rounded-xl hover:bg-blue-200 flex flex-col items-center justify-center text-sm text-center">
+                          <CheckCircle className="w-5 h-5 mb-1" />
+                          Partial Paid (কনফার্ম)
+                        </button>
+                        <button onClick={() => setConfirmMode('unpaid')} className="bg-amber-100 text-amber-700 font-bold py-3 px-2 rounded-xl hover:bg-amber-200 flex flex-col items-center justify-center text-sm text-center">
+                          <CheckCircle className="w-5 h-5 mb-1" />
+                          প্যাকেজিং এর জন্য (Unpaid)
                         </button>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-3">
-                      <button onClick={() => { handleAccept(selectedOrder.id, selectedOrder.totalAmount, 'Paid', 'Cash'); setSelectedOrder(null); }} className="bg-emerald-100 text-emerald-700 font-bold py-3 px-2 rounded-xl hover:bg-emerald-200 flex flex-col items-center justify-center text-sm text-center">
-                        <CheckCircle className="w-5 h-5 mb-1" />
-                        Full Paid (কনফার্ম)
-                      </button>
-                      <button onClick={() => setConfirmMode('partial')} className="bg-blue-100 text-blue-700 font-bold py-3 px-2 rounded-xl hover:bg-blue-200 flex flex-col items-center justify-center text-sm text-center">
-                        <CheckCircle className="w-5 h-5 mb-1" />
-                        Partial Paid (কনফার্ম)
-                      </button>
-                      <button onClick={() => setConfirmMode('unpaid')} className="bg-amber-100 text-amber-700 font-bold py-3 px-2 rounded-xl hover:bg-amber-200 flex flex-col items-center justify-center text-sm text-center">
-                        <CheckCircle className="w-5 h-5 mb-1" />
-                        প্যাকেজিং এর জন্য (Unpaid)
-                      </button>
-                    </div>
-                  )}
-                  
-                  <p className="text-xs text-slate-500 mt-4 text-center">কনফার্ম করলে স্টক থেকে পণ্য কমে যাবে এবং এটি সেলস ট্যাবে যুক্ত হবে।</p>
-                </div>
-              )}
+                    )}
+                    
+                    <p className="text-xs text-slate-500 mt-4 text-center">কনফার্ম করলে স্টক থেকে পণ্য কমে যাবে এবং এটি সেলস ট্যাবে যুক্ত হবে।</p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
-  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, UserCheck, KeyRound, Copy
+  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, UserCheck, KeyRound, Copy, Truck
 } from "lucide-react";
 import { generateQRCodeDataUrl, generateBarcodeSVG } from "@/lib/qrHelper";
+import { calculateDeliveryCost, DELIVERY_CONSTANTS } from "@/lib/deliveryCost";
 
 export type Product = {
   id: string;
@@ -20,6 +21,7 @@ export type Product = {
   description?: string | null;
   rating?: number;
   reviews?: number;
+  weight?: number | null;
 };
 
 const STAR_RATINGS: Record<string, { rating: number; reviews: number }> = {};
@@ -378,7 +380,12 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                 </table>
                 <div class="totals-section">
                   <div class="totals">
-                    <div><span>বর্তমান বিল:</span><span>${orderToPrint.totalAmount.toFixed(2)} ৳</span></div>
+                    <div><span>পণ্যের মোট মূল্য:</span><span>${(orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0)).toFixed(2)} ৳</span></div>
+                    <div>
+                      <span>কুরিয়ার চার্জ (${orderToPrint.courierName || 'পাঠাও কুরিয়ার'}):</span>
+                      <span>${(orderToPrint.deliveryCharge !== undefined ? orderToPrint.deliveryCharge : Math.max(0, orderToPrint.totalAmount - orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0))) > 0 ? `${(orderToPrint.deliveryCharge !== undefined ? orderToPrint.deliveryCharge : Math.max(0, orderToPrint.totalAmount - orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0))).toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি)'}</span>
+                    </div>
+                    <div style="font-weight: bold; border-top: 1px solid #cbd5e1; padding-top: 4px;"><span>বর্তমান বিল:</span><span>${orderToPrint.totalAmount.toFixed(2)} ৳</span></div>
                     ${orderToPrint.previousDueList && orderToPrint.previousDueList.length > 0 
                       ? orderToPrint.previousDueList.map((dueObj: any) => 
                           `<div style="font-size: 13px; color: #475569;"><span>বকেয়া (${dueObj.invoiceId} - ${new Date(dueObj.date).toLocaleDateString('bn-BD')}):</span><span>${dueObj.due.toFixed(2)} ৳</span></div>`
@@ -389,6 +396,9 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                     <div class="grand-total"><span>সর্বমোট প্রদেয়:</span><span>${(orderToPrint.totalAmount + (orderToPrint.previousDue || 0) - (orderToPrint.discount || 0)).toFixed(2)} ৳</span></div>
                     <div><span>পরিশোধিত:</span><span>${(orderToPrint.paidAmount || 0).toFixed(2)} ৳</span></div>
                     <div style="font-weight: bold; color: #dc2626;"><span>বর্তমান বকেয়া:</span><span>${(orderToPrint.totalAmount + (orderToPrint.previousDue || 0) - (orderToPrint.discount || 0) - (orderToPrint.paidAmount || 0)).toFixed(2)} ৳</span></div>
+                  </div>
+                  <div style="margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 11px; color: #166534; text-align: left;">
+                    <strong>🚚 কুরিয়ার নীতিমালা:</strong> ৫,০০০ টাকার কম অর্ডারে “পাঠাও কুরিয়ার”-এর মাধ্যমে পাঠানো হয় (প্রথম ২ কেজি ১৮০ ৳, পরের প্রতি কেজি ২৫ ৳, সর্বোচ্চ ১৫ কেজি)। ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি।
                   </div>
                 </div>
                 <div class="qr-barcode-section">
@@ -422,6 +432,8 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const deliveryInfo = useMemo(() => calculateDeliveryCost(cart), [cart]);
+  const grandTotal = cartTotal + deliveryInfo.deliveryCharge;
 
   const categories = useMemo(() => {
     const cats = products.flatMap(p => (p.category || '').split(',').map(c => c.trim()).filter(Boolean));
@@ -814,24 +826,40 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                 </div>
               )}
               {cart.length > 0 && (
-                <div className="p-5 border border-slate-100 bg-slate-50/50 rounded-2xl mb-16">
-                  <div className="flex flex-col gap-2 mb-4 border-b border-slate-200/50 pb-4">
-                    <div className="flex justify-between text-slate-500 text-sm">
+                <div className="p-4 border border-slate-100 bg-slate-50/50 rounded-2xl mb-16 space-y-3">
+                  <div className="flex flex-col gap-1.5 pb-3 border-b border-slate-200/60 text-xs sm:text-sm">
+                    <div className="flex justify-between text-slate-500">
                       <span>সাবটোটাল ({cartCount} টি আইটেম)</span>
                       <span className="font-bold text-slate-700">৳{cartTotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-slate-500 text-sm">
-                      <span>ডেলিভারি চার্জ</span>
-                      <span className="font-medium text-slate-500 text-xs">চেকআউটে যোগ হবে</span>
+                    <div className="flex justify-between text-slate-500 items-center">
+                      <span className="flex items-center gap-1.5">
+                        <span>কুরিয়ার ({deliveryInfo.courierName})</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
+                          {deliveryInfo.totalWeightKg} কেজি
+                        </span>
+                      </span>
+                      {deliveryInfo.isFreeDelivery ? (
+                        <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-xs">ফ্রি ডেলিভারি 🎉</span>
+                      ) : (
+                        <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex justify-between text-slate-800 mb-4 items-end">
-                    <span className="font-bold">সর্বমোট পরিমাণ</span>
-                    <span className="text-xl font-black text-primary">৳{cartTotal.toFixed(2)}</span>
+                  <div className="flex justify-between text-slate-800 items-end">
+                    <div>
+                      <span className="font-bold text-sm block">সর্বমোট পরিমাণ</span>
+                      <span className="text-[10px] text-slate-400">ডেলিভারিসহ প্রদেয়</span>
+                    </div>
+                    <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
                   </div>
                   <button onClick={() => setCheckoutModalOpen(true)} className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors">
                     অর্ডার করুন
                   </button>
+                  <p className="text-[11px] text-slate-500 bg-white p-2 rounded-lg border border-slate-200 leading-tight flex items-start gap-1">
+                    <span className="shrink-0 text-xs">🚚</span>
+                    <span>{deliveryInfo.ruleNotice}</span>
+                  </p>
                 </div>
               )}
             </div>
@@ -893,24 +921,40 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                 </div>
               )}
               {cart.length > 0 && (
-                <div className="p-5 border border-slate-100 bg-slate-50/50 rounded-2xl mb-16">
-                  <div className="flex flex-col gap-2 mb-4 border-b border-slate-200/50 pb-4">
-                    <div className="flex justify-between text-slate-500 text-sm">
+                <div className="p-4 border border-slate-100 bg-slate-50/50 rounded-2xl mb-16 space-y-3">
+                  <div className="flex flex-col gap-1.5 pb-3 border-b border-slate-200/60 text-xs sm:text-sm">
+                    <div className="flex justify-between text-slate-500">
                       <span>সাবটোটাল ({cartCount} টি আইটেম)</span>
                       <span className="font-bold text-slate-700">৳{cartTotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-slate-500 text-sm">
-                      <span>ডেলিভারি চার্জ</span>
-                      <span className="font-medium text-slate-500 text-xs">চেকআউটে যোগ হবে</span>
+                    <div className="flex justify-between text-slate-500 items-center">
+                      <span className="flex items-center gap-1.5">
+                        <span>কুরিয়ার ({deliveryInfo.courierName})</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
+                          {deliveryInfo.totalWeightKg} কেজি
+                        </span>
+                      </span>
+                      {deliveryInfo.isFreeDelivery ? (
+                        <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-xs">ফ্রি ডেলিভারি 🎉</span>
+                      ) : (
+                        <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex justify-between text-slate-800 mb-4 items-end">
-                    <span className="font-bold">সর্বমোট পরিমাণ</span>
-                    <span className="text-xl font-black text-primary">৳{cartTotal.toFixed(2)}</span>
+                  <div className="flex justify-between text-slate-800 items-end">
+                    <div>
+                      <span className="font-bold text-sm block">সর্বমোট পরিমাণ</span>
+                      <span className="text-[10px] text-slate-400">ডেলিভারিসহ প্রদেয়</span>
+                    </div>
+                    <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
                   </div>
                   <button onClick={() => setCheckoutModalOpen(true)} className="w-full py-3 bg-primary text-white rounded-xl font-black text-lg hover:bg-primary/90 transition-colors">
                     অর্ডার করুন
                   </button>
+                  <p className="text-[11px] text-slate-500 bg-white p-2 rounded-lg border border-slate-200 leading-tight flex items-start gap-1">
+                    <span className="shrink-0 text-xs">🚚</span>
+                    <span>{deliveryInfo.ruleNotice}</span>
+                  </p>
                 </div>
               )}
             </div>
@@ -954,8 +998,28 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                   <input value={instituteId} onChange={e => setInstituteId(e.target.value)} type="text" placeholder="ঠিকানা..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
                 </div>
               </div>
+
+              {/* Order bill summary */}
+              <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>পণ্যের মূল্য (সাবটোটাল):</span>
+                  <span className="font-bold text-slate-800">৳{cartTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 items-center">
+                  <span>কুরিয়ার চার্জ ({deliveryInfo.courierName}):</span>
+                  {deliveryInfo.isFreeDelivery ? (
+                    <span className="font-bold text-emerald-600">ফ্রি ডেলিভারি 🎉</span>
+                  ) : (
+                    <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)} ({deliveryInfo.totalWeightKg} কেজি)</span>
+                  )}
+                </div>
+                <div className="pt-1.5 border-t border-slate-200 flex justify-between font-bold text-sm text-slate-800">
+                  <span>সর্বমোট বিল:</span>
+                  <span className="text-primary font-black text-base">৳{grandTotal.toFixed(2)}</span>
+                </div>
+              </div>
               
-              <button onClick={submitOrder} disabled={orderLoading || !customerName} className="w-full mt-5 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors text-sm">
+              <button onClick={submitOrder} disabled={orderLoading || !customerName} className="w-full mt-4 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors text-sm">
                 {orderLoading ? "অপেক্ষা করুন..." : "অর্ডার সাবমিট করুন"}
               </button>
             </div>

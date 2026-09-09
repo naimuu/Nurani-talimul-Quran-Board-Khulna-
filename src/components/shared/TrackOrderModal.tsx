@@ -83,6 +83,9 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
       : order.invoiceId;
     const qrCodeUrl = await generateQRCodeDataUrl(trackingUrl);
     const barcodeSVG = generateBarcodeSVG(order.invoiceId);
+    const itemsSubtotal = order.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0);
+    const deliveryCharge = Number(order.deliveryCharge) || 0;
+    const courierName = order.courierName || 'পাঠাও কুরিয়ার';
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -184,17 +187,25 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                 </table>
                 <div class="totals-section">
                   <div class="totals">
-                    <div><span>বর্তমান বিল:</span><span>${order.totalAmount.toFixed(2)} ৳</span></div>
+                    <div><span>পণ্যের মোট মূল্য:</span><span>${itemsSubtotal.toFixed(2)} ৳</span></div>
+                    <div>
+                      <span>কুরিয়ার চার্জ (${courierName}):</span>
+                      <span>${deliveryCharge > 0 ? `${deliveryCharge.toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি ডেলিভারি)'}</span>
+                    </div>
+                    ${order.discount ? `<div><span>ছাড়:</span><span>-${order.discount.toFixed(2)} ৳</span></div>` : ''}
+                    <div style="font-weight: bold; border-top: 1px solid #cbd5e1; padding-top: 4px;"><span>বর্তমান বিল:</span><span>${order.totalAmount.toFixed(2)} ৳</span></div>
                     ${order.currentDueList && order.currentDueList.length > 0 
                       ? order.currentDueList.map((dueObj: any) => 
                           `<div style="font-size: 13px; color: #475569;"><span>অন্যান্য বকেয়া (${dueObj.invoiceId} - ${new Date(dueObj.date).toLocaleDateString('bn-BD')}):</span><span>${dueObj.due.toFixed(2)} ৳</span></div>`
                         ).join('')
                       : (order.currentTotalDue ? `<div><span>অন্যান্য বকেয়া:</span><span>${order.currentTotalDue.toFixed(2)} ৳</span></div>` : '')
                     }
-                    ${order.discount ? `<div><span>ছাড়:</span><span>-${order.discount.toFixed(2)} ৳</span></div>` : ''}
-                    <div class="grand-total"><span>সর্বমোট প্রদেয় (আজ পর্যন্ত):</span><span>${(order.totalAmount + (order.currentTotalDue || 0) - (order.discount || 0)).toFixed(2)} ৳</span></div>
+                    <div class="grand-total"><span>সর্বমোট প্রদেয় (আজ পর্যন্ত):</span><span>${(order.totalAmount + (order.currentTotalDue || 0)).toFixed(2)} ৳</span></div>
                     <div><span>এই বিলের জন্য পরিশোধিত:</span><span>${(order.paidAmount || 0).toFixed(2)} ৳</span></div>
-                    <div style="font-weight: bold; color: #dc2626;"><span>সর্বমোট বকেয়া:</span><span>${(order.totalAmount + (order.currentTotalDue || 0) - (order.discount || 0) - (order.paidAmount || 0)).toFixed(2)} ৳</span></div>
+                    <div style="font-weight: bold; color: #dc2626;"><span>সর্বমোট বকেয়া:</span><span>${(order.totalAmount + (order.currentTotalDue || 0) - (order.paidAmount || 0)).toFixed(2)} ৳</span></div>
+                  </div>
+                  <div style="margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 11px; color: #166534; text-align: left;">
+                    <strong>🚚 কুরিয়ার নীতিমালা:</strong> ৫,০০০ টাকার কম অর্ডারে “পাঠাও কুরিয়ার”-এর মাধ্যমে পাঠানো হয় (প্রথম ২ কেজি ১৮০ ৳, পরের প্রতি কেজি ২৫ ৳, সর্বোচ্চ ১৫ কেজি)। ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি।
                   </div>
                 </div>
                 <div class="qr-barcode-section">
@@ -361,9 +372,38 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                     <p className="text-[11px] text-slate-400 font-bold uppercase mb-0.5">অর্ডারের তারিখ</p>
                     <p className="font-semibold text-slate-700">{new Date(order.createdAt).toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                   </div>
+                  {(() => {
+                    const itemsSubtotal = order.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0);
+                    const deliveryCharge = Number(order.deliveryCharge) || 0;
+                    return (
+                      <>
+                        <div>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase mb-0.5">পণ্যের মূল্য (সাবটোটাল)</p>
+                          <p className="font-bold text-slate-800">৳{itemsSubtotal.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase mb-0.5">
+                            কুরিয়ার ({order.courierName || 'পাঠাও কুরিয়ার'}) {order.totalWeight ? `· ${order.totalWeight} কেজি` : ''}
+                          </p>
+                          {deliveryCharge > 0 ? (
+                            <p className="font-bold text-slate-800">৳{deliveryCharge.toFixed(2)}</p>
+                          ) : (
+                            <p className="font-bold text-emerald-600">০.০০ ৳ (ফ্রি ডেলিভারি 🎉)</p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div>
                     <p className="text-[11px] text-slate-400 font-bold uppercase mb-0.5">বর্তমান বিল</p>
                     <p className="font-bold text-slate-800">৳{order.totalAmount.toFixed(2)}</p>
+                  </div>
+
+                  <div className="col-span-2 text-[11px] text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex items-start gap-1.5 mt-0.5">
+                    <span className="shrink-0 text-xs">🚚</span>
+                    <span>
+                      <strong>কুরিয়ার নীতিমালা:</strong> ৫,০০০ টাকার কম অর্ডারে “পাঠাও কুরিয়ার”-এর মাধ্যমে পাঠানো হয় (প্রথম ২ কেজি ১৮০ ৳, পরের প্রতি কেজি ২৫ ৳, সর্বোচ্চ ১৫ কেজি)। ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি।
+                    </span>
                   </div>
                   
                   {order.currentDueList && order.currentDueList.length > 0 ? (
@@ -396,7 +436,7 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                   
                   <div>
                     <p className="text-[11px] text-slate-400 font-bold uppercase mb-0.5">সর্বমোট প্রদেয়</p>
-                    <p className="font-extrabold text-slate-900">৳{(order.totalAmount + (order.currentTotalDue || 0) - (order.discount || 0)).toFixed(2)}</p>
+                    <p className="font-extrabold text-slate-900">৳{(order.totalAmount + (order.currentTotalDue || 0)).toFixed(2)}</p>
                   </div>
 
                   <div>
@@ -406,7 +446,7 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
 
                   <div>
                     <p className="text-[11px] text-red-600 font-bold uppercase mb-0.5">সর্বমোট বকেয়া</p>
-                    <p className="font-black text-red-600">৳{(order.totalAmount + (order.currentTotalDue || 0) - (order.discount || 0) - (order.paidAmount || 0)).toFixed(2)}</p>
+                    <p className="font-black text-red-600">৳{(order.totalAmount + (order.currentTotalDue || 0) - (order.paidAmount || 0)).toFixed(2)}</p>
                   </div>
                 </div>
 

@@ -2,15 +2,17 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
-  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck
+  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck, Truck
 } from "lucide-react";
 import Link from "next/link";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
+import { calculateDeliveryCost, DELIVERY_CONSTANTS } from "@/lib/deliveryCost";
 
 type Product = {
   id: string; name: string; category: string; price: number;
   stock: number; unit: string; rating?: number; reviews?: number;
   imageUrl?: string; className?: string; subject?: string; description?: string | null;
+  weight?: number | null;
 };
 
 const STAR_RATINGS: Record<string, { rating: number; reviews: number }> = {};
@@ -128,6 +130,8 @@ function ProductDetailModal({
 }
 
 function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onClose: (state?: any) => void; initialState?: any; total: number; cart: any[]; onSuccess: (data: any) => void }) {
+  const deliveryInfo = useMemo(() => calculateDeliveryCost(cart), [cart]);
+  const grandTotal = total + deliveryInfo.deliveryCharge;
   const [ilhak, setIlhak] = useState(initialState?.ilhak || "");
   const [ownerName, setOwnerName] = useState(initialState?.ownerName || "");
   const [instituteName, setInstituteName] = useState(initialState?.instituteName || "");
@@ -270,7 +274,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   const submitOrder = async () => {
     setIsSubmitting(true);
     setErrorMsg("");
-    const isPartialReceipt = paymentOption === 'money_receipt' && receiptVerifyStatus === 'valid' && receiptBalance < total;
+    const isPartialReceipt = paymentOption === 'money_receipt' && receiptVerifyStatus === 'valid' && receiptBalance < grandTotal;
     try {
       if (paymentOption === 'pay_now' && !trxId) throw new Error("ট্রানজেকশন আইডি প্রদান করুন");
       if (paymentOption === 'money_receipt' && !receiptNumber) throw new Error("মানি রিসিট নম্বর প্রদান করুন");
@@ -474,9 +478,37 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="font-bold text-slate-500 text-sm">সর্বমোট বিল:</span>
-                <span className="text-xl font-black text-primary">৳{total.toFixed(2)}</span>
+              <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
+                  <span>পণ্যের মূল্য (সাবটোটাল):</span>
+                  <span className="font-semibold text-slate-800">৳{total.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
+                  <span className="flex items-center gap-1.5">
+                    <span>কুরিয়ার চার্জ ({deliveryInfo.courierName}):</span>
+                    <span className="text-[10px] sm:text-[11px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-medium rounded border border-amber-200">
+                      {deliveryInfo.totalWeightKg} কেজি
+                    </span>
+                  </span>
+                  {deliveryInfo.isFreeDelivery ? (
+                    <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-xs">ফ্রি ডেলিভারি 🎉</span>
+                  ) : (
+                    <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                  )}
+                </div>
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                  <span className="font-bold text-slate-700 text-sm sm:text-base">সর্বমোট প্রদেয় বিল:</span>
+                  <span className="text-xl sm:text-2xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
+                </div>
+                <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex items-start gap-1.5">
+                  <span className="shrink-0 text-sm">🚚</span>
+                  <span>{deliveryInfo.ruleNotice}</span>
+                </p>
+                {deliveryInfo.isOverweight && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
+                    ⚠️ মোট পার্সেলের ওজন ১৫ কেজির বেশি ({deliveryInfo.totalWeightKg} কেজি)। কুরিয়ার বা বিশেষ ট্রান্সপোর্টের ক্ষেত্রে অতিরিক্ত পার্সেল হতে পারে।
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 mt-4">
@@ -594,22 +626,22 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                     </div>
 
                     {/* === PARTIAL BALANCE PANEL === */}
-                    {receiptVerifyStatus === 'valid' && receiptBalance < total && (
+                    {receiptVerifyStatus === 'valid' && receiptBalance < grandTotal && (
                       <div className="border border-amber-200 rounded-xl overflow-hidden">
                         {/* Balance breakdown */}
                         <div className="bg-amber-50 p-3 space-y-1.5">
                           <p className="text-xs font-bold text-amber-800">বালান্স বিবরণ:</p>
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-600">মোট বিল:</span>
-                            <span className="font-bold text-slate-800">৳{total.toFixed(2)}</span>
+                            <span className="font-bold text-slate-800">৳{grandTotal.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-emerald-600">রিসিট ব্যালান্স:</span>
                             <span className="font-bold text-emerald-600">-৳{receiptBalance.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm border-t border-amber-200 pt-1.5">
-                            <span className="text-red-600 font-bold">বাকি পায়্যোয়সের:</span>
-                            <span className="font-black text-red-600">৳{(total - receiptBalance).toFixed(2)}</span>
+                            <span className="text-red-600 font-bold">বাকি পরিশোধ করতে হবে:</span>
+                            <span className="font-black text-red-600">৳{(grandTotal - receiptBalance).toFixed(2)}</span>
                           </div>
                         </div>
 
@@ -800,9 +832,17 @@ export default function StorePage() {
               ${orderToPrint.items.map((i: any) => `<tr><td>${i.product.name}</td><td class="text-center">${i.quantity}</td><td class="text-right">${i.unitPrice} ৳</td><td class="text-right">${(i.quantity * i.unitPrice).toFixed(2)} ৳</td></tr>`).join('')}
             </table>
             <div class="totals">
-              <div><span>বর্তমান বিল:</span><span>${orderToPrint.totalAmount.toFixed(2)} ৳</span></div>
+              <div><span>পণ্যের মোট মূল্য:</span><span>${(orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0)).toFixed(2)} ৳</span></div>
+              <div>
+                <span>কুরিয়ার চার্জ (${orderToPrint.courierName || 'পাঠাও কুরিয়ার'}):</span>
+                <span>${(orderToPrint.deliveryCharge !== undefined ? orderToPrint.deliveryCharge : Math.max(0, orderToPrint.totalAmount - orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0))) > 0 ? `${(orderToPrint.deliveryCharge !== undefined ? orderToPrint.deliveryCharge : Math.max(0, orderToPrint.totalAmount - orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0))).toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি)'}</span>
+              </div>
+              <div style="font-weight:bold; border-top: 1px solid #cbd5e1; padding-top: 6px;"><span>বর্তমান বিল:</span><span>${orderToPrint.totalAmount.toFixed(2)} ৳</span></div>
               ${orderToPrint.previousDue ? `<div><span>পূর্বের বকেয়া:</span><span>${orderToPrint.previousDue.toFixed(2)} ৳</span></div>` : ''}
               <div class="grand-total"><span>সর্বমোট প্রদেয়:</span><span>${(orderToPrint.totalAmount + (orderToPrint.previousDue || 0)).toFixed(2)} ৳</span></div>
+            </div>
+            <div style="margin-top: 25px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 11px; color: #166534;">
+              <strong>🚚 কুরিয়ার নীতিমালা:</strong> ৫,০০০ টাকার কম অর্ডারে “পাঠাও কুরিয়ার”-এর মাধ্যমে পাঠানো হয় (প্রথম ২ কেজি ১৮০ ৳, পরের প্রতি কেজি ২৫ ৳, সর্বোচ্চ ১৫ কেজি)। ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি।
             </div>
           </body>
         </html>
@@ -901,6 +941,8 @@ export default function StorePage() {
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const deliveryInfo = useMemo(() => calculateDeliveryCost(cart), [cart]);
+  const grandTotal = cartTotal + deliveryInfo.deliveryCharge;
 
   const categories = useMemo(() => Array.from(new Set(products.map(p => p.category))), [products]);
   const highestPrice = useMemo(() => products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000, [products]);
@@ -1015,6 +1057,18 @@ export default function StorePage() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Delivery Policy Announcement Banner */}
+          <div className="mb-3.5 p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/70 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm flex-shrink-0">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
+                <Truck className="w-4 h-4" />
+              </div>
+              <div className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                <span className="font-bold text-emerald-800">এজেন্ট ও কেন্দ্রের ডেলিভারি নীতিমালা:</span> ৫,০০০ টাকার কম অর্ডার হলে <strong className="text-slate-900">“পাঠাও কুরিয়ার”</strong>-এর মাধ্যমে পাঠানো হবে (সর্বোচ্চ ১৫ কেজি পর্যন্ত)। কুরিয়ার খরচ: প্রথম ২ কেজি ১৮০ ৳, পরবর্তী প্রতি কেজি ২৫ ৳। <span className="inline-block font-bold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-300 ml-1">৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি!</span>
+              </div>
             </div>
           </div>
 
@@ -1231,14 +1285,43 @@ export default function StorePage() {
               )}
             </div>
             {cart.length > 0 && (
-              <div className="p-5 border-t border-slate-100 bg-white z-10 relative">
-                <div className="flex justify-between text-slate-800 mb-4 items-end">
-                  <span className="font-bold">সর্বমোট পরিমাণ</span>
-                  <span className="text-xl font-black text-primary">৳{cartTotal.toFixed(2)}</span>
+              <div className="p-4 border-t border-slate-100 bg-white z-10 relative space-y-3">
+                <div className="space-y-1.5 text-xs sm:text-sm text-slate-600 border-b border-slate-100 pb-2.5">
+                  <div className="flex justify-between">
+                    <span>পণ্যের মূল্য (সাবটোটাল):</span>
+                    <span className="font-bold text-slate-800">৳{cartTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-1.5">
+                      <span>কুরিয়ার ({deliveryInfo.courierName}):</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
+                        {deliveryInfo.totalWeightKg} কেজি
+                      </span>
+                    </span>
+                    {deliveryInfo.isFreeDelivery ? (
+                      <span className="font-bold text-emerald-600 text-xs bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">ফ্রি ডেলিভারি 🎉</span>
+                    ) : (
+                      <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
+
+                <div className="flex justify-between text-slate-800 items-end">
+                  <div>
+                    <span className="font-bold text-sm block">সর্বমোট বিল</span>
+                    <span className="text-[10px] text-slate-400">ডেলিভারি সহ</span>
+                  </div>
+                  <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
+                </div>
+
                 <button onClick={() => setIsOrderModalOpen(true)} className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
                   অর্ডার করুন
                 </button>
+
+                <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex items-start gap-1 leading-tight">
+                  <span className="shrink-0 text-xs">🚚</span>
+                  <span>{deliveryInfo.ruleNotice}</span>
+                </p>
               </div>
             )}
           </div>
@@ -1249,8 +1332,10 @@ export default function StorePage() {
       {cartCount > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-sm bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200/50 p-4 flex items-center justify-between animate-in slide-in-from-bottom-10 xl:hidden">
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">মোট {cartCount} টি পণ্য</span>
-            <span className="text-xl font-black text-primary">৳{cartTotal.toFixed(2)}</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+              {cartCount} টি পণ্য · {deliveryInfo.isFreeDelivery ? "ফ্রি ডেলিভারি" : `+${deliveryInfo.deliveryCharge} ৳ কুরিয়ার`}
+            </span>
+            <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
           </div>
           <button onClick={() => setCartOpen(true)} className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/25 hover:bg-primary/90 hover:-translate-y-0.5 transition-all flex items-center gap-2">
             <ShoppingBag className="w-4 h-4" /> কার্ট দেখুন
@@ -1323,14 +1408,43 @@ export default function StorePage() {
               )}
             </div>
             {cart.length > 0 && (
-              <div className="p-5 border-t border-slate-100 bg-white z-10 relative">
-                <div className="flex justify-between text-slate-800 mb-4 items-end">
-                  <span className="font-bold">সর্বমোট পরিমাণ</span>
-                  <span className="text-xl font-black text-primary">৳{cartTotal.toFixed(2)}</span>
+              <div className="p-4 border-t border-slate-100 bg-white z-10 relative space-y-3">
+                <div className="space-y-1.5 text-xs sm:text-sm text-slate-600 border-b border-slate-100 pb-2.5">
+                  <div className="flex justify-between">
+                    <span>পণ্যের মূল্য:</span>
+                    <span className="font-bold text-slate-800">৳{cartTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-1.5">
+                      <span>কুরিয়ার ({deliveryInfo.courierName}):</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
+                        {deliveryInfo.totalWeightKg} কেজি
+                      </span>
+                    </span>
+                    {deliveryInfo.isFreeDelivery ? (
+                      <span className="font-bold text-emerald-600 text-xs bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">ফ্রি ডেলিভারি 🎉</span>
+                    ) : (
+                      <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
+
+                <div className="flex justify-between text-slate-800 items-end">
+                  <div>
+                    <span className="font-bold text-sm block">সর্বমোট বিল</span>
+                    <span className="text-[10px] text-slate-400">ডেলিভারি সহ</span>
+                  </div>
+                  <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
+                </div>
+
                 <button onClick={() => setIsOrderModalOpen(true)} className="w-full py-3.5 bg-primary text-white rounded-xl font-black text-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
                   অর্ডার করুন
                 </button>
+
+                <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex items-start gap-1 leading-tight">
+                  <span className="shrink-0 text-xs">🚚</span>
+                  <span>{deliveryInfo.ruleNotice}</span>
+                </p>
               </div>
             )}
           </div>

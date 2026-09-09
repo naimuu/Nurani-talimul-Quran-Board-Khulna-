@@ -1,8 +1,9 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Search, Plus, Filter, Download, FileText, MoreVertical, CheckCircle, Trash2, Share2, X, Scan, Edit, Camera } from 'lucide-react';
 import BanglaDatePicker, { toBanglaDigits } from './BanglaDatePicker';
 import { generateQRCodeDataUrl, generateBarcodeSVG } from '@/lib/qrHelper';
+import { calculateDeliveryCost } from '@/lib/deliveryCost';
 
 type SaleItem = { id: string; quantity: number; unitPrice: number; product: { name: string, className?: string | null } };
 type Sale = {
@@ -11,9 +12,10 @@ type Sale = {
   previousDue?: number; previousDueList?: any[]; discount?: number;
   currentDueList?: any[]; currentTotalDue?: number;
   payments?: { payer: string, method: string, amount: number, createdAt: string }[];
+  deliveryCharge?: number; courierName?: string; totalWeight?: number;
 };
 
-type Product = { id: string; name: string; price: number; stock: number; unit: string; barcode?: string | null };
+type Product = { id: string; name: string; price: number; stock: number; unit: string; barcode?: string | null; weight?: number | null };
 
 const toEnglishDigits = (str: string) => {
   const bnToEn: Record<string, string> = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
@@ -204,14 +206,36 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   const updateQty = useCallback((i: number, q: number) =>
     setItems(prev => prev.map((item, idx) => idx === i ? { ...item, quantity: q } : item)), []);
 
+  const cartItemsForDelivery = useMemo(() => {
+    return items.map(item => {
+      const p = products.find(prod => prod.id === item.productId);
+      return {
+        product: { price: p?.price || 0, weight: p?.weight ?? 0.25 },
+        quantity: item.quantity
+      };
+    });
+  }, [items, products]);
+
+  const autoDelivery = useMemo(() => calculateDeliveryCost(cartItemsForDelivery), [cartItemsForDelivery]);
+  const [deliveryCharge, setDeliveryCharge] = useState<string>('0');
+  const [courierName, setCourierName] = useState<string>('পাঠাও কুরিয়ার');
+  const [isCustomDelivery, setIsCustomDelivery] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isCustomDelivery) {
+      setDeliveryCharge(autoDelivery.deliveryCharge.toString());
+    }
+  }, [autoDelivery.deliveryCharge, isCustomDelivery]);
+
   const subtotal = items.reduce((sum, item) => {
     const product = products.find(p => p.id === item.productId);
     return sum + (product ? product.price * item.quantity : 0);
   }, 0);
+  const parsedDelivery = parseFloat(toEnglishDigits(deliveryCharge)) || 0;
   const parsedDiscount = parseFloat(toEnglishDigits(discountValue)) || 0;
   const parsedPaid = parseFloat(toEnglishDigits(paidAmount)) || 0;
   const discountAmount = discountType === 'percentage' ? (subtotal * parsedDiscount) / 100 : parsedDiscount;
-  const total = Math.max(0, subtotal - discountAmount);
+  const total = Math.max(0, subtotal - discountAmount) + parsedDelivery;
   const due = Math.max(0, total - parsedPaid);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,7 +248,19 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     const res = await fetch('/api/store/sales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerName, customerPhone: customerPhone || null, instituteId: instituteId || null, items, discount: discountAmount, paidAmount: parsedPaid, promiseDate: promiseDate || null, paymentMethod }),
+      body: JSON.stringify({
+        customerName,
+        customerPhone: customerPhone || null,
+        instituteId: instituteId || null,
+        items,
+        discount: discountAmount,
+        paidAmount: parsedPaid,
+        promiseDate: promiseDate || null,
+        paymentMethod,
+        deliveryCharge: parsedDelivery,
+        courierName: courierName || "পাঠাও কুরিয়ার",
+        totalWeight: autoDelivery.totalWeightKg,
+      }),
     });
     setLoading(false);
     if (res.ok) { onSaved(); onClose(); }
@@ -421,6 +457,57 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             {/* Fixed bottom: Ultra Compact 2-Row Footer */}
             <div className="border-t border-slate-100 p-3 bg-slate-50 flex-shrink-0 flex flex-col gap-3">
               
+              {/* Row 0: Courier Delivery Charge & Info */}
+              <div className="flex items-center gap-2 bg-white rounded-lg p-2 border border-slate-200 text-xs flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-1.5 shrink-0 text-slate-700 font-bold">
+                  <span className="text-sm">🚚</span>
+                  <span>কুরিয়ার ({courierName}):</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
+                    {autoDelivery.totalWeightKg} কেজি
+                  </span>
+                  {autoDelivery.isFreeDelivery ? (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded border border-emerald-200">
+                      ফ্রি নীতি (≥৫,০০০ ৳)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-500">
+                      (১৮০৳ + ২৫৳/কেজি)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 ml-auto shrink-0">
+                  <span className="text-[11px] font-bold text-slate-500">চার্জ:</span>
+                  <div className="relative w-24">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={deliveryCharge}
+                      onChange={e => {
+                        setIsCustomDelivery(true);
+                        setDeliveryCharge(e.target.value);
+                      }}
+                      className="w-full text-right font-bold text-xs px-2 py-1 bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">৳</span>
+                  {isCustomDelivery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDelivery(false);
+                        setDeliveryCharge(autoDelivery.deliveryCharge.toString());
+                      }}
+                      className="text-[10px] text-blue-600 hover:underline px-1 py-0.5 ml-1"
+                    >
+                      অটো রিসেট
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Row 1: Discount, Due, Total */}
               <div className="flex items-center gap-3">
                 {/* Discount */}
@@ -456,7 +543,7 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
                 {/* Total */}
                 <div className="flex-1 flex flex-col justify-center items-end px-2">
                   <div className="text-[10px] text-slate-500 font-medium leading-none mb-1">
-                    সাবটোটাল: {subtotal.toFixed(2)} {discountAmount > 0 && <span className="text-red-500">(-{discountAmount.toFixed(2)})</span>}
+                    সাবটোটাল: {subtotal.toFixed(2)} {discountAmount > 0 && <span className="text-red-500">(-{discountAmount.toFixed(2)})</span>} {parsedDelivery > 0 && <span className="text-slate-600">(+{parsedDelivery.toFixed(2)} 🚚)</span>}
                   </div>
                   <div className="flex items-baseline gap-1 leading-none flex-wrap justify-end">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">সর্বমোট:</span>
@@ -507,7 +594,9 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
   const payer = payment?.payer || sale.customerName;
   const method = payment?.method || 'Cash';
   const subtotal = sale.items.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
-  const discount = subtotal - sale.totalAmount;
+  const deliveryCharge = Number(sale.deliveryCharge) || 0;
+  const courierName = sale.courierName || "পাঠাও কুরিয়ার";
+  const discount = Number(sale.discount) || Math.max(0, subtotal + deliveryCharge - sale.totalAmount);
   
   return `
     <html>
@@ -603,8 +692,22 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
 
         <div class="totals-section">
           <div class="total-row">
-            <span>বর্তমান বিল:</span>
+            <span>পণ্যের মূল্য (সাবটোটাল):</span>
             <span>${subtotal.toFixed(2)} ৳</span>
+          </div>
+          <div class="total-row">
+            <span>কুরিয়ার চার্জ (${courierName}):</span>
+            <span>${deliveryCharge > 0 ? `${deliveryCharge.toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি ডেলিভারি)'}</span>
+          </div>
+          ${discount > 0 ? `
+          <div class="total-row">
+            <span>ছাড়:</span>
+            <span>-${discount.toFixed(2)} ৳</span>
+          </div>
+          ` : ''}
+          <div class="total-row" style="font-weight: bold; border-top: 1px solid #cbd5e1; padding-top: 4px;">
+            <span>বর্তমান বিল:</span>
+            <span>${sale.totalAmount.toFixed(2)} ৳</span>
           </div>
           ${sale.currentDueList && sale.currentDueList.length > 0 
             ? sale.currentDueList.map((dueObj: any) => `
@@ -620,15 +723,9 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
             </div>
             ` : '')
           }
-          ${discount > 0 ? `
-          <div class="total-row">
-            <span>ছাড়:</span>
-            <span>-${discount.toFixed(2)} ৳</span>
-          </div>
-          ` : ''}
           <div class="total-row grand-total">
             <span>সর্বমোট প্রদেয় (আজ পর্যন্ত):</span>
-            <span>${(subtotal + (sale.currentTotalDue || 0) - discount).toFixed(2)} ৳</span>
+            <span>${(sale.totalAmount + (sale.currentTotalDue || 0)).toFixed(2)} ৳</span>
           </div>
           <div class="total-row paid">
             <span>এই বিলের জন্য পরিশোধিত:</span>
@@ -636,8 +733,12 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
           </div>
           <div class="total-row due" style="font-weight: bold; color: #dc2626;">
             <span>সর্বমোট বকেয়া:</span>
-            <span>${(subtotal + (sale.currentTotalDue || 0) - discount - sale.paidAmount).toFixed(2)} ৳</span>
+            <span>${(sale.totalAmount + (sale.currentTotalDue || 0) - sale.paidAmount).toFixed(2)} ৳</span>
           </div>
+        </div>
+
+        <div style="margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 11px; color: #166534; text-align: left;">
+          <strong>🚚 কুরিয়ার নীতিমালা:</strong> ৫,০০০ টাকার কম অর্ডারে “পাঠাও কুরিয়ার”-এর মাধ্যমে পাঠানো হয় (প্রথম ২ কেজি ১৮০ ৳, পরের প্রতি কেজি ২৫ ৳, সর্বোচ্চ ১৫ কেজি)। ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি।
         </div>
 
         <div class="qr-barcode-section">
@@ -890,20 +991,43 @@ function SaleDetailsModal({ sale, onClose }: { sale: Sale; onClose: () => void }
             </div>
           </div>
 
-          <div className="space-y-2 text-right border-t border-slate-100 pt-4">
-            <div className="flex justify-end gap-4 text-slate-600">
-              <span>সর্বমোট:</span>
-              <span className="font-bold text-slate-800 w-32">{sale.totalAmount.toFixed(2)} ৳</span>
-            </div>
-            <div className="flex justify-end gap-4 text-emerald-600">
-              <span>পরিশোধিত:</span>
-              <span className="font-bold w-32">{sale.paidAmount.toFixed(2)} ৳</span>
-            </div>
-            <div className="flex justify-end gap-4 text-red-600">
-              <span>বাকি:</span>
-              <span className="font-bold w-32">{(sale.totalAmount - sale.paidAmount).toFixed(2)} ৳</span>
-            </div>
-          </div>
+          {/* Totals Breakdown */}
+          {(() => {
+            const itemsSubtotal = sale.items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0);
+            const deliveryCharge = Number(sale.deliveryCharge) || 0;
+            return (
+              <div className="space-y-1.5 text-right border-t border-slate-100 pt-4 text-xs sm:text-sm">
+                <div className="flex justify-end gap-4 text-slate-600">
+                  <span>পণ্যের মূল্য (সাবটোটাল):</span>
+                  <span className="font-bold text-slate-800 w-32">{itemsSubtotal.toFixed(2)} ৳</span>
+                </div>
+                <div className="flex justify-end gap-4 text-slate-600">
+                  <span>কুরিয়ার ({sale.courierName || 'পাঠাও কুরিয়ার'}):</span>
+                  <span className="font-bold text-slate-800 w-32">
+                    {deliveryCharge > 0 ? `${deliveryCharge.toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি)'}
+                  </span>
+                </div>
+                {sale.discount ? (
+                  <div className="flex justify-end gap-4 text-emerald-600">
+                    <span>ছাড়:</span>
+                    <span className="font-bold w-32">-{sale.discount.toFixed(2)} ৳</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-end gap-4 text-slate-800 font-bold border-t border-slate-200 pt-1.5">
+                  <span>সর্বমোট বিল:</span>
+                  <span className="text-primary font-black text-base w-32">{sale.totalAmount.toFixed(2)} ৳</span>
+                </div>
+                <div className="flex justify-end gap-4 text-emerald-600 font-bold">
+                  <span>পরিশোধিত:</span>
+                  <span className="w-32">{sale.paidAmount.toFixed(2)} ৳</span>
+                </div>
+                <div className="flex justify-end gap-4 text-red-600 font-bold">
+                  <span>বাকি:</span>
+                  <span className="w-32">{(sale.totalAmount - sale.paidAmount).toFixed(2)} ৳</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 font-medium rounded-lg transition-colors">
