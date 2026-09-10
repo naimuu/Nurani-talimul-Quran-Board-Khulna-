@@ -22,22 +22,45 @@ export async function GET(request: Request, { params }: { params: { invoiceId: s
 
     let currentDueList: any[] = [];
     let currentTotalDue = 0;
-    if (sale.customerPhone) {
-      const allSales = await (prisma as any).storeSale.findMany({ where: { customerPhone: sale.customerPhone } });
-      allSales.forEach((s: any) => {
-        // Exclude the current invoice from the "previous/other" due list so we can show it separately
-        if (s.invoiceId !== sale.invoiceId) {
-          const due = s.totalAmount - s.paidAmount - s.discount;
-          if (due > 0) {
-            currentTotalDue += due;
-            currentDueList.push({
-              invoiceId: s.invoiceId,
-              date: s.createdAt,
-              due: due
-            });
-          }
-        }
+
+    const conditions: any[] = [];
+    if (sale.customerPhone && sale.customerPhone.trim()) {
+      conditions.push({ customerPhone: sale.customerPhone.trim() });
+    }
+    if (sale.instituteId && sale.instituteId.trim()) {
+      conditions.push({ instituteId: sale.instituteId.trim() });
+    }
+    if (sale.customerName && sale.customerName.trim()) {
+      conditions.push({ customerName: sale.customerName.trim() });
+    }
+
+    if (conditions.length > 0) {
+      const allSales = await (prisma as any).storeSale.findMany({
+        where: {
+          OR: conditions,
+          NOT: { invoiceId: sale.invoiceId },
+          status: { notIn: ["Rejected", "Cancelled"] }
+        },
+        orderBy: { createdAt: "desc" }
       });
+
+      const seen = new Set<string>();
+      for (const s of allSales) {
+        if (seen.has(s.invoiceId)) continue;
+        seen.add(s.invoiceId);
+
+        const due = Math.max(0, s.totalAmount - s.paidAmount);
+        if (due > 0) {
+          currentTotalDue += due;
+          currentDueList.push({
+            invoiceId: s.invoiceId,
+            date: s.createdAt,
+            due: due,
+            totalAmount: s.totalAmount,
+            paidAmount: s.paidAmount
+          });
+        }
+      }
     }
 
     return NextResponse.json({ ...sale, currentDueList, currentTotalDue });

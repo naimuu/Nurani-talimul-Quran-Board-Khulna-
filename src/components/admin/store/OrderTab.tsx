@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, FileText, CheckCircle, Trash2, Edit, X, Package, Truck, 
   Clock, CheckCircle2, AlertCircle, Copy, Printer, ArrowRight, 
-  RefreshCw, Send, ChevronRight, Eye, ShieldCheck, UserCheck
+  RefreshCw, Send, ChevronRight, Eye, ShieldCheck, UserCheck, Phone
 } from 'lucide-react';
 import { toBanglaDigits } from './BanglaDatePicker';
 
@@ -347,6 +347,27 @@ export default function OrderTab() {
     fetchOrders();
   };
 
+  const openOrderReviewModal = (order: Sale) => {
+    setSelectedOrder(order);
+    setEditedItems(order.items.map(i => ({ productId: i.productId, quantity: i.quantity })));
+    setOrderDeliveryCharge((order.deliveryCharge ?? 0).toString());
+    setOrderDiscount((order.discount ?? 0).toString());
+    setConfirmMode('none');
+    setPartialPaidAmount('');
+    setPromiseDate('');
+  };
+
+  const openCourierModal = (order: Sale) => {
+    setCourierModalOrder(order);
+    setCourierName(order.courierName || 'পাঠাও কুরিয়ার');
+    const parsed = parseTrackingInfo(order.notes, order.courierName);
+    setCourierTrackingId(parsed.trackingId || '');
+  };
+
+  const scrollTabToCenter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  };
+
   // Print Invoice
   const printInvoice = (order: Sale) => {
     const iframe = document.createElement('iframe');
@@ -473,7 +494,7 @@ export default function OrderTab() {
         <div className="flex items-center gap-1.5 w-max sm:w-full">
           {/* All Tab */}
           <button
-            onClick={() => setCurrentTab('all')}
+            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('all'); }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
               currentTab === 'all'
                 ? 'bg-slate-900 text-white shadow-sm'
@@ -490,7 +511,7 @@ export default function OrderTab() {
 
           {/* Pending Tab */}
           <button
-            onClick={() => setCurrentTab('pending')}
+            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('pending'); }}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
               currentTab === 'pending'
                 ? 'bg-amber-600 text-white shadow-sm'
@@ -508,7 +529,7 @@ export default function OrderTab() {
 
           {/* Confirmed Tab */}
           <button
-            onClick={() => setCurrentTab('confirmed')}
+            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('confirmed'); }}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
               currentTab === 'confirmed'
                 ? 'bg-blue-600 text-white shadow-sm'
@@ -526,7 +547,7 @@ export default function OrderTab() {
 
           {/* Packaging Tab */}
           <button
-            onClick={() => setCurrentTab('packaging')}
+            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('packaging'); }}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
               currentTab === 'packaging'
                 ? 'bg-purple-600 text-white shadow-sm'
@@ -544,7 +565,7 @@ export default function OrderTab() {
 
           {/* Shipped Tab */}
           <button
-            onClick={() => setCurrentTab('shipped')}
+            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('shipped'); }}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
               currentTab === 'shipped'
                 ? 'bg-cyan-700 text-white shadow-sm'
@@ -562,7 +583,7 @@ export default function OrderTab() {
 
           {/* Delivered Tab */}
           <button
-            onClick={() => setCurrentTab('delivered')}
+            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('delivered'); }}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
               currentTab === 'delivered'
                 ? 'bg-emerald-600 text-white shadow-sm'
@@ -580,7 +601,7 @@ export default function OrderTab() {
 
           {/* Cancelled Tab */}
           <button
-            onClick={() => setCurrentTab('cancelled')}
+            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('cancelled'); }}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
               currentTab === 'cancelled'
                 ? 'bg-red-600 text-white shadow-sm'
@@ -598,8 +619,8 @@ export default function OrderTab() {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* Orders Table (Desktop) */}
+      <div className="hidden md:block bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[960px]">
             <thead>
@@ -873,6 +894,261 @@ export default function OrderTab() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile Orders Cards List */}
+      <div className="md:hidden flex flex-col gap-2.5">
+        {loading ? (
+          <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="inline-block w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-2" />
+            <p className="font-medium text-xs">অর্ডার লোড হচ্ছে...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+            <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="font-bold text-slate-600">এই ধাপে কোনো অর্ডার পাওয়া যায়নি</p>
+            <p className="text-xs text-slate-400 mt-0.5">অন্যান্য ট্যাব বা ফিল্টার চেক করুন।</p>
+          </div>
+        ) : (
+          filtered.map(order => {
+            const step = getOrderStep(order.status);
+            const config = ORDER_STEP_CONFIG[step];
+            const tracking = parseTrackingInfo(order.notes, order.courierName);
+            const totalItems = order.items.reduce((s, i) => s + i.quantity, 0);
+            const isPaid = order.paidAmount >= order.totalAmount;
+            const isPartial = order.paidAmount > 0 && !isPaid;
+            const due = Math.max(0, order.totalAmount - order.paidAmount);
+
+            return (
+              <div
+                key={order.id}
+                onClick={() => openOrderReviewModal(order)}
+                className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-2xs hover:border-slate-300 transition-all active:bg-slate-50/70 cursor-pointer flex flex-col gap-2.5"
+              >
+                {/* Row 1: Invoice ID + Date + Step Badge */}
+                <div className="flex items-center justify-between text-xs gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono font-black text-primary text-sm">{order.invoiceId}</span>
+                    <span className="text-slate-300 text-[10px]">•</span>
+                    <span className="text-slate-500 font-mono text-[11px]">
+                      {new Date(order.updatedAt || order.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
+                    </span>
+                    {order.updatedAt && Math.abs(new Date(order.updatedAt).getTime() - new Date(order.createdAt).getTime()) > 60000 && (
+                      <span className="text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-sans font-bold border border-emerald-200">
+                        কনফার্মড
+                      </span>
+                    )}
+                  </div>
+
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border shrink-0 ${config.badgeClass}`}>
+                    <config.icon className="w-3 h-3" />
+                    <span>{config.shortLabel}</span>
+                  </span>
+                </div>
+
+                {/* Row 2: Customer Name, Phone & Direct Madrasa */}
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-bold text-slate-800 text-sm leading-snug">
+                      {order.customerName}
+                    </h4>
+                    {order.customerPhone && (
+                      <a
+                        href={`tel:${order.customerPhone}`}
+                        onClick={e => e.stopPropagation()}
+                        className="text-[11px] font-mono text-slate-600 hover:text-primary flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/70 shrink-0"
+                      >
+                        <Phone className="w-2.5 h-2.5 text-slate-400" />
+                        <span>{order.customerPhone}</span>
+                      </a>
+                    )}
+                  </div>
+                  {order.instituteId ? (
+                    <p className="text-xs text-emerald-700 font-medium mt-0.5 line-clamp-1">
+                      {order.instituteId}
+                    </p>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">ব্যক্তিগত অর্ডার</span>
+                  )}
+                </div>
+
+                {/* Row 3: Financial & Meta Info (Bill, Payment status, Items count, Weight) */}
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 flex-wrap gap-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-slate-900 text-sm">
+                      {order.totalAmount.toFixed(2)} ৳
+                    </span>
+                    {isPaid ? (
+                      <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200">
+                        পরিশোধিত
+                      </span>
+                    ) : isPartial ? (
+                      <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-200">
+                        আংশিক: {order.paidAmount.toFixed(0)} ৳
+                      </span>
+                    ) : (
+                      <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-200">
+                        ক্যাশ অন ডেলিভারি
+                      </span>
+                    )}
+                    {due > 0 && !isPartial && (
+                      <span className="text-red-600 font-bold text-[10px]">
+                        (বকেয়া {due.toFixed(0)} ৳)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold text-[11px]">
+                      {totalItems} টি আইটেম
+                    </span>
+                    {order.totalWeight ? (
+                      <span className="text-amber-700 font-medium text-[11px]">
+                        {order.totalWeight}কেজি
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Courier / Tracking row if exists */}
+                {(tracking.courier || tracking.trackingId) && (
+                  <div className="flex items-center justify-between text-[11px] bg-slate-50/80 px-2.5 py-1 rounded-md border border-slate-100">
+                    <div className="flex items-center gap-1 text-slate-600 font-medium truncate">
+                      <Truck className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="truncate">{tracking.courier}</span>
+                    </div>
+                    {tracking.trackingId ? (
+                      <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                        <span className="font-mono font-bold text-cyan-900 bg-cyan-50 border border-cyan-200 px-1.5 py-0.2 rounded text-[10px]">
+                          {tracking.trackingId}
+                        </span>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(tracking.trackingId)}
+                          title="কপি করুন"
+                          className="text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">
+                        {step === 'pending' || step === 'confirmed' ? 'বুকিং অপেক্ষমাণ' : 'ট্র্যাকিং নেই'}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Row 4: Contextual Actions */}
+                <div 
+                  className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100 flex-wrap"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {step === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => openOrderReviewModal(order)}
+                        className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                      >
+                        <span>রিভিউ ও অনুমোদন</span>
+                      </button>
+                      <button
+                        onClick={() => handleRejectClick(order.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                        title="বাতিল করুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+
+                  {step === 'confirmed' && (
+                    <>
+                      <button
+                        onClick={() => handleQuickStatusChange(order.id, 'Packaging')}
+                        className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                      >
+                        <Package className="w-3 h-3" />
+                        <span>প্যাকেজিং শুরু</span>
+                      </button>
+                      <button
+                        onClick={() => openOrderReviewModal(order)}
+                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+                        title="বিস্তারিত / এডিট"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+
+                  {step === 'packaging' && (
+                    <>
+                      <button
+                        onClick={() => openCourierModal(order)}
+                        className="px-3 py-1.5 bg-cyan-700 text-white rounded-lg text-xs font-bold hover:bg-cyan-800 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                      >
+                        <Truck className="w-3 h-3" />
+                        <span>কুরিয়ারে পাঠান</span>
+                      </button>
+                      <button
+                        onClick={() => printInvoice(order)}
+                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+                        title="চালান প্রিন্ট করুন"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+
+                  {step === 'shipped' && (
+                    <>
+                      <button
+                        onClick={() => setDeliverConfirmOrder(order)}
+                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>ডেলিভার্ড</span>
+                      </button>
+                      <button
+                        onClick={() => openCourierModal(order)}
+                        className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors border border-cyan-200"
+                        title="কুরিয়ার ট্র্যাকিং এডিট"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => printInvoice(order)}
+                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+                        title="চালান প্রিন্ট করুন"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+
+                  {step === 'delivered' && (
+                    <button
+                      onClick={() => printInvoice(order)}
+                      className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>চালান প্রিন্ট</span>
+                    </button>
+                  )}
+
+                  {step === 'cancelled' && (
+                    <button
+                      onClick={() => handleQuickStatusChange(order.id, 'Pending Order')}
+                      className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>সক্রিয় করুন</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Review & Confirm Modal */}

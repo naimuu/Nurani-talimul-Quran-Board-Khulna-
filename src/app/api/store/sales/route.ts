@@ -19,6 +19,9 @@ async function verifyAdmin() {
   }
 }
 
+import connectDB from "@/lib/mongodb";
+import Madrasa from "@/lib/models/Madrasa";
+
 export async function GET() {
   try {
     const sales = await (prisma as any).storeSale.findMany({
@@ -28,7 +31,43 @@ export async function GET() {
         payments: true,
       },
     });
-    return NextResponse.json(sales);
+
+    try {
+      await connectDB();
+      const madrasas = await Madrasa.find({}, 'code name phone1 phone2 division district upazila union village addressDetails address').lean();
+      
+      const madrasaMap = new Map<string, any>();
+      for (const m of madrasas) {
+        if (m.code) madrasaMap.set(String(m.code).trim().toLowerCase(), m);
+        if (m.name) madrasaMap.set(String(m.name).trim().toLowerCase(), m);
+      }
+
+      const enrichedSales = sales.map((sale: any) => {
+        let geo: any = null;
+        let phone = sale.customerPhone || "";
+        if (sale.instituteId) {
+          const matched = madrasaMap.get(String(sale.instituteId).trim().toLowerCase());
+          if (matched) {
+            geo = {
+              division: matched.division || "",
+              district: matched.district || "",
+              upazila: matched.upazila || "",
+              union: matched.union || "",
+              village: matched.village || "",
+              fullAddress: matched.addressDetails || matched.address || "",
+            };
+            if (!phone) {
+              phone = matched.phone1 || matched.phone2 || "";
+            }
+          }
+        }
+        return { ...sale, customerPhone: phone, geoAddress: geo };
+      });
+      return NextResponse.json(enrichedSales);
+    } catch (mErr) {
+      console.warn("Could not enrich sales with madrasa geo:", mErr);
+      return NextResponse.json(sales);
+    }
   } catch (error) {
     console.error("Failed to fetch sales:", error);
     return NextResponse.json({ error: "Failed to fetch sales" }, { status: 500 });

@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { 
   Search, Plus, Filter, Download, FileText, MoreVertical, CheckCircle, 
   Trash2, Share2, X, Scan, Edit, Camera, Calendar, Clock, User, 
-  Building, ChevronDown, ChevronUp, AlertTriangle, ArrowUpDown, Layers, ArrowRight 
+  Building, ChevronDown, ChevronUp, AlertTriangle, ArrowUpDown, Layers, ArrowRight, SlidersHorizontal,
+  Printer, AlertCircle
 } from 'lucide-react';
 import BanglaDatePicker, { toBanglaDigits } from './BanglaDatePicker';
 import { generateQRCodeDataUrl, generateBarcodeSVG } from '@/lib/qrHelper';
@@ -43,7 +44,7 @@ function formatPromiseDate(dateStr?: string | null) {
 
 type SaleItem = { id: string; quantity: number; unitPrice: number; product: { name: string, className?: string | null } };
 type Sale = {
-  id: string; invoiceId: string; customerName: string; instituteId?: string | null; totalAmount: number;
+  id: string; invoiceId: string; customerName: string; customerPhone?: string | null; instituteId?: string | null; totalAmount: number;
   paidAmount: number; status: string; createdAt: string; updatedAt?: string; items: SaleItem[];
   previousDue?: number; previousDueList?: any[]; discount?: number;
   currentDueList?: any[]; currentTotalDue?: number;
@@ -794,6 +795,193 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
   `;
 };
 
+const generateLedgerHTML = (ent: {
+  name: string;
+  institute: string;
+  sales: Sale[];
+  totalAmount: number;
+  paidAmount: number;
+  totalDue: number;
+}, coverUrl: string) => {
+  // Sort sales chronologically ascending for ledger balance
+  const sortedSales = [...ent.sales].sort((a, b) => 
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+
+  let runningDue = 0;
+  const rows = sortedSales.map((s, idx) => {
+    const sDue = Math.max(0, s.totalAmount - s.paidAmount);
+    runningDue += sDue;
+    const itemsCount = s.items.reduce((sum, it) => sum + it.quantity, 0);
+    const pInfo = formatPromiseDate(s.promiseDate);
+
+    return `
+      <tr>
+        <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+        <td style="font-family: monospace; font-weight: bold; color: #15803d;">${s.invoiceId}</td>
+        <td>
+          <div>${new Date(s.createdAt).toLocaleDateString('bn-BD')}</div>
+          <div style="font-size: 11px; color: #64748b;">${new Date(s.createdAt).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+        </td>
+        <td style="text-align: center; font-weight: 600; color: #475569;">
+          ${itemsCount} টি
+        </td>
+        <td style="text-align: right; font-weight: 600;">${s.totalAmount.toFixed(2)} ৳</td>
+        <td style="text-align: right; color: #16a34a; font-weight: 600;">${s.paidAmount.toFixed(2)} ৳</td>
+        <td style="text-align: right; color: ${sDue > 0 ? '#dc2626' : '#16a34a'}; font-weight: bold;">
+          ${sDue > 0 ? `${sDue.toFixed(2)} ৳` : '০.০০ ৳'}
+        </td>
+        <td style="text-align: center;">
+          ${s.paidAmount >= s.totalAmount 
+            ? '<span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; border: 1px solid #bbf7d0;">পরিশোধিত</span>' 
+            : s.paidAmount > 0 
+            ? '<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; border: 1px solid #bfdbfe;">আংশিক</span>' 
+            : '<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; border: 1px solid #fde68a;">বকেয়া</span>'}
+          ${pInfo && sDue > 0 ? `<div style="font-size: 10px; color: #b45309; margin-top: 3px; font-weight: 600;">ওয়াদা: ${pInfo.formatted}</div>` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <html>
+      <head>
+        <title>Ledger - ${ent.name}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Tiro+Bangla&family=Inter:wght@400;500;600;700&display=swap');
+          @page { size: A4; margin: 10mm; }
+          body { font-family: 'Inter', 'Tiro Bangla', sans-serif; padding: 10px; max-width: 210mm; margin: 0 auto; color: #1e293b; background: #fff; line-height: 1.5; }
+          .header { text-align: center; border-bottom: 2px solid #16a34a; padding-bottom: 15px; margin-bottom: 20px; position: relative; }
+          .ledger-badge { position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%); background: #16a34a; color: white; padding: 3px 18px; border-radius: 9999px; font-weight: 700; font-size: 13px; }
+          .header h1 { font-size: 24px; color: #16a34a; margin: 0 0 6px 0; font-weight: 700; }
+          .header p { margin: 0; color: #64748b; font-size: 13px; }
+          .customer-strip { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; background: #f8fafc; padding: 14px 18px; border-radius: 8px; border: 1px solid #e2e8f0; }
+          .customer-info h3 { margin: 0 0 4px 0; font-size: 16px; color: #0f172a; font-weight: 700; }
+          .customer-info p { margin: 0; font-size: 13px; color: #059669; font-weight: 600; }
+          .summary-boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+          .summary-box { padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; background: #fafafa; }
+          .summary-box.bill { border-color: #cbd5e1; background: #f8fafc; }
+          .summary-box.paid { border-color: #bbf7d0; background: #f0fdf4; }
+          .summary-box.due { border-color: #fecaca; background: #fef2f2; }
+          .summary-box .label { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+          .summary-box .amount { font-size: 18px; font-weight: 800; color: #0f172a; }
+          .summary-box.paid .amount { color: #16a34a; }
+          .summary-box.due .amount { color: #dc2626; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #16a34a; font-size: 12px; }
+          th { background: #16a34a; color: white; font-weight: 700; font-size: 12px; padding: 8px 10px; text-align: left; border: 1px solid #16a34a; }
+          td { padding: 8px 10px; border: 1px solid #cbd5e1; color: #334155; }
+          .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 35px; padding-top: 20px; }
+          .sig-box { text-align: center; width: 160px; border-top: 1px dashed #64748b; padding-top: 6px; font-size: 12px; color: #475569; font-weight: 600; }
+          @media print {
+            body { padding: 0; max-width: none; }
+            .header { border-bottom-color: #000 !important; }
+            .ledger-badge { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            th { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-color: #000 !important; }
+            table, td { border-color: #000 !important; }
+            .summary-box { border-color: #000 !important; }
+            .summary-box.paid .amount, .summary-box.due .amount { color: #000 !important; font-weight: 900; }
+            .customer-strip { border-color: #000 !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          ${coverUrl ? `<img src="${coverUrl}" alt="Board Cover" style="width: 100%; display: block; margin: 0; max-height: 110px; object-fit: cover;" />` 
+          : `
+          <h1>নূরানী তালিমুল কুরআন বোর্ড খুলনা</h1>
+          <p>প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
+          `}
+          <div class="ledger-badge">গ্রাহক লেজার বিবরণী (Ledger Statement)</div>
+        </div>
+
+        <div class="customer-strip">
+          <div class="customer-info">
+            <h3><strong>গ্রাহক:</strong> ${ent.name}</h3>
+            ${ent.institute ? `<p><strong>প্রতিষ্ঠান/মাদ্রাসা:</strong> ${ent.institute}</p>` : ''}
+          </div>
+          <div style="text-align: right; font-size: 12px; color: #475569;">
+            <div><strong>মোট ভাউচার/অর্ডার:</strong> ${ent.sales.length} টি</div>
+            <div style="margin-top: 3px;"><strong>রিপোর্ট তারিখ:</strong> ${new Date().toLocaleDateString('bn-BD')} ${new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+          </div>
+        </div>
+
+        <div class="summary-boxes">
+          <div class="summary-box bill">
+            <div class="label">মোট বিল / ক্রয়</div>
+            <div class="amount">${ent.totalAmount.toFixed(2)} ৳</div>
+          </div>
+          <div class="summary-box paid">
+            <div class="label">মোট জমা / পরিশোধ</div>
+            <div class="amount">${ent.paidAmount.toFixed(2)} ৳</div>
+          </div>
+          <div class="summary-box due">
+            <div class="label">সর্বমোট বকেয়া</div>
+            <div class="amount">${ent.totalDue.toFixed(2)} ৳</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align: center; width: 40px;">ক্রমিক</th>
+              <th style="width: 130px;">ইনভয়েস নং</th>
+              <th style="width: 120px;">তারিখ ও সময়</th>
+              <th style="text-align: center; width: 85px;">মোট আইটেম</th>
+              <th style="text-align: right; width: 95px;">মোট বিল</th>
+              <th style="text-align: right; width: 95px;">পরিশোধ</th>
+              <th style="text-align: right; width: 95px;">বকেয়া</th>
+              <th style="text-align: center; width: 100px;">অবস্থা</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="footer-section">
+          <div class="sig-box">হিসাব রক্ষকের স্বাক্ষর</div>
+          <div style="font-size: 11px; color: #64748b; text-align: center;">
+            কম্পিউটার জেনারেটেড গ্রাহক লেজার বিবরণী | নূরানী তালিমুল কুরআন বোর্ড খুলনা
+          </div>
+          <div class="sig-box">অনুমোদনকারীর স্বাক্ষর</div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+const printEntityLedger = async (ent: any) => {
+  let coverUrl = '';
+  try {
+    const res = await fetch('/api/settings');
+    const settings = await res.json();
+    coverUrl = settings.coverUrl || '';
+  } catch (e) {}
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(generateLedgerHTML(ent, coverUrl));
+    doc.close();
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      }, 500);
+    };
+  }
+};
+
 function ActionDropdown({ sale, onUpdate }: { sale: Sale; onUpdate: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -905,15 +1093,67 @@ function ActionDropdown({ sale, onUpdate }: { sale: Sale; onUpdate: () => void }
   );
 }
 
-function SaleDetailsModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
+function SaleDetailsModal({ sale, allSales = [], onClose }: { sale: Sale; allSales?: Sale[]; onClose: () => void }) {
   const payment = sale.payments?.[0];
   const payer = payment?.payer || sale.customerName;
   const method = payment?.method || 'Cash';
+
+  const [otherDueList, setOtherDueList] = useState<any[]>(() => {
+    const custName = (sale.customerName || '').trim().toLowerCase();
+    const instId = (sale.instituteId || '').trim().toLowerCase();
+    const phone = (sale.customerPhone || '').trim();
+
+    return allSales
+      .filter(s => {
+        if (s.id === sale.id || s.invoiceId === sale.invoiceId) return false;
+        if (s.status === 'Rejected' || s.status === 'Cancelled') return false;
+        const sCust = (s.customerName || '').trim().toLowerCase();
+        const sInst = (s.instituteId || '').trim().toLowerCase();
+        const sPhone = (s.customerPhone || '').trim();
+
+        if (phone && sPhone && phone === sPhone) return true;
+        if (instId && sInst && instId === sInst) return true;
+        if (custName && sCust && custName === sCust) return true;
+        return false;
+      })
+      .map(s => {
+        const due = Math.max(0, s.totalAmount - s.paidAmount);
+        return {
+          invoiceId: s.invoiceId,
+          date: s.createdAt,
+          due,
+          totalAmount: s.totalAmount,
+          paidAmount: s.paidAmount,
+        };
+      })
+      .filter(d => d.due > 0);
+  });
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
+
+  // Real-time sync with database endpoint for other dues
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/store/orders/${sale.invoiceId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.currentDueList)) {
+            setOtherDueList(data.currentDueList);
+          }
+        }
+      } catch (e) {}
+    })();
+    return () => { isMounted = false; };
+  }, [sale.invoiceId]);
+
+  const currentVoucherDue = Math.max(0, sale.totalAmount - sale.paidAmount);
+  const otherTotalDue = otherDueList.reduce((sum, item) => sum + (Number(item.due) || 0), 0);
+  const grandTotalDue = currentVoucherDue + otherTotalDue;
 
   const printInvoice = async () => {
     let coverUrl = '';
@@ -938,10 +1178,16 @@ function SaleDetailsModal({ sale, onClose }: { sale: Sale; onClose: () => void }
     const qrCodeUrl = await generateQRCodeDataUrl(trackingUrl);
     const barcodeSVG = generateBarcodeSVG(sale.invoiceId);
 
+    const printSaleData = {
+      ...sale,
+      currentDueList: otherDueList,
+      currentTotalDue: otherTotalDue,
+    };
+
     const doc = iframe.contentWindow?.document;
     if (doc) {
       doc.open();
-      doc.write(generateInvoiceHTML(sale, coverUrl, qrCodeUrl, barcodeSVG));
+      doc.write(generateInvoiceHTML(printSaleData, coverUrl, qrCodeUrl, barcodeSVG));
       doc.close();
       iframe.onload = () => {
         setTimeout(() => {
@@ -1060,12 +1306,45 @@ function SaleDetailsModal({ sale, onClose }: { sale: Sale; onClose: () => void }
                   <span className="w-32">{sale.paidAmount.toFixed(2)} ৳</span>
                 </div>
                 <div className="flex justify-end gap-4 text-red-600 font-bold">
-                  <span>বাকি:</span>
-                  <span className="w-32">{(sale.totalAmount - sale.paidAmount).toFixed(2)} ৳</span>
+                  <span>এই ভাউচারের বাকি:</span>
+                  <span className="w-32">{currentVoucherDue.toFixed(2)} ৳</span>
                 </div>
               </div>
             );
           })()}
+
+          {/* Other Vouchers Due Section */}
+          {otherDueList.length > 0 && (
+            <div className="mt-4 pt-3 border-t-2 border-dashed border-amber-200 bg-amber-50/70 p-3.5 rounded-xl text-xs sm:text-sm">
+              <div className="flex items-center justify-between font-bold text-amber-900 mb-2">
+                <span className="flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>অন্যান্য ভাউচারের বকেয়া ({otherDueList.length} টি):</span>
+                </span>
+                <span className="text-red-600 font-black">{otherTotalDue.toFixed(2)} ৳</span>
+              </div>
+
+              <div className="space-y-1.5 pl-5 text-[11px] sm:text-xs text-slate-700 max-h-36 overflow-y-auto pr-1">
+                {otherDueList.map((ov: any) => (
+                  <div key={ov.invoiceId} className="flex justify-between items-center py-0.5 border-b border-amber-100/80 last:border-b-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-slate-800">{ov.invoiceId}</span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-500 font-mono text-[10px]">
+                        {new Date(ov.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
+                      </span>
+                    </div>
+                    <span className="font-bold text-red-600">{Number(ov.due).toFixed(2)} ৳</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-2.5 pt-2 border-t border-amber-200 flex justify-between items-center text-xs sm:text-sm font-extrabold text-slate-900">
+                <span>গ্রাহকের সর্বমোট বকেয়া (এই ভাউচার + অন্যান্য):</span>
+                <span className="text-base text-red-600 font-black">{grandTotalDue.toFixed(2)} ৳</span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 font-medium rounded-lg transition-colors">
@@ -1080,12 +1359,116 @@ function SaleDetailsModal({ sale, onClose }: { sale: Sale; onClose: () => void }
   );
 }
 
+const scrollIntoCenter = (e: React.MouseEvent<HTMLElement>) => {
+  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+};
+
+type ColumnKey = 'invoiceId' | 'date' | 'customer' | 'items' | 'total' | 'paid' | 'duePromise' | 'status' | 'action';
+
+interface ColumnDef {
+  key: ColumnKey;
+  label: string;
+  locked?: boolean;
+}
+
+const AVAILABLE_COLUMNS: ColumnDef[] = [
+  { key: 'invoiceId', label: 'ইনভয়েস আইডি', locked: true },
+  { key: 'date', label: 'তারিখ ও সময়' },
+  { key: 'customer', label: 'ক্রেতা ও প্রতিষ্ঠান', locked: true },
+  { key: 'total', label: 'মোট বিল' },
+  { key: 'duePromise', label: 'বকেয়া ও ওয়াদার তারিখ' },
+  { key: 'status', label: 'স্ট্যাটাস' },
+  { key: 'items', label: 'আইটেম সংখ্যা' },
+  { key: 'paid', label: 'পরিশোধের পরিমাণ' },
+  { key: 'action', label: 'অ্যাকশন', locked: true },
+];
+
+const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = {
+  invoiceId: true,
+  date: true,
+  customer: true,
+  items: false, // clean view by default
+  total: true,
+  paid: false,  // clean view by default
+  duePromise: true,
+  status: true,
+  action: true,
+};
+
 export default function SaleTab() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+
+  // Column visibility state with localStorage persistence
+  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(DEFAULT_VISIBLE_COLUMNS);
+  const [columnMenuOpen, setColumnMenuOpen] = useState(false);
+  const columnMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('store_sales_visible_cols_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setVisibleColumns(prev => ({ ...prev, ...parsed }));
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target as Node)) {
+        setColumnMenuOpen(false);
+      }
+    };
+    if (columnMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [columnMenuOpen]);
+
+  const toggleColumn = (key: ColumnKey) => {
+    setVisibleColumns(prev => {
+      const updated = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('store_sales_visible_cols_v1', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const resetColumnsToDefault = () => {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    try {
+      localStorage.setItem('store_sales_visible_cols_v1', JSON.stringify(DEFAULT_VISIBLE_COLUMNS));
+    } catch (e) {}
+  };
+
+  const showAllColumns = () => {
+    const allCols: Record<ColumnKey, boolean> = {
+      invoiceId: true,
+      date: true,
+      customer: true,
+      items: true,
+      total: true,
+      paid: true,
+      duePromise: true,
+      status: true,
+      action: true,
+    };
+    setVisibleColumns(allCols);
+    try {
+      localStorage.setItem('store_sales_visible_cols_v1', JSON.stringify(allCols));
+    } catch (e) {}
+  };
+
+  const visibleColumnCount = useMemo(() => {
+    return AVAILABLE_COLUMNS.filter(col => visibleColumns[col.key]).length;
+  }, [visibleColumns]);
 
   // Sub Tabs & Filters
   const [subTab, setSubTab] = useState<'all' | 'due' | 'paid' | 'partial' | 'promise'>('all');
@@ -1118,10 +1501,10 @@ export default function SaleTab() {
 
   const toggleEntityExpand = (key: string) => {
     setExpandedEntities(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+      if (prev.has(key)) {
+        return new Set();
+      }
+      return new Set([key]);
     });
   };
 
@@ -1286,7 +1669,7 @@ export default function SaleTab() {
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300">
       {showModal && <NewSaleModal onClose={() => setShowModal(false)} onSaved={fetchSales} />}
-      {selectedSale && <SaleDetailsModal sale={selectedSale} onClose={() => setSelectedSale(null)} />}
+      {selectedSale && <SaleDetailsModal sale={selectedSale} allSales={sales} onClose={() => setSelectedSale(null)} />}
 
       {/* Top Search, Actions & Export */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -1330,10 +1713,10 @@ export default function SaleTab() {
       </div>
 
       {/* Sub Tabs Bar (সব, বকেয়া, পরিশোধিত, আংশিক, ওয়াদার তারিখ) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex items-center gap-1.5 overflow-x-auto scroll-smooth bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {/* All Tab */}
         <button
-          onClick={() => handleSubTabChange('all')}
+          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('all'); }}
           className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             subTab === 'all'
               ? 'bg-slate-900 text-white shadow-sm'
@@ -1350,7 +1733,7 @@ export default function SaleTab() {
 
         {/* Due Tab */}
         <button
-          onClick={() => handleSubTabChange('due')}
+          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('due'); }}
           className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             subTab === 'due'
               ? 'bg-amber-600 text-white shadow-sm'
@@ -1368,7 +1751,7 @@ export default function SaleTab() {
 
         {/* Paid Tab */}
         <button
-          onClick={() => handleSubTabChange('paid')}
+          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('paid'); }}
           className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             subTab === 'paid'
               ? 'bg-emerald-600 text-white shadow-sm'
@@ -1386,7 +1769,7 @@ export default function SaleTab() {
 
         {/* Partial Tab */}
         <button
-          onClick={() => handleSubTabChange('partial')}
+          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('partial'); }}
           className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             subTab === 'partial'
               ? 'bg-blue-600 text-white shadow-sm'
@@ -1403,7 +1786,7 @@ export default function SaleTab() {
 
         {/* Promise Date Tab */}
         <button
-          onClick={() => handleSubTabChange('promise')}
+          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('promise'); }}
           className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             subTab === 'promise'
               ? 'bg-purple-600 text-white shadow-sm'
@@ -1423,11 +1806,11 @@ export default function SaleTab() {
       {/* Control Bar: View Switcher, Entity Dropdown, & Sorting */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-xs text-xs">
         {/* Left: View Mode Toggle */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/70 w-full sm:w-fit">
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/70 overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] w-full sm:w-fit">
           <button
             type="button"
-            onClick={() => setViewMode('invoices')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all ${
+            onClick={(e) => { scrollIntoCenter(e); setViewMode('invoices'); }}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               viewMode === 'invoices'
                 ? 'bg-white text-slate-900 shadow-2xs font-extrabold'
                 : 'text-slate-600 hover:text-slate-900'
@@ -1438,8 +1821,8 @@ export default function SaleTab() {
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('entity')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all ${
+            onClick={(e) => { scrollIntoCenter(e); setViewMode('entity'); }}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap ${
               viewMode === 'entity'
                 ? 'bg-white text-primary shadow-2xs font-extrabold'
                 : 'text-slate-600 hover:text-slate-900'
@@ -1450,15 +1833,15 @@ export default function SaleTab() {
           </button>
         </div>
 
-        {/* Right: Person/Madrasa Filter & Sorting */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        {/* Right: Person/Madrasa Filter, Sorting & Columns */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
           {/* Person / Madrasa Dropdown Filter */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 flex-1 sm:flex-initial">
             <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={selectedEntity}
               onChange={e => setSelectedEntity(e.target.value)}
-              className="bg-transparent font-semibold text-slate-700 outline-none w-full sm:w-48 text-xs cursor-pointer"
+              className="bg-transparent font-semibold text-slate-700 outline-none w-full sm:w-44 text-xs cursor-pointer"
             >
               <option value="all">সকল ব্যক্তি ও মাদ্রাসা</option>
               {entityList.map(ent => (
@@ -1470,48 +1853,122 @@ export default function SaleTab() {
           </div>
 
           {/* Sort By Dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 flex-1 sm:flex-initial">
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={sortBy}
               onChange={e => setSortBy(e.target.value as any)}
-              className="bg-transparent font-semibold text-slate-700 outline-none w-full sm:w-56 text-xs cursor-pointer"
+              className="bg-transparent font-semibold text-slate-700 outline-none w-full sm:w-48 text-xs cursor-pointer"
             >
               <option value="confirm-desc">কনফার্ম তারিখ (নতুন আগে)</option>
-              <option value="promise-near">ওয়াদার তারিখ (কাছের আগে / Nearer First)</option>
+              <option value="promise-near">ওয়াদার তারিখ (কাছের আগে)</option>
               <option value="due-desc">বকেয়া পরিমাণ (বেশি আগে)</option>
               <option value="amount-desc">সর্বমোট মূল্য (বেশি আগে)</option>
             </select>
           </div>
+
+          {/* Column Toggle Dropdown Button */}
+          {viewMode === 'invoices' && (
+            <div className="relative shrink-0" ref={columnMenuRef}>
+              <button
+                type="button"
+                onClick={() => setColumnMenuOpen(!columnMenuOpen)}
+                className={`flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                  columnMenuOpen 
+                    ? 'bg-primary/10 border-primary text-primary shadow-xs' 
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+                title="কলাম নির্বাচন ও লুকান"
+              >
+                <div className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>কলাম</span>
+                </div>
+                <span className="bg-primary text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold">
+                  {visibleColumnCount}/{AVAILABLE_COLUMNS.length}
+                </span>
+              </button>
+
+              {columnMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                    <span className="font-extrabold text-slate-800 text-xs">কলাম প্রদর্শন নির্বাচন</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={resetColumnsToDefault}
+                        className="text-[11px] text-primary hover:underline font-bold"
+                      >
+                        ডিফল্ট
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={showAllColumns}
+                        className="text-[11px] text-slate-500 hover:text-slate-800 font-medium"
+                      >
+                        সব দেখান
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {AVAILABLE_COLUMNS.map(col => (
+                      <label
+                        key={col.key}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer select-none transition-colors ${
+                          visibleColumns[col.key] ? 'bg-primary/5 text-slate-800 font-semibold' : 'text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={!!visibleColumns[col.key]}
+                            disabled={col.locked}
+                            onChange={() => toggleColumn(col.key)}
+                            className="rounded border-slate-300 text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer disabled:opacity-50"
+                          />
+                          <span>{col.label}</span>
+                        </span>
+                        {col.locked && (
+                          <span className="text-[10px] text-slate-400 font-normal">স্থির</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Content Area */}
       {viewMode === 'invoices' ? (
         /* ================= INVOICES TABLE VIEW ================= */
-        <div className="border border-slate-200/80 rounded-2xl bg-white shadow-xs overflow-hidden">
+        <>
           {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[960px]">
+          <div className="hidden md:block border border-slate-200/80 rounded-2xl bg-white shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 text-slate-600 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
-                  <th className="px-5 py-3.5">ইনভয়েস আইডি</th>
-                  <th className="px-5 py-3.5">তারিখ ও সময়</th>
-                  <th className="px-5 py-3.5">ক্রেতা ও প্রতিষ্ঠান</th>
-                  <th className="px-5 py-3.5 text-center">আইটেম</th>
-                  <th className="px-5 py-3.5 text-right">মোট বিল</th>
-                  <th className="px-5 py-3.5 text-right">পরিশোধ</th>
-                  <th className="px-5 py-3.5">বকেয়া ও ওয়াদার তারিখ</th>
-                  <th className="px-5 py-3.5 text-center">স্ট্যাটাস</th>
-                  <th className="px-5 py-3.5 text-right">অ্যাকশন</th>
+                  {visibleColumns.invoiceId && <th className="px-5 py-3.5 whitespace-nowrap">ইনভয়েস আইডি</th>}
+                  {visibleColumns.date && <th className="px-5 py-3.5 whitespace-nowrap">তারিখ ও সময়</th>}
+                  {visibleColumns.customer && <th className="px-5 py-3.5 whitespace-nowrap">ক্রেতা ও প্রতিষ্ঠান</th>}
+                  {visibleColumns.items && <th className="px-5 py-3.5 text-center whitespace-nowrap">আইটেম</th>}
+                  {visibleColumns.total && <th className="px-5 py-3.5 text-right whitespace-nowrap">মোট বিল</th>}
+                  {visibleColumns.paid && <th className="px-5 py-3.5 text-right whitespace-nowrap">পরিশোধ</th>}
+                  {visibleColumns.duePromise && <th className="px-5 py-3.5 whitespace-nowrap">বকেয়া ও ওয়াদার তারিখ</th>}
+                  {visibleColumns.status && <th className="px-5 py-3.5 text-center whitespace-nowrap">স্ট্যাটাস</th>}
+                  {visibleColumns.action && <th className="px-5 py-3.5 text-right whitespace-nowrap">অ্যাকশন</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {loading ? (
-                  <tr><td colSpan={9} className="px-6 py-12 text-center text-slate-400 font-medium">লোড হচ্ছে...</td></tr>
+                  <tr><td colSpan={visibleColumnCount} className="px-6 py-12 text-center text-slate-400 font-medium">লোড হচ্ছে...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={visibleColumnCount} className="px-6 py-12 text-center text-slate-400">
                       <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <p className="font-bold text-slate-600">কোনো বিক্রয় পাওয়া যায়নি</p>
                       <p className="text-xs text-slate-400 mt-0.5">অন্যান্য সাব-ট্যাব বা ফিল্টার চেক করুন।</p>
@@ -1526,165 +1983,225 @@ export default function SaleTab() {
                   return (
                     <tr key={sale.id} className="hover:bg-slate-50/70 transition-colors">
                       {/* Invoice */}
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono font-black text-primary text-sm">{sale.invoiceId}</span>
-                      </td>
+                      {visibleColumns.invoiceId && (
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <span className="font-mono font-black text-primary text-sm">{sale.invoiceId}</span>
+                        </td>
+                      )}
 
                       {/* Confirm Date & Time */}
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-slate-800 text-xs">
-                          {new Date(confirmDate).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
-                          <span>{new Date(confirmDate).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                          {isDifferent && (
-                            <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded font-sans font-bold border border-emerald-200">
-                              কনফার্মড
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Customer & Madrasa */}
-                      <td className="px-5 py-3.5">
-                        <p className="font-bold text-slate-800 leading-snug">{sale.customerName}</p>
-                        {sale.instituteId ? (
-                          <p className="text-[11px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded w-fit mt-0.5">
-                            {sale.instituteId}
-                          </p>
-                        ) : (
-                          <span className="text-xs text-slate-400">ব্যক্তিগত</span>
-                        )}
-                      </td>
-
-                      {/* Items */}
-                      <td className="px-5 py-3.5 text-center">
-                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg text-xs font-bold">
-                          {sale.items.reduce((sum, item) => sum + item.quantity, 0)} টি
-                        </span>
-                      </td>
-
-                      {/* Total */}
-                      <td className="px-5 py-3.5 text-right font-black text-slate-800">
-                        {sale.totalAmount.toFixed(2)} ৳
-                      </td>
-
-                      {/* Paid */}
-                      <td className="px-5 py-3.5 text-right font-bold text-emerald-700">
-                        {sale.paidAmount.toFixed(2)} ৳
-                      </td>
-
-                      {/* Due & Promise Date */}
-                      <td className="px-5 py-3.5">
-                        {due > 0 ? (
-                          <div>
-                            <span className="font-bold text-red-600 text-xs">
-                              {due.toFixed(2)} ৳ বকেয়া
-                            </span>
-                            {promiseInfo && (
-                              <div className="mt-1 flex items-center gap-1">
-                                <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border font-semibold ${promiseInfo.badgeClass}`}>
-                                  <Calendar className="w-3 h-3" />
-                                  <span>{promiseInfo.formatted} ({promiseInfo.label})</span>
-                                </span>
-                              </div>
+                      {visibleColumns.date && (
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <div className="font-semibold text-slate-800 text-xs">
+                            {new Date(confirmDate).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
+                            <span>{new Date(confirmDate).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                            {isDifferent && (
+                              <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded font-sans font-bold border border-emerald-200">
+                                কনফার্মড
+                              </span>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            বকেয়া নেই
+                        </td>
+                      )}
+
+                      {/* Customer & Madrasa */}
+                      {visibleColumns.customer && (
+                        <td className="px-5 py-3.5">
+                          <p className="font-bold text-slate-800 leading-snug">{sale.customerName}</p>
+                          {sale.instituteId ? (
+                            <p className="text-[11px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded w-fit mt-0.5 font-medium">
+                              {sale.instituteId}
+                            </p>
+                          ) : (
+                            <span className="text-xs text-slate-400">ব্যক্তিগত</span>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Items */}
+                      {visibleColumns.items && (
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg text-xs font-bold">
+                            {sale.items.reduce((sum, item) => sum + item.quantity, 0)} টি
                           </span>
-                        )}
-                      </td>
+                        </td>
+                      )}
+
+                      {/* Total */}
+                      {visibleColumns.total && (
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap font-black text-slate-800">
+                          <div>{sale.totalAmount.toFixed(2)} ৳</div>
+                          {!visibleColumns.paid && sale.paidAmount > 0 && sale.paidAmount < sale.totalAmount && (
+                            <div className="text-[11px] font-normal text-emerald-700 mt-0.5">
+                              জমা: {sale.paidAmount.toFixed(2)} ৳
+                            </div>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Paid */}
+                      {visibleColumns.paid && (
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap font-bold text-emerald-700">
+                          {sale.paidAmount.toFixed(2)} ৳
+                        </td>
+                      )}
+
+                      {/* Due & Promise Date */}
+                      {visibleColumns.duePromise && (
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          {due > 0 ? (
+                            <div>
+                              <span className="font-bold text-red-600 text-xs">
+                                {due.toFixed(2)} ৳ বকেয়া
+                              </span>
+                              {promiseInfo && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border font-semibold ${promiseInfo.badgeClass}`}>
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{promiseInfo.formatted} ({promiseInfo.label})</span>
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              বকেয়া নেই
+                            </span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Status */}
-                      <td className="px-5 py-3.5 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                          sale.status === 'Paid' || sale.paidAmount >= sale.totalAmount
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                            : sale.status === 'Pending' || sale.paidAmount === 0
-                            ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                            : 'bg-blue-50 text-blue-700 border-blue-200'
-                        }`}>
-                          {sale.status === 'Paid' || sale.paidAmount >= sale.totalAmount 
-                            ? 'পরিশোধিত' 
-                            : sale.status === 'Pending' || sale.paidAmount === 0 
-                            ? 'বকেয়া' 
-                            : 'আংশিক'}
-                        </span>
-                      </td>
+                      {visibleColumns.status && (
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                            sale.status === 'Paid' || sale.paidAmount >= sale.totalAmount
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                              : sale.status === 'Pending' || sale.paidAmount === 0
+                              ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }`}>
+                            {sale.status === 'Paid' || sale.paidAmount >= sale.totalAmount 
+                              ? 'পরিশোধিত' 
+                              : sale.status === 'Pending' || sale.paidAmount === 0 
+                              ? 'বকেয়া' 
+                              : 'আংশিক'}
+                          </span>
+                        </td>
+                      )}
 
                       {/* Actions */}
-                      <td className="px-5 py-3.5 text-right">
-                        <ActionDropdown sale={sale} onUpdate={fetchSales} />
-                      </td>
+                      {visibleColumns.action && (
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                          <ActionDropdown sale={sale} onUpdate={fetchSales} />
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+        </div>
 
-          {/* Mobile Invoices Cards */}
-          <div className="md:hidden flex flex-col divide-y divide-slate-100">
-            {loading ? (
-              <div className="p-8 text-center text-slate-400">লোড হচ্ছে...</div>
-            ) : filtered.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">কোনো বিক্রয় পাওয়া যায়নি</div>
-            ) : filtered.map(sale => {
-              const confirmDate = sale.updatedAt || sale.createdAt;
-              const due = Math.max(0, sale.totalAmount - sale.paidAmount);
-              const promiseInfo = formatPromiseDate(sale.promiseDate);
+        {/* Mobile Invoices Cards */}
+        <div className="md:hidden flex flex-col gap-3">
+          {loading ? (
+            <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+              <div className="inline-block w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-2" />
+              <p className="font-medium text-xs">লোড হচ্ছে...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+              <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="font-bold text-slate-600">কোনো বিক্রয় পাওয়া যায়নি</p>
+              <p className="text-xs text-slate-400 mt-0.5">অন্যান্য সাব-ট্যাব বা ফিল্টার চেক করুন।</p>
+            </div>
+          ) : filtered.map(sale => {
+            const confirmDate = sale.updatedAt || sale.createdAt;
+            const due = Math.max(0, sale.totalAmount - sale.paidAmount);
+            const promiseInfo = formatPromiseDate(sale.promiseDate);
+            const isPaid = sale.status === 'Paid' || sale.paidAmount >= sale.totalAmount;
+            const isPending = sale.status === 'Pending' || sale.paidAmount === 0;
+            const totalItems = sale.items.reduce((sum, item) => sum + item.quantity, 0);
 
-              return (
-                <div key={sale.id} onClick={() => setSelectedSale(sale)} className="p-4 flex flex-col gap-2.5 bg-white cursor-pointer active:bg-slate-50 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-black text-primary text-sm">{sale.invoiceId}</p>
-                        <span className={`px-2 py-0.2 rounded text-[10px] font-bold ${
-                          sale.paidAmount >= sale.totalAmount 
-                            ? 'bg-emerald-100 text-emerald-800' 
-                            : sale.paidAmount === 0 
-                            ? 'bg-amber-100 text-amber-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {sale.paidAmount >= sale.totalAmount ? 'পরিশোধিত' : sale.paidAmount === 0 ? 'বকেয়া' : 'আংশিক'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-mono">
-                        {new Date(confirmDate).toLocaleDateString('bn-BD')} • {new Date(confirmDate).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                      </p>
-                    </div>
+            return (
+              <div 
+                key={sale.id} 
+                onClick={() => setSelectedSale(sale)} 
+                className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-2xs hover:border-slate-300 transition-all active:bg-slate-50/70 cursor-pointer flex flex-col gap-2"
+              >
+                {/* Row 1: Invoice ID + Date + Status + Action */}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-primary">{sale.invoiceId}</span>
+                    <span className="text-slate-300 text-[10px]">•</span>
+                    <span className="text-slate-400 font-mono text-[11px]">
+                      {new Date(confirmDate).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                      isPaid 
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                        : isPending 
+                        ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
+                      {isPaid ? 'পরিশোধিত' : isPending ? 'বকেয়া' : 'আংশিক'}
+                    </span>
                     <div onClick={e => e.stopPropagation()}>
                       <ActionDropdown sale={sale} onUpdate={fetchSales} />
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
-                    <div>
-                      <p className="font-bold text-slate-800">{sale.customerName}</p>
-                      {sale.instituteId && <p className="text-[10px] text-emerald-700">{sale.instituteId}</p>}
-                    </div>
-                    <div className="text-right">
-                      <p className="font-black text-slate-900 text-sm">{sale.totalAmount.toFixed(2)} ৳</p>
-                      {due > 0 && <p className="text-[11px] font-bold text-red-600">বকেয়া: {due.toFixed(2)} ৳</p>}
-                    </div>
-                  </div>
-
-                  {promiseInfo && (
-                    <div className="mt-0.5">
-                      <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border font-semibold ${promiseInfo.badgeClass}`}>
-                        <Calendar className="w-3 h-3" />
-                        <span>ওয়াদা: {promiseInfo.formatted} ({promiseInfo.label})</span>
-                      </span>
-                    </div>
+                {/* Row 2: Customer Name & Direct Madrasa */}
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm leading-snug">
+                    {sale.customerName}
+                  </h4>
+                  {sale.instituteId ? (
+                    <p className="text-xs text-emerald-700 font-medium mt-0.5">
+                      {sale.instituteId}
+                    </p>
+                  ) : (
+                    <span className="text-[11px] text-slate-400">ব্যক্তিগত</span>
                   )}
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Row 3: Financial & Meta Info */}
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-900 text-sm">
+                      {sale.totalAmount.toFixed(2)} ৳
+                    </span>
+                    {due > 0 && (
+                      <span className="text-red-600 font-bold text-[11px] bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
+                        বকেয়া: {due.toFixed(2)} ৳
+                      </span>
+                    )}
+                  </div>
+
+                  {due > 0 && promiseInfo ? (
+                    <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border font-semibold ${promiseInfo.badgeClass}`}>
+                      <Calendar className="w-2.5 h-2.5" />
+                      <span>ওয়াদা: {promiseInfo.formatted}</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-[11px]">
+                      {totalItems} টি আইটেম
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+      </>
       ) : (
         /* ================= PERSON / MADRASA WISE GROUPED VIEW ================= */
         <div className="flex flex-col gap-3">
@@ -1699,81 +2216,136 @@ export default function SaleTab() {
               const promiseInfo = formatPromiseDate(ent.nearestPromiseDate);
 
               return (
-                <div key={ent.key} className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all">
+                <div 
+                  key={ent.key} 
+                  className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+                    isExpanded 
+                      ? 'bg-white border-2 border-emerald-600/60 shadow-md ring-4 ring-emerald-500/10' 
+                      : 'bg-white border border-slate-200/90 shadow-2xs hover:border-slate-300'
+                  }`}
+                >
                   {/* Entity Header Summary Bar */}
                   <div 
                     onClick={() => toggleEntityExpand(ent.key)}
-                    className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/70 transition-colors"
+                    className={`p-3 sm:p-4 cursor-pointer transition-colors duration-300 flex flex-col gap-2 ${
+                      isExpanded 
+                        ? 'bg-emerald-50/80 hover:bg-emerald-50 border-b border-emerald-200/70' 
+                        : 'hover:bg-slate-50/70'
+                    }`}
                   >
-                    <div className="flex items-start sm:items-center gap-3">
-                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                        ent.totalDue > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {ent.institute ? <Building className="w-6 h-6" /> : <User className="w-6 h-6" />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-extrabold text-base text-slate-900">{ent.name}</h4>
-                          <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">
-                            {ent.sales.length} টি অর্ডার
-                          </span>
+                    {/* Top Row: User/Madrasa Info & Expand Chevron */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                          ent.totalDue > 0 
+                            ? 'bg-amber-100 text-amber-800' 
+                            : isExpanded 
+                            ? 'bg-emerald-200/80 text-emerald-900 ring-2 ring-emerald-300/60' 
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {ent.institute ? <Building className="w-4.5 h-4.5" /> : <User className="w-4.5 h-4.5" />}
                         </div>
-                        {ent.institute ? (
-                          <p className="text-xs text-emerald-800 font-semibold mt-0.5 flex items-center gap-1">
-                            <Building className="w-3 h-3" />
-                            <span>{ent.institute}</span>
-                          </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="font-extrabold text-sm sm:text-base text-slate-900 truncate leading-snug">{ent.name}</h4>
+                            <span className={`text-[10px] sm:text-xs px-2 py-0.2 rounded-full font-bold transition-colors duration-300 ${
+                              isExpanded 
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {ent.sales.length} টি অর্ডার
+                            </span>
+                          </div>
+                          {ent.institute ? (
+                            <p className="text-xs text-emerald-700 font-medium truncate mt-0.5">
+                              {ent.institute}
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-slate-400 mt-0.5">ব্যক্তিগত কাস্টমার</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right Actions: Ledger Print & Expand Chevron */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            printEntityLedger(ent);
+                          }}
+                          title="গ্রাহকের সম্পূর্ণ লেজার / খতিয়ান প্রিন্ট করুন"
+                          className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300/80 hover:border-emerald-500 rounded-lg text-xs font-bold shadow-2xs transition-all active:scale-95"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>লেজার প্রিন্ট</span>
+                        </button>
+
+                        <div className={`w-7 h-7 rounded-lg transition-all duration-300 flex items-center justify-center ${
+                          isExpanded 
+                            ? 'bg-emerald-600 text-white shadow-2xs rotate-180' 
+                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 rotate-0'
+                        }`}>
+                          <ChevronDown className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Compact Financial Strip */}
+                    <div className={`flex items-center justify-between text-xs pt-2 border-t transition-colors duration-300 ${
+                      isExpanded ? 'border-emerald-200/60' : 'border-slate-100'
+                    }`}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-extrabold text-slate-800 text-xs sm:text-sm">
+                          মোট বিল: {ent.totalAmount.toFixed(2)} ৳
+                        </span>
+                        {ent.totalDue > 0 ? (
+                          <span className="bg-red-50 text-red-600 border border-red-200/80 text-[11px] font-bold px-2 py-0.5 rounded-md">
+                            বকেয়া: {ent.totalDue.toFixed(2)} ৳
+                          </span>
                         ) : (
-                          <p className="text-xs text-slate-400 mt-0.5">ব্যক্তিগত কাস্টমার</p>
+                          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-bold px-2 py-0.5 rounded-md">
+                            পরিশোধিত
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        {promiseInfo && ent.totalDue > 0 ? (
+                          <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md border font-semibold ${promiseInfo.badgeClass}`}>
+                            <Calendar className="w-2.5 h-2.5" />
+                            <span>ওয়াদা: {promiseInfo.formatted}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-emerald-700 font-medium">
+                            জমা: {ent.paidAmount.toFixed(2)} ৳
+                          </span>
                         )}
                       </div>
                     </div>
-
-                    {/* Financial Summary Badges */}
-                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 self-end md:self-auto">
-                      <div className="text-right">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">সর্বমোট বিল</p>
-                        <p className="font-black text-slate-800 text-sm sm:text-base">{ent.totalAmount.toFixed(2)} ৳</p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">পরিশোধিত</p>
-                        <p className="font-black text-emerald-700 text-sm sm:text-base">{ent.paidAmount.toFixed(2)} ৳</p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">মোট বকেয়া</p>
-                        <p className={`font-black text-sm sm:text-base ${ent.totalDue > 0 ? 'text-red-600' : 'text-slate-400'}`}>
-                          {ent.totalDue.toFixed(2)} ৳
-                        </p>
-                      </div>
-
-                      {promiseInfo && (
-                        <div className="hidden lg:block text-right">
-                          <p className="text-[10px] uppercase font-bold text-slate-400">নিকটবর্তী ওয়াদা</p>
-                          <span className={`inline-block text-xs px-2 py-0.5 rounded-lg border font-bold ${promiseInfo.badgeClass}`}>
-                            {promiseInfo.formatted}
-                          </span>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); toggleEntityExpand(ent.key); }}
-                        className="p-2 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors shrink-0"
-                      >
-                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </button>
-                    </div>
                   </div>
 
-                  {/* Expandable Invoices List */}
-                  {isExpanded && (
-                    <div className="bg-slate-50/60 p-4 border-t border-slate-200/80 animate-in fade-in">
-                      <h5 className="font-extrabold text-xs text-slate-600 uppercase tracking-wider mb-2.5">
-                        {ent.name} এর ইনভয়েস বিবরণ ({ent.sales.length} টি)
-                      </h5>
-                      <div className="overflow-x-auto">
+                  {/* Expandable Invoices List with Smooth Accordion Transition */}
+                  <div 
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                      isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="bg-slate-50/80 p-3 sm:p-4">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <h5 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
+                            <span>{ent.name} এর ইনভয়েস বিবরণ ({ent.sales.length} টি)</span>
+                          </h5>
+                          {ent.sales.length > 3 && (
+                            <span className="text-[10px] text-slate-400 font-medium">স্ক্রোল করুন ↕</span>
+                          )}
+                        </div>
+
+                        {/* Scrollable Container with Max Height */}
+                        <div className="max-h-[360px] sm:max-h-[420px] overflow-y-auto pr-1 space-y-2.5 overscroll-contain [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
+                          {/* Desktop Table */}
+                          <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left text-xs bg-white rounded-xl border border-slate-200 shadow-2xs">
                           <thead>
                             <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-bold">
@@ -1826,9 +2398,85 @@ export default function SaleTab() {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Mobile Cards View */}
+                      <div className="md:hidden flex flex-col gap-2.5">
+                        {ent.sales.map(s => {
+                          const sDue = Math.max(0, s.totalAmount - s.paidAmount);
+                          const pInfo = formatPromiseDate(s.promiseDate);
+                          const sItems = s.items.reduce((acc, it) => acc + it.quantity, 0);
+                          const sPaid = s.status === 'Paid' || s.paidAmount >= s.totalAmount;
+                          const sPending = s.status === 'Pending' || s.paidAmount === 0;
+
+                          return (
+                            <div
+                              key={s.id}
+                              onClick={() => setSelectedSale(s)}
+                              className="bg-white rounded-xl border border-slate-200/90 p-3 shadow-2xs hover:border-slate-300 active:bg-slate-50 transition-all cursor-pointer flex flex-col gap-2"
+                            >
+                              {/* Row 1: Invoice ID + Date + Status */}
+                              <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-primary">{s.invoiceId}</span>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-slate-400 font-mono text-[11px]">
+                                    {new Date(s.updatedAt || s.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                    sPaid 
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                      : sPending 
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                                  }`}>
+                                    {sPaid ? 'পরিশোধিত' : sPending ? 'বকেয়া' : 'আংশিক'}
+                                  </span>
+                                  <span className="text-primary text-xs font-bold">›</span>
+                                </div>
+                              </div>
+
+                              {/* Row 2: Financials & Meta */}
+                              <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-100">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-slate-800 text-sm">
+                                    {s.totalAmount.toFixed(2)} ৳
+                                  </span>
+                                  {sDue > 0 ? (
+                                    <span className="text-red-600 font-bold text-[11px] bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
+                                      বকেয়া: {sDue.toFixed(2)} ৳
+                                    </span>
+                                  ) : (
+                                    <span className="text-emerald-700 text-[11px] font-medium">
+                                      পরিশোধ: {s.paidAmount.toFixed(2)} ৳
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div>
+                                  {pInfo && sDue > 0 ? (
+                                    <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${pInfo.badgeClass}`}>
+                                      <Calendar className="w-2.5 h-2.5" />
+                                      <span>ওয়াদা: {pInfo.formatted}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 text-[11px]">
+                                      {sItems} টি আইটেম
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
+              </div>
+            </div>
               );
             })
           )}
