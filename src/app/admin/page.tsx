@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2, ClipboardList, Clock, XCircle, X, Eye, Phone, MessageCircle, PhoneCall, MoreVertical, LayoutGrid, List, Package, ShoppingCart, CreditCard, ShoppingBag, BookOpen, GraduationCap, Search, Calendar, Filter, RotateCcw, CalendarDays, UserCheck, Printer, SlidersHorizontal, Check } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -138,6 +138,26 @@ function AdminDashboardContent() {
   
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState(urlTab || "dashboard");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<string>('calc(100vh - 95px)');
+
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        const top = containerRef.current.getBoundingClientRect().top;
+        if (top >= 0) {
+          setContentHeight(`calc(100vh - ${top}px)`);
+        }
+      }
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    window.addEventListener('scroll', updateHeight);
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('scroll', updateHeight);
+    };
+  }, []);
   const [users, setUsers] = useState<UserType[]>([]);
   const [madrasas, setMadrasas] = useState<MadrasaType[]>([]);
   const [madrasaCount, setMadrasaCount] = useState(0);
@@ -2574,16 +2594,20 @@ function AdminDashboardContent() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div
+      ref={containerRef}
+      style={{ height: contentHeight }}
+      className="bg-slate-50 flex overflow-hidden w-full"
+    >
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 min-h-screen p-4 hidden xl:flex flex-col">
-        <div className="mb-8 p-4">
+      <aside className="w-64 bg-white border-r border-slate-200 h-full p-4 hidden xl:flex flex-col flex-shrink-0">
+        <div className="mb-6 p-2">
           <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent">
             অ্যাডমিন প্যানেল
           </h2>
         </div>
         
-        <nav className="flex-1 space-y-2 overflow-y-auto">
+        <nav className="flex-1 space-y-2 overflow-y-auto pr-1">
           {[
             { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
             { id: "exams", icon: FileCheck, label: "পরীক্ষা ও প্রশ্নপত্র" },
@@ -2617,14 +2641,14 @@ function AdminDashboardContent() {
           ))}
         </nav>
 
-        <button onClick={handleLogout} className="mt-auto flex items-center space-x-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all">
+        <button onClick={handleLogout} className="mt-auto pt-3 flex items-center space-x-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all flex-shrink-0">
           <LogOut className="w-5 h-5" />
           <span className="font-medium">লগআউট</span>
         </button>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-3 md:p-8 w-full max-w-full overflow-x-hidden">
+      <main className="flex-1 h-full overflow-y-auto p-3 md:p-8 w-full max-w-full overflow-x-hidden">
         {activeTab === "dashboard" && (
           <header className="mb-8 flex justify-between items-center relative z-40">
             <div>

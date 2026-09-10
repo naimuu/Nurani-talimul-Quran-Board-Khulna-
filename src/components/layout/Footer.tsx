@@ -7,7 +7,7 @@ export default function Footer() {
   const pathname = usePathname();
   const currentYear = new Date().getFullYear();
   
-  if (pathname === '/store') return null;
+  if (pathname === '/store' || pathname?.startsWith('/admin')) return null;
 
   return (
     <footer className="bg-slate-950 text-slate-300 pt-12 pb-8 border-t-4 border-emerald-600 relative overflow-hidden">

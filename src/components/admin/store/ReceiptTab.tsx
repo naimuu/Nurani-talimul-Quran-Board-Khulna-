@@ -86,10 +86,10 @@ export default function ReceiptTab() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-auto max-h-[calc(100vh-310px)] min-h-[300px]">
         <table className="w-full text-left">
-          <thead className="bg-slate-50 text-slate-600 border-b">
-            <tr>
+          <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 border-b border-slate-200 shadow-2xs">
+            <tr className="bg-slate-50/95 backdrop-blur-xs">
               <th className="p-4 font-semibold">তারিখ</th>
               <th className="p-4 font-semibold">রিসিট নম্বর</th>
               <th className="p-4 font-semibold">মোবাইল</th>

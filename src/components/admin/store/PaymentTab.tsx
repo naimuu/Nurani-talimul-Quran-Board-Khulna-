@@ -472,10 +472,10 @@ export default function PaymentTab() {
 
       <div className="md:border md:border-slate-200 md:rounded-xl md:bg-white min-h-[300px] overflow-visible md:overflow-hidden">
         {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto min-w-full">
+        <div className="hidden md:block overflow-auto max-h-[calc(100vh-310px)] min-h-[300px] min-w-full">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 shadow-2xs">
+              <tr className="bg-slate-50/95 backdrop-blur-xs text-slate-500 text-sm">
                 <th className="px-6 py-4 font-medium">তারিখ</th>
                 <th className="px-6 py-4 font-medium">প্রদানকারী</th>
                 <th className="px-6 py-4 font-medium">উদ্দেশ্য</th>

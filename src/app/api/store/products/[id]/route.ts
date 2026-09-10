@@ -68,10 +68,44 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    await (prisma as any).storeProduct.delete({ where: { id: params.id } });
-    return NextResponse.json({ success: true });
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get("force") === "true";
+
+    const saleItemCount = await (prisma as any).storeSaleItem.count({
+      where: { productId: params.id },
+    });
+
+    if (saleItemCount > 0 && !force) {
+      // Product has existing sales/invoices history.
+      // Soft-delete/archive it to preserve referential integrity for invoices and history.
+      await (prisma as any).storeProduct.update({
+        where: { id: params.id },
+        data: { visibility: "archived", stock: 0 },
+      });
+      return NextResponse.json({ success: true, message: "পণ্যটি সফলভাবে মুছে ফেলা হয়েছে" });
+    }
+
+    // If force is requested and sale items exist, remove them first
+    if (saleItemCount > 0 && force) {
+      await (prisma as any).storeSaleItem.deleteMany({
+        where: { productId: params.id },
+      });
+    }
+
+    // Delete associated stock history
+    await (prisma as any).stockHistory.deleteMany({
+      where: { productId: params.id },
+    });
+
+    // Delete the product
+    await (prisma as any).storeProduct.delete({
+      where: { id: params.id },
+    });
+
+    return NextResponse.json({ success: true, message: "পণ্যটি সফলভাবে মুছে ফেলা হয়েছে" });
   } catch (error: any) {
     console.error("DELETE Product Error:", error);
-    return NextResponse.json({ error: "Failed to delete product", details: error.message }, { status: 500 });
+    return NextResponse.json({ error: "পণ্যটি মুছতে ব্যর্থ হয়েছে", details: error.message }, { status: 500 });
   }
 }
+

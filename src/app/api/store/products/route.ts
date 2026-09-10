@@ -22,10 +22,12 @@ export async function GET() {
     const products = await (prisma as any).storeProduct.findMany({
       orderBy: { createdAt: "desc" },
     });
-    const cleanedProducts = products.map((p: any) => ({
-      ...p,
-      barcode: p.barcode?.startsWith('__NO_BARCODE_') ? '' : p.barcode
-    }));
+    const cleanedProducts = products
+      .filter((p: any) => p.visibility !== "archived")
+      .map((p: any) => ({
+        ...p,
+        barcode: p.barcode?.startsWith('__NO_BARCODE_') ? '' : p.barcode
+      }));
     return NextResponse.json(cleanedProducts);
   } catch (error) {
     console.error("Failed to fetch products:", error);

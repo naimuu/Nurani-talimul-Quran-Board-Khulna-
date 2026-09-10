@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, FileText, CheckCircle, Trash2, Edit, X, Package, Truck, 
   Clock, CheckCircle2, AlertCircle, Copy, Printer, ArrowRight, 
-  RefreshCw, Send, ChevronRight, Eye, ShieldCheck, UserCheck, Phone
+  RefreshCw, Send, ChevronRight, Eye, ShieldCheck, UserCheck, Phone, Plus
 } from 'lucide-react';
 import { toBanglaDigits } from './BanglaDatePicker';
 
@@ -129,11 +129,23 @@ export default function OrderTab() {
   const [selectedOrder, setSelectedOrder] = useState<Sale | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editedItems, setEditedItems] = useState<{ productId: string; quantity: number }[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
   const [confirmMode, setConfirmMode] = useState<'none' | 'partial' | 'unpaid'>('none');
   const [partialPaidAmount, setPartialPaidAmount] = useState('');
   const [promiseDate, setPromiseDate] = useState('');
   const [orderDeliveryCharge, setOrderDeliveryCharge] = useState<string>('0');
   const [orderDiscount, setOrderDiscount] = useState<string>('0');
+
+  useEffect(() => {
+    fetch('/api/store/products')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setAvailableProducts(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Courier Handover Modal State
   const [courierModalOrder, setCourierModalOrder] = useState<Sale | null>(null);
@@ -341,6 +353,8 @@ export default function OrderTab() {
     });
     const updatedOrder = await res.json();
     setEditMode(false);
+    setShowAddProduct(false);
+    setProductSearchQuery('');
     setSelectedOrder(updatedOrder);
     setOrderDeliveryCharge((updatedOrder.deliveryCharge ?? 0).toString());
     setOrderDiscount((updatedOrder.discount ?? 0).toString());
@@ -355,6 +369,9 @@ export default function OrderTab() {
     setConfirmMode('none');
     setPartialPaidAmount('');
     setPromiseDate('');
+    setEditMode(false);
+    setShowAddProduct(false);
+    setProductSearchQuery('');
   };
 
   const openCourierModal = (order: Sale) => {
@@ -490,141 +507,50 @@ export default function OrderTab() {
       </div>
 
       {/* Step-wise Tabs Bar */}
-      <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <div className="flex items-center gap-1.5 w-max sm:w-full">
-          {/* All Tab */}
-          <button
-            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('all'); }}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              currentTab === 'all'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <span>সকল অর্ডার</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-              currentTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {counts.all}
-            </span>
-          </button>
-
-          {/* Pending Tab */}
-          <button
-            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('pending'); }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              currentTab === 'pending'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'text-amber-700 hover:bg-amber-50'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span>নতুন / অপেক্ষমাণ</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-              currentTab === 'pending' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
-            }`}>
-              {counts.pending}
-            </span>
-          </button>
-
-          {/* Confirmed Tab */}
-          <button
-            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('confirmed'); }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              currentTab === 'confirmed'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-blue-700 hover:bg-blue-50'
-            }`}
-          >
-            <CheckCircle className="w-4 h-4" />
-            <span>অনুমোদিত</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-              currentTab === 'confirmed' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'
-            }`}>
-              {counts.confirmed}
-            </span>
-          </button>
-
-          {/* Packaging Tab */}
-          <button
-            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('packaging'); }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              currentTab === 'packaging'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-purple-700 hover:bg-purple-50'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span>প্যাকেজিং</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-              currentTab === 'packaging' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800'
-            }`}>
-              {counts.packaging}
-            </span>
-          </button>
-
-          {/* Shipped Tab */}
-          <button
-            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('shipped'); }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              currentTab === 'shipped'
-                ? 'bg-cyan-700 text-white shadow-sm'
-                : 'text-cyan-800 hover:bg-cyan-50'
-            }`}
-          >
-            <Truck className="w-4 h-4" />
-            <span>কুরিয়ারে প্রেরিত</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-              currentTab === 'shipped' ? 'bg-white/20 text-white' : 'bg-cyan-100 text-cyan-800'
-            }`}>
-              {counts.shipped}
-            </span>
-          </button>
-
-          {/* Delivered Tab */}
-          <button
-            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('delivered'); }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              currentTab === 'delivered'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-emerald-700 hover:bg-emerald-50'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>ডেলিভার্ড</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-              currentTab === 'delivered' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
-            }`}>
-              {counts.delivered}
-            </span>
-          </button>
-
-          {/* Cancelled Tab */}
-          <button
-            onClick={(e) => { scrollTabToCenter(e); setCurrentTab('cancelled'); }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-              currentTab === 'cancelled'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'text-red-700 hover:bg-red-50'
-            }`}
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>বাতিল</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-              currentTab === 'cancelled' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-800'
-            }`}>
-              {counts.cancelled}
-            </span>
-          </button>
+      <div className="bg-white p-1 rounded-full border border-slate-200/80 shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex items-center gap-1 w-max sm:w-full">
+          {[
+            { id: 'all' as const, label: 'সকল অর্ডার', count: counts.all, icon: null, activeBg: 'bg-slate-900 text-white shadow-xs' },
+            { id: 'pending' as const, label: 'নতুন / অপেক্ষমাণ', count: counts.pending, icon: Clock, activeBg: 'bg-amber-600 text-white shadow-xs' },
+            { id: 'confirmed' as const, label: 'অনুমোদিত', count: counts.confirmed, icon: CheckCircle, activeBg: 'bg-blue-600 text-white shadow-xs' },
+            { id: 'packaging' as const, label: 'প্যাকেজিং', count: counts.packaging, icon: Package, activeBg: 'bg-purple-600 text-white shadow-xs' },
+            { id: 'shipped' as const, label: 'কুরিয়ারে প্রেরিত', count: counts.shipped, icon: Truck, activeBg: 'bg-cyan-700 text-white shadow-xs' },
+            { id: 'delivered' as const, label: 'ডেলিভার্ড', count: counts.delivered, icon: CheckCircle2, activeBg: 'bg-emerald-600 text-white shadow-xs' },
+            { id: 'cancelled' as const, label: 'বাতিল', count: counts.cancelled, icon: Trash2, activeBg: 'bg-red-600 text-white shadow-xs' },
+          ].map((tab) => {
+            const isActive = currentTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={(e) => { scrollTabToCenter(e); setCurrentTab(tab.id); }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                  isActive
+                    ? tab.activeBg
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                }`}
+              >
+                {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                <span>{tab.label}</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                    isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Orders Table (Desktop) */}
       <div className="hidden md:block bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-310px)] min-h-[350px]">
           <table className="w-full text-left border-collapse min-w-[960px]">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-bold">
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 shadow-2xs">
+              <tr className="bg-slate-50/95 backdrop-blur-xs text-slate-600 text-xs uppercase tracking-wider font-bold">
                 <th className="p-4">ইনভয়েস ও সময়</th>
                 <th className="p-4">ক্রেতার তথ্য</th>
                 <th className="p-4 text-center">আইটেম ও ওজন</th>
@@ -1188,15 +1114,85 @@ export default function OrderTab() {
               <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="font-bold text-slate-800 text-sm">আইটেম তালিকা</h4>
-                  {!editMode && (
+                  {!editMode ? (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => { setEditMode(true); setShowAddProduct(true); }} 
+                        className="text-emerald-700 hover:text-emerald-800 text-xs font-bold flex items-center gap-1 hover:underline"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> পণ্য যোগ করুন
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button 
+                        onClick={() => setEditMode(true)} 
+                        className="text-primary text-xs font-bold flex items-center gap-1 hover:underline"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> আইটেম পরিবর্তন
+                      </button>
+                    </div>
+                  ) : (
                     <button 
-                      onClick={() => setEditMode(true)} 
-                      className="text-primary text-xs font-bold flex items-center gap-1 hover:underline"
+                      type="button"
+                      onClick={() => setShowAddProduct(prev => !prev)} 
+                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg flex items-center gap-1 transition-colors shadow-xs"
                     >
-                      <Edit className="w-3.5 h-3.5" /> আইটেম পরিবর্তন
+                      <Plus className="w-3.5 h-3.5" /> পণ্য যোগ করুন
                     </button>
                   )}
                 </div>
+
+                {/* Add Product Selector Box */}
+                {editMode && showAddProduct && (
+                  <div className="mb-3 p-3 bg-emerald-50/70 border border-emerald-200/90 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-950 flex items-center gap-1">
+                        <Plus className="w-3.5 h-3.5" /> অর্ডারে নতুন পণ্য যোগ করুন
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => { setShowAddProduct(false); setProductSearchQuery(''); }}
+                        className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md hover:bg-emerald-100"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="নাম দিয়ে ফিল্টার..."
+                        value={productSearchQuery}
+                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                        className="sm:w-44 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+                      />
+                      <select
+                        className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white font-medium outline-none focus:ring-1 focus:ring-emerald-500"
+                        onChange={(e) => {
+                          const prodId = e.target.value;
+                          if (!prodId) return;
+                          setEditedItems(prev => {
+                            const existing = prev.find(i => i.productId === prodId);
+                            if (existing) {
+                              return prev.map(i => i.productId === prodId ? { ...i, quantity: i.quantity + 1 } : i);
+                            }
+                            return [...prev, { productId: prodId, quantity: 1 }];
+                          });
+                          setShowAddProduct(false);
+                          setProductSearchQuery('');
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>পণ্য নির্বাচন করুন (ক্লিক করলে যোগ হবে)...</option>
+                        {availableProducts
+                          .filter(p => !productSearchQuery || p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || (p.className && p.className.toLowerCase().includes(productSearchQuery.toLowerCase())))
+                          .map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} {p.className ? `(${p.className})` : ''} — ৳{p.price} [মজুদ: {p.stock}]
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
                 
                 <table className="w-full text-left text-xs sm:text-sm">
                   <thead>
@@ -1205,26 +1201,32 @@ export default function OrderTab() {
                       <th className="py-2 text-center">মজুদ</th>
                       <th className="py-2 text-center">পরিমাণ</th>
                       <th className="py-2 text-right">মূল্য</th>
+                      {editMode && <th className="py-2 text-right w-8"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {(editMode ? editedItems : selectedOrder.items).map((item, idx) => {
-                      const product = selectedOrder.items.find(i => i.productId === item.productId)?.product;
+                      const product = availableProducts.find(p => p.id === item.productId)
+                        || selectedOrder.items.find(i => i.productId === item.productId)?.product;
                       if (!product) return null;
                       return (
                         <tr key={idx}>
-                          <td className="py-2.5 font-medium text-slate-800">{product.name}</td>
+                          <td className="py-2.5 font-medium text-slate-800">
+                            {product.name}
+                            {product.className && <span className="text-[11px] text-slate-400 ml-1">({product.className})</span>}
+                          </td>
                           <td className="py-2.5 text-center text-xs text-slate-500 font-mono">{product.stock}</td>
                           <td className="py-2.5 text-center">
                             {editMode ? (
                               <input 
                                 type="number" 
+                                min={1}
                                 value={item.quantity} 
                                 onChange={e => {
                                   const newQty = Math.max(1, parseInt(e.target.value) || 1);
                                   setEditedItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: newQty } : it));
                                 }}
-                                className="w-16 border border-slate-300 rounded-lg text-center py-1 font-bold"
+                                className="w-16 border border-slate-300 rounded-lg text-center py-1 font-bold text-sm outline-none focus:border-primary"
                               />
                             ) : (
                               <span className="font-bold text-slate-700">{item.quantity} টি</span>
@@ -1233,6 +1235,24 @@ export default function OrderTab() {
                           <td className="py-2.5 text-right font-bold text-slate-800">
                             {(product.price * item.quantity).toFixed(2)} ৳
                           </td>
+                          {editMode && (
+                            <td className="py-2.5 text-right pl-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (editedItems.length <= 1) {
+                                    alert('অর্ডারে অন্তত একটি পণ্য থাকতে হবে');
+                                    return;
+                                  }
+                                  setEditedItems(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -1240,22 +1260,34 @@ export default function OrderTab() {
                 </table>
                 
                 {editMode && (
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end gap-2">
-                    <button 
-                      onClick={() => { 
-                        setEditMode(false); 
-                        setEditedItems(selectedOrder.items.map(i => ({ productId: i.productId, quantity: i.quantity }))); 
-                      }} 
-                      className="px-3 py-1.5 border border-slate-200 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-50"
-                    >
-                      বাতিল
-                    </button>
-                    <button 
-                      onClick={handleUpdateItems} 
-                      className="px-4 py-1.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90"
-                    >
-                      সেভ করুন
-                    </button>
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div className="text-xs font-semibold text-slate-600">
+                      নতুন সাবটোটাল: <span className="text-sm font-extrabold text-primary">
+                        {editedItems.reduce((sum, it) => {
+                          const p = availableProducts.find(prod => prod.id === it.productId)
+                            || selectedOrder.items.find(i => i.productId === it.productId)?.product;
+                          return sum + (p ? p.price * it.quantity : 0);
+                        }, 0).toFixed(2)} ৳
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => { 
+                          setEditMode(false); 
+                          setShowAddProduct(false);
+                          setEditedItems(selectedOrder.items.map(i => ({ productId: i.productId, quantity: i.quantity }))); 
+                        }} 
+                        className="px-3 py-1.5 border border-slate-200 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-50"
+                      >
+                        বাতিল
+                      </button>
+                      <button 
+                        onClick={handleUpdateItems} 
+                        className="px-4 py-1.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90 shadow-xs"
+                      >
+                        সেভ করুন
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1380,7 +1412,7 @@ export default function OrderTab() {
                               setSelectedOrder(null); 
                               setConfirmMode('none'); 
                             }} 
-                            className="px-5 py-2 bg-purple-600 text-white font-extrabold text-xs rounded-xl hover:bg-purple-700 flex items-center gap-1.5 shadow-sm"
+                            className="px-4 py-2 bg-emerald-700 text-white font-bold text-xs rounded-xl hover:bg-emerald-800 flex items-center gap-1.5 shadow-xs"
                           >
                             <Package className="w-4 h-4" />
                             <span>আংশিক পেমেন্টসহ প্যাকেজিংয়ে পাঠান</span>
@@ -1389,25 +1421,17 @@ export default function OrderTab() {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {/* Option A: Direct to Packaging */}
                           <button 
                             onClick={() => { 
                               handleAccept(selectedOrder.id, currentBill, 'Packaging', 'Cash'); 
                               setSelectedOrder(null); 
                             }} 
-                            className="p-3.5 bg-gradient-to-br from-purple-500 to-purple-600 text-white font-bold rounded-2xl hover:from-purple-600 hover:to-purple-700 flex items-center justify-between shadow-sm transition-all active:scale-95 group"
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-sm transition-all active:scale-98 shadow-xs"
                           >
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                                <Package className="w-5 h-5" />
-                              </div>
-                              <div className="text-left">
-                                <p className="text-sm font-black">প্যাকেজিং এর জন্য পাঠান</p>
-                                <p className="text-[10px] text-purple-100">স্টক আপডেট হবে ও প্যাকেজিং শুরু হবে</p>
-                              </div>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-white/70 group-hover:translate-x-0.5 transition-transform" />
+                            <Package className="w-4 h-4" />
+                            <span>প্যাকেজিং এর জন্য পাঠান</span>
                           </button>
 
                           {/* Option B: Just Confirmed */}
@@ -1416,18 +1440,10 @@ export default function OrderTab() {
                               handleAccept(selectedOrder.id, 0, 'Confirmed', 'Cash'); 
                               setSelectedOrder(null); 
                             }} 
-                            className="p-3.5 bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-2xl hover:from-blue-600 hover:to-blue-700 flex items-center justify-between shadow-sm transition-all active:scale-95 group"
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold rounded-xl text-sm transition-all active:scale-98"
                           >
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                                <CheckCircle className="w-5 h-5" />
-                              </div>
-                              <div className="text-left">
-                                <p className="text-sm font-black">শুধু অনুমোদন (Confirmed)</p>
-                                <p className="text-[10px] text-blue-100">অর্ডার একসেপ্ট করে অপেক্ষায় রাখুন</p>
-                              </div>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-white/70 group-hover:translate-x-0.5 transition-transform" />
+                            <CheckCircle className="w-4 h-4 text-slate-500" />
+                            <span>শুধু অনুমোদন (Confirmed)</span>
                           </button>
                         </div>
 
@@ -1441,7 +1457,7 @@ export default function OrderTab() {
                                 setConfirmMode('partial');
                                 setPartialPaidAmount(currentBill.toFixed(2));
                               }}
-                              className="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold transition-colors"
+                              className="px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg font-semibold transition-colors"
                             >
                               পেমেন্ট যোগ করুন
                             </button>

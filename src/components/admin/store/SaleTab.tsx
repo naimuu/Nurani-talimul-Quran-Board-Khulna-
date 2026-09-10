@@ -1713,94 +1713,38 @@ export default function SaleTab() {
       </div>
 
       {/* Sub Tabs Bar (সব, বকেয়া, পরিশোধিত, আংশিক, ওয়াদার তারিখ) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto scroll-smooth bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {/* All Tab */}
-        <button
-          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('all'); }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-            subTab === 'all'
-              ? 'bg-slate-900 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <span>সব বিক্রয়</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-            subTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-          }`}>
-            {subTabCounts.all}
-          </span>
-        </button>
-
-        {/* Due Tab */}
-        <button
-          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('due'); }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-            subTab === 'due'
-              ? 'bg-amber-600 text-white shadow-sm'
-              : 'text-amber-800 hover:bg-amber-50'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" />
-          <span>বকেয়া (Due)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-            subTab === 'due' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
-          }`}>
-            {subTabCounts.due}
-          </span>
-        </button>
-
-        {/* Paid Tab */}
-        <button
-          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('paid'); }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-            subTab === 'paid'
-              ? 'bg-emerald-600 text-white shadow-sm'
-              : 'text-emerald-800 hover:bg-emerald-50'
-          }`}
-        >
-          <CheckCircle className="w-3.5 h-3.5" />
-          <span>পরিশোধিত (Paid Full)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-            subTab === 'paid' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
-          }`}>
-            {subTabCounts.paid}
-          </span>
-        </button>
-
-        {/* Partial Tab */}
-        <button
-          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('partial'); }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-            subTab === 'partial'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-blue-800 hover:bg-blue-50'
-          }`}
-        >
-          <span>আংশিক (Partial)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-            subTab === 'partial' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'
-          }`}>
-            {subTabCounts.partial}
-          </span>
-        </button>
-
-        {/* Promise Date Tab */}
-        <button
-          onClick={(e) => { scrollIntoCenter(e); handleSubTabChange('promise'); }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-            subTab === 'promise'
-              ? 'bg-purple-600 text-white shadow-sm'
-              : 'text-purple-800 hover:bg-purple-50'
-          }`}
-        >
-          <Calendar className="w-3.5 h-3.5" />
-          <span>ওয়াদার তারিখ (Promise Date)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-            subTab === 'promise' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800'
-          }`}>
-            {subTabCounts.promise}
-          </span>
-        </button>
+      <div className="flex items-center gap-1 overflow-x-auto scroll-smooth bg-white p-1 rounded-full border border-slate-200/80 shadow-xs [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {[
+          { id: 'all' as const, label: 'সব বিক্রয়', count: subTabCounts.all, icon: null, activeBg: 'bg-slate-900 text-white shadow-xs' },
+          { id: 'due' as const, label: 'বকেয়া (Due)', count: subTabCounts.due, icon: Clock, activeBg: 'bg-amber-600 text-white shadow-xs' },
+          { id: 'paid' as const, label: 'পরিশোধিত (Paid Full)', count: subTabCounts.paid, icon: CheckCircle, activeBg: 'bg-emerald-600 text-white shadow-xs' },
+          { id: 'partial' as const, label: 'আংশিক (Partial)', count: subTabCounts.partial, icon: null, activeBg: 'bg-blue-600 text-white shadow-xs' },
+          { id: 'promise' as const, label: 'ওয়াদার তারিখ (Promise Date)', count: subTabCounts.promise, icon: Calendar, activeBg: 'bg-purple-600 text-white shadow-xs' },
+        ].map((tab) => {
+          const isActive = subTab === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={(e) => { scrollIntoCenter(e); handleSubTabChange(tab.id); }}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                isActive
+                  ? tab.activeBg
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              }`}
+            >
+              {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+              <span>{tab.label}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Control Bar: View Switcher, Entity Dropdown, & Sorting */}
@@ -1948,10 +1892,10 @@ export default function SaleTab() {
         <>
           {/* Desktop Table */}
           <div className="hidden md:block border border-slate-200/80 rounded-2xl bg-white shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[calc(100vh-310px)] min-h-[350px]">
               <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/80 text-slate-600 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
+              <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 shadow-2xs">
+                <tr className="bg-slate-50/95 backdrop-blur-xs text-slate-600 text-xs uppercase tracking-wider font-bold">
                   {visibleColumns.invoiceId && <th className="px-5 py-3.5 whitespace-nowrap">ইনভয়েস আইডি</th>}
                   {visibleColumns.date && <th className="px-5 py-3.5 whitespace-nowrap">তারিখ ও সময়</th>}
                   {visibleColumns.customer && <th className="px-5 py-3.5 whitespace-nowrap">ক্রেতা ও প্রতিষ্ঠান</th>}
@@ -2204,7 +2148,7 @@ export default function SaleTab() {
       </>
       ) : (
         /* ================= PERSON / MADRASA WISE GROUPED VIEW ================= */
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-310px)] pr-1">
           {entityGroups.length === 0 ? (
             <div className="bg-white p-12 text-center rounded-2xl border border-slate-200/80 text-slate-400">
               <Building className="w-10 h-10 text-slate-300 mx-auto mb-2" />

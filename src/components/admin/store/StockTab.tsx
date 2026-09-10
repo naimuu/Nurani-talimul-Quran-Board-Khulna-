@@ -594,8 +594,18 @@ function ActionDropdown({ product, onUpdate }: { product: Product; onUpdate: () 
 
   const deleteProduct = async () => {
     if (!confirm(`"${product.name}" মুছে দিতে চান?`)) return;
-    await fetch(`/api/store/products/${product.id}`, { method: 'DELETE' });
-    onUpdate(); setOpen(false);
+    try {
+      const res = await fetch(`/api/store/products/${product.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || data.details || 'পণ্যটি মুছে ফেলতে সমস্যা হয়েছে');
+        return;
+      }
+      onUpdate();
+      setOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'নেটওয়ার্ক সমস্যা হয়েছে');
+    }
   };
 
   return (
@@ -802,10 +812,10 @@ export default function StockTab() {
 
       <div className="md:border md:border-slate-200 md:rounded-xl overflow-visible md:overflow-hidden md:bg-white">
         {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto min-h-[350px]">
+        <div className="hidden md:block overflow-auto max-h-[calc(100vh-310px)] min-h-[350px]">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 shadow-2xs">
+              <tr className="bg-slate-50/95 backdrop-blur-xs text-slate-500 text-sm">
                 <th onClick={() => handleSort('name')} className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">পণ্যের নাম {sortIcon('name')}</th>
                 <th onClick={() => handleSort('category')} className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">ক্যাটাগরি {sortIcon('category')}</th>
                 <th onClick={() => handleSort('price')} className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">মূল্য (৳) {sortIcon('price')}</th>
