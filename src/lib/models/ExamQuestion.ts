@@ -2,6 +2,7 @@ import mongoose, { Document, Model, Schema } from 'mongoose';
 
 export interface IQuestionSet {
   _id?: mongoose.Types.ObjectId;
+  classId?: string;
   className: string;
   setName: string;
   pricePerSet: number;
@@ -45,6 +46,7 @@ export interface IExamSession extends Document {
 
 const QuestionSetSchema = new Schema<IQuestionSet>(
   {
+    classId: { type: String },
     className: { type: String, required: true },
     setName: { type: String, required: true },
     pricePerSet: { type: Number, required: true, default: 0 },

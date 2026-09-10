@@ -40,8 +40,21 @@ export async function PATCH(
     }
 
     if (action === "update_session") {
-      if (sessionYear) session.sessionYear = sessionYear.trim();
-      if (title !== undefined) session.title = title;
+      const newName = sessionYear ? sessionYear.trim() : "";
+      if (newName) {
+        const existing = await ExamSession.findOne({
+          _id: { $ne: id },
+          $or: [{ sessionYear: newName }, { title: newName }],
+        });
+        if (existing) {
+          return NextResponse.json(
+            { error: `"${newName}" নামের একটি সেশন ইতিমধ্যেই বিদ্যমান রয়েছে` },
+            { status: 400 }
+          );
+        }
+        session.sessionYear = newName;
+      }
+      if (title !== undefined) session.title = title.trim();
       if (status) session.status = status;
       await session.save();
       return NextResponse.json({ success: true, session });
@@ -52,12 +65,14 @@ export async function PATCH(
       if (!exam) {
         return NextResponse.json({ error: "Exam not found" }, { status: 404 });
       }
-      if (examName) exam.name = examName.trim();
-      if (code) exam.code = code.trim();
-      if (examTerm) exam.examTerm = examTerm;
+      const updatedName = (examName || (body as any).name)?.trim();
+      if (updatedName) exam.name = updatedName;
+      if (code !== undefined) exam.code = code.trim();
+      if (examTerm !== undefined) exam.examTerm = examTerm;
       if (startDate !== undefined) exam.startDate = startDate;
       if (endDate !== undefined) exam.endDate = endDate;
-      if (examStatus) exam.status = examStatus;
+      const updatedStatus = examStatus || status || (body as any).status;
+      if (updatedStatus) exam.status = updatedStatus;
 
       await session.save();
       return NextResponse.json({ success: true, session });
@@ -72,6 +87,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
     console.error("Error updating session/exam:", error);
+    if (error?.code === 11000) {
+      return NextResponse.json({ error: "এই নামের সেশন ইতিমধ্যে বিদ্যমান রয়েছে" }, { status: 400 });
+    }
     return NextResponse.json({ error: "আপডেটে সমস্যা হয়েছে: " + error?.message }, { status: 500 });
   }
 }

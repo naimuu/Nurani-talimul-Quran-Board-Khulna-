@@ -16,11 +16,14 @@ import {
   Eye,
   Layers,
   BookOpen,
+  MoreVertical,
 } from "lucide-react";
 import { useDialog } from "@/components/ui/DialogProvider";
+import { generateClassId, DEFAULT_PRESET_CLASSES } from "@/lib/classUtils";
 
 export type QuestionSet = {
   _id?: string;
+  classId?: string;
   className: string;
   setName: string;
   pricePerSet: number;
@@ -65,17 +68,7 @@ type CurriculumClassInfo = {
   examYears?: { id: string; year: string; exams?: { id: string; name: string }[] }[];
 };
 
-const DEFAULT_PRESET_CLASSES = [
-  "শিশু / নার্সারি",
-  "১ম শ্রেণি",
-  "২য় শ্রেণি",
-  "৩য় শ্রেণি",
-  "৪র্থ শ্রেণি",
-  "৫ম শ্রেণি",
-  "হিফজুল কুরআন",
-  "তাজবীদ ও কিরাত",
-  "মুয়াল্লিম প্রশিক্ষণ",
-];
+
 
 const DEFAULT_PRESET_SUBJECTS = [
   "কুরআন মাজীদ",
@@ -178,6 +171,15 @@ export default function ExamQuestionManagementView() {
   const [savingSession, setSavingSession] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<ExamSessionType | null>(null);
   const [deletingSession, setDeletingSession] = useState(false);
+  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleGlobalClick = () => setOpenSessionMenuId(null);
+    if (openSessionMenuId) {
+      window.addEventListener("click", handleGlobalClick);
+      return () => window.removeEventListener("click", handleGlobalClick);
+    }
+  }, [openSessionMenuId]);
 
   const [showExamModal, setShowExamModal] = useState(false);
   const [examForm, setExamForm] = useState<{
@@ -202,6 +204,7 @@ export default function ExamQuestionManagementView() {
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [editingQuestionSet, setEditingQuestionSet] = useState<QuestionSet | null>(null);
   const [questionForm, setQuestionForm] = useState<{
+    classId: string;
     className: string;
     setName: string;
     pricePerSet: number;
@@ -215,6 +218,7 @@ export default function ExamQuestionManagementView() {
     instructions: string;
     isActive: boolean;
   }>({
+    classId: "cls_1",
     className: "১ম শ্রেণি",
     setName: "",
     pricePerSet: 15,
@@ -263,11 +267,11 @@ export default function ExamQuestionManagementView() {
         setSessions(loadedSessions);
 
         if (loadedSessions.length > 0) {
-          if (!activeSessionId || !loadedSessions.find((s) => s._id === activeSessionId)) {
+          if (!activeSessionId || !loadedSessions.find((s) => String(s._id) === String(activeSessionId))) {
             const firstSession = loadedSessions[0];
-            setActiveSessionId(firstSession._id);
+            setActiveSessionId(String(firstSession._id));
             if (firstSession.exams && firstSession.exams.length > 0) {
-              setActiveExamId(firstSession.exams[0]._id);
+              setActiveExamId(String(firstSession.exams[0]._id));
             } else {
               setActiveExamId(null);
             }
@@ -286,12 +290,18 @@ export default function ExamQuestionManagementView() {
     fetchCurriculum();
   }, []);
 
-  // Derived Classes from Curriculum
-  const availableClasses = useMemo(() => {
+  // Derived Classes from Curriculum with stable IDs
+  const availableClasses = useMemo<{ id: string; name: string }[]>(() => {
     if (curriculumClasses.length > 0) {
-      return curriculumClasses.map((c) => c.name);
+      return curriculumClasses.map((c) => ({
+        id: String(c.id),
+        name: c.name,
+      }));
     }
-    return DEFAULT_PRESET_CLASSES;
+    return DEFAULT_PRESET_CLASSES.map((p) => ({
+      id: p.id,
+      name: p.name,
+    }));
   }, [curriculumClasses]);
 
   // Derived Books for Selected Class from Curriculum
@@ -321,20 +331,20 @@ export default function ExamQuestionManagementView() {
   }, [curriculumClasses]);
 
   const activeSession = useMemo(() => {
-    return sessions.find((s) => s._id === activeSessionId) || sessions[0] || null;
+    return sessions.find((s) => String(s._id) === String(activeSessionId)) || sessions[0] || null;
   }, [sessions, activeSessionId]);
 
   const activeExam = useMemo(() => {
     if (!activeSession || !activeSession.exams) return null;
-    return activeSession.exams.find((e) => e._id === activeExamId) || activeSession.exams[0] || null;
+    return activeSession.exams.find((e) => String(e._id) === String(activeExamId)) || activeSession.exams[0] || null;
   }, [activeSession, activeExamId]);
 
   // Handle Session Change
   const handleSelectSession = (sId: string) => {
-    setActiveSessionId(sId);
-    const targetSession = sessions.find((s) => s._id === sId);
+    setActiveSessionId(String(sId));
+    const targetSession = sessions.find((s) => String(s._id) === String(sId));
     if (targetSession && targetSession.exams && targetSession.exams.length > 0) {
-      setActiveExamId(targetSession.exams[0]._id);
+      setActiveExamId(String(targetSession.exams[0]._id));
     } else {
       setActiveExamId(null);
     }
@@ -344,7 +354,12 @@ export default function ExamQuestionManagementView() {
   const filteredQuestionSets = useMemo(() => {
     if (!activeExam || !activeExam.questionSets) return [];
     return activeExam.questionSets.filter((q) => {
-      if (selectedClassFilter !== "ALL" && q.className !== selectedClassFilter) return false;
+      if (selectedClassFilter !== "ALL") {
+        const qCId = q.classId || generateClassId(q.className);
+        if (qCId !== selectedClassFilter && q.className !== selectedClassFilter) {
+          return false;
+        }
+      }
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const cName = (q.className || "").toLowerCase();
@@ -368,9 +383,10 @@ export default function ExamQuestionManagementView() {
 
   const handleOpenEditSession = (s: ExamSessionType) => {
     setEditingSession(s);
+    const mainName = (s.title?.trim() || s.sessionYear || "").trim();
     setSessionForm({
-      sessionYear: s.sessionYear || "",
-      title: s.title || "",
+      sessionYear: mainName,
+      title: s.title && s.title !== s.sessionYear ? s.title : "",
     });
     setShowSessionModal(true);
   };
@@ -382,6 +398,7 @@ export default function ExamQuestionManagementView() {
       alert({ title: "সতর্কতা", message: "সেশনের নাম লিখুন (উদাঃ ২০২৬, ২০২৬-২০২৭, বা বিশেষ সেশন)", type: "warning" });
       return;
     }
+    const finalTitle = sessionForm.title.trim() || customName;
     setSavingSession(true);
     try {
       if (editingSession) {
@@ -392,13 +409,16 @@ export default function ExamQuestionManagementView() {
           body: JSON.stringify({
             action: "update_session",
             sessionYear: customName,
-            title: sessionForm.title.trim() || customName,
+            title: finalTitle,
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to update session");
 
         alert({ title: "সফল", message: `"${customName}" সেশন সফলভাবে আপডেট হয়েছে`, type: "success" });
+        if (editingSession?._id) {
+          setActiveSessionId(String(editingSession._id));
+        }
       } else {
         // Create new session
         const res = await fetch("/api/admin/exams", {
@@ -407,15 +427,15 @@ export default function ExamQuestionManagementView() {
           body: JSON.stringify({
             action: "create_session",
             sessionYear: customName,
-            title: sessionForm.title.trim() || customName,
+            title: finalTitle,
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to create session");
 
         alert({ title: "সফল", message: `"${customName}" সেশন সফলভাবে তৈরি হয়েছে`, type: "success" });
-        if (data.session) {
-          setActiveSessionId(data.session._id);
+        if (data.session?._id) {
+          setActiveSessionId(String(data.session._id));
         }
       }
 
@@ -611,6 +631,7 @@ export default function ExamQuestionManagementView() {
           body: JSON.stringify({
             examId: activeExam._id,
             questionSetId: editingQuestionSet._id,
+            classId: questionForm.classId || generateClassId(questionForm.className),
             className: questionForm.className,
             setName: questionForm.setName,
             pricePerSet: questionForm.pricePerSet,
@@ -634,6 +655,7 @@ export default function ExamQuestionManagementView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             examId: activeExam._id,
+            classId: questionForm.classId || generateClassId(questionForm.className),
             className: questionForm.className,
             setName: questionForm.setName,
             pricePerSet: questionForm.pricePerSet,
@@ -692,6 +714,7 @@ export default function ExamQuestionManagementView() {
   const handleOpenEditQuestionModal = (q: QuestionSet) => {
     setEditingQuestionSet(q);
     setQuestionForm({
+      classId: q.classId || generateClassId(q.className),
       className: q.className,
       setName: q.setName,
       pricePerSet: q.pricePerSet || 0,
@@ -801,7 +824,7 @@ export default function ExamQuestionManagementView() {
         <body>
           <div class="header">
             <h1>নূরানী তালীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
-            <h2>${activeSession?.title || activeSession?.sessionYear + " শিক্ষাবর্ষ"} — ${activeExam.name}</h2>
+            <h2>${activeSession?.title?.trim() || activeSession?.sessionYear} — ${activeExam.name}</h2>
             <div class="header-meta">
               <div><strong>টার্ম:</strong> ${activeExam.examTerm || "সকল"} | <strong>কোড:</strong> ${activeExam.code || "-"}</div>
               <div><strong>মোট সেট:</strong> ${filteredQuestionSets.length} টি | <strong>তারিখ:</strong> ${new Date().toLocaleDateString("bn-BD")}</div>
@@ -868,30 +891,6 @@ export default function ExamQuestionManagementView() {
           </div>
 
           <div className="flex items-center gap-2">
-            {activeSession && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => handleOpenEditSession(activeSession)}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors cursor-pointer"
-                  title={`"${activeSession.title?.trim() || activeSession.sessionYear}" সেশন এডিট করুন`}
-                >
-                  <Edit2 className="w-3.5 h-3.5 text-blue-500" />
-                  <span>সেশন এডিট</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSessionToDelete(activeSession)}
-                  className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
-                  title={`"${activeSession.title?.trim() || activeSession.sessionYear}" সেশন মুছে ফেলুন`}
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                  <span>সেশন ডিলিট</span>
-                </button>
-              </>
-            )}
-
             <button
               onClick={handleOpenCreateSession}
               className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-lg border border-emerald-200 transition-all cursor-pointer"
@@ -903,17 +902,19 @@ export default function ExamQuestionManagementView() {
         </div>
 
         {/* Sessions Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 max-w-full">
+        <div className="flex items-center gap-2 flex-wrap pb-0.5 max-w-full">
           {sessions.length === 0 ? (
             <span className="text-xs text-slate-400">কোনো সেশন তৈরি করা হয়নি। "+ সেশন যোগ" করুন।</span>
           ) : (
             sessions.map((s) => {
-              const isSelected = activeSessionId === s._id;
+              const isSelected = String(activeSessionId) === String(s._id);
               const displayName = s.title?.trim() || s.sessionYear;
+              const isMenuOpen = openSessionMenuId === String(s._id);
+
               return (
                 <div
-                  key={s._id}
-                  className={`inline-flex items-center rounded-lg border transition-all ${
+                  key={String(s._id)}
+                  className={`relative inline-flex items-center rounded-lg border transition-all ${
                     isSelected
                       ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
@@ -921,7 +922,7 @@ export default function ExamQuestionManagementView() {
                 >
                   <button
                     type="button"
-                    onClick={() => handleSelectSession(s._id)}
+                    onClick={() => handleSelectSession(String(s._id))}
                     className="px-3 py-1.5 text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>{displayName}</span>
@@ -934,33 +935,54 @@ export default function ExamQuestionManagementView() {
                     </span>
                   </button>
 
+                  {/* Three-Dot Options Button */}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleOpenEditSession(s);
+                      setOpenSessionMenuId(isMenuOpen ? null : String(s._id));
                     }}
-                    className={`p-1.5 rounded hover:bg-black/10 transition-colors ${
-                      isSelected ? "text-white/80 hover:text-white" : "text-slate-400 hover:text-blue-600"
+                    className={`p-1.5 mr-0.5 rounded-md hover:bg-black/10 transition-colors cursor-pointer ${
+                      isSelected ? "text-white/80 hover:text-white" : "text-slate-400 hover:text-slate-700"
                     }`}
-                    title={`"${displayName}" সেশন এডিট করুন`}
+                    title="সেশন অপশন (এডিট / মুছুন)"
                   >
-                    <Edit2 className="w-3 h-3" />
+                    <MoreVertical className="w-3.5 h-3.5" />
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSessionToDelete(s);
-                    }}
-                    className={`p-1.5 mr-1 rounded hover:bg-black/10 transition-colors ${
-                      isSelected ? "text-white/80 hover:text-white" : "text-slate-400 hover:text-red-600"
-                    }`}
-                    title={`"${displayName}" সেশন ডিলিট করুন`}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  {/* Dropdown Menu */}
+                  {isMenuOpen && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-150 text-slate-700"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenSessionMenuId(null);
+                          handleOpenEditSession(s);
+                        }}
+                        className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer text-left"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                        <span>সেশন এডিট</span>
+                      </button>
+
+                      <div className="h-px bg-slate-100 my-0.5" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenSessionMenuId(null);
+                          setSessionToDelete(s);
+                        }}
+                        className="w-full px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer text-left"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <span>সেশন মুছুন</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -975,14 +997,15 @@ export default function ExamQuestionManagementView() {
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-emerald-600" />
               <h3 className="text-xs font-bold text-slate-800">
-                ২. {activeSession.sessionYear} শিক্ষাবর্ষের পরীক্ষাসমূহ ({activeSession.exams?.length || 0})
+                ২. {activeSession.title?.trim() || activeSession.sessionYear} সেশনের পরীক্ষাসমূহ ({activeSession.exams?.length || 0})
               </h3>
             </div>
 
             <button
               onClick={() => {
+                const sName = activeSession.title?.trim() || activeSession.sessionYear;
                 setExamForm({
-                  name: availableCurriculumExams[0] ? `${availableCurriculumExams[0]} ${activeSession.sessionYear}` : `১ম সাময়িক পরীক্ষা ${activeSession.sessionYear}`,
+                  name: availableCurriculumExams[0] ? `${availableCurriculumExams[0]} ${sName}` : `১ম সাময়িক পরীক্ষা ${sName}`,
                   code: `SEM-${Date.now().toString().slice(-4)}`,
                   examTerm: "১ম সাময়িক",
                   startDate: "",
@@ -1070,8 +1093,9 @@ export default function ExamQuestionManagementView() {
               <p className="text-xs text-slate-500 mb-2">এই সেশনের অধীনে কোনো পরীক্ষা নেই।</p>
               <button
                 onClick={() => {
+                  const sName = activeSession.title?.trim() || activeSession.sessionYear;
                   setExamForm({
-                    name: availableCurriculumExams[0] ? `${availableCurriculumExams[0]} ${activeSession.sessionYear}` : `১ম সাময়িক পরীক্ষা ${activeSession.sessionYear}`,
+                    name: availableCurriculumExams[0] ? `${availableCurriculumExams[0]} ${sName}` : `১ম সাময়িক পরীক্ষা ${sName}`,
                     code: `SEM-${Date.now().toString().slice(-4)}`,
                     examTerm: "১ম সাময়িক",
                     startDate: "",
@@ -1118,10 +1142,13 @@ export default function ExamQuestionManagementView() {
               {/* Add Question Set Button */}
               <button
                 onClick={() => {
-                  const initialClass = availableClasses[0] || "১ম শ্রেণি";
-                  const initialBooks = curriculumClasses.find((c) => c.name === initialClass)?.books?.map((b) => b.title) || DEFAULT_PRESET_SUBJECTS.slice(0, 5);
+                  const initialClassObj = availableClasses[0] || { id: "cls_1", name: "১ম শ্রেণি" };
+                  const initialClass = initialClassObj.name;
+                  const initialClassId = initialClassObj.id;
+                  const initialBooks = curriculumClasses.find((c) => c.name === initialClass || c.id === initialClassId)?.books?.map((b) => b.title) || DEFAULT_PRESET_SUBJECTS.slice(0, 5);
                   setEditingQuestionSet(null);
                   setQuestionForm({
+                    classId: initialClassId,
                     className: initialClass,
                     setName: `${initialClass} প্রশ্নপত্র সেট`,
                     pricePerSet: 15,
@@ -1157,7 +1184,7 @@ export default function ExamQuestionManagementView() {
               >
                 <option value="ALL">সকল শ্রেণি (কারিকুলাম)</option>
                 {availableClasses.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
@@ -1655,13 +1682,17 @@ export default function ExamQuestionManagementView() {
                     কারিকুলাম শ্রেণি <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={questionForm.className}
+                    value={questionForm.classId || questionForm.className}
                     onChange={(e) => {
-                      const newClass = e.target.value;
-                      const curClass = curriculumClasses.find((c) => c.name === newClass);
+                      const val = e.target.value;
+                      const found = availableClasses.find((c) => c.id === val || c.name === val);
+                      const newClass = found ? found.name : val;
+                      const newClassId = found ? found.id : generateClassId(val);
+                      const curClass = curriculumClasses.find((c) => c.name === newClass || c.id === newClassId);
                       const classBooks = curClass?.books?.map((b) => b.title) || [];
                       setQuestionForm((prev) => ({
                         ...prev,
+                        classId: newClassId,
                         className: newClass,
                         setName: `${newClass} প্রশ্নপত্র সেট`,
                         subjects: classBooks.length > 0 ? classBooks : prev.subjects,
@@ -1671,7 +1702,7 @@ export default function ExamQuestionManagementView() {
                     required
                   >
                     {availableClasses.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>

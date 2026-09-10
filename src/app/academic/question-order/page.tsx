@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   FileQuestion,
@@ -31,11 +31,13 @@ import {
 import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
+import { generateClassId } from "@/lib/classUtils";
 
 type QuestionItem = {
   id: string;
   name: string;
   category: string;
+  classId: string;
   className: string;
   examTerm: string;
   pricePerSet: number;
@@ -53,7 +55,7 @@ type QuestionItem = {
 export default function QuestionOrderPage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<string>("all");
-  const [selectedClass, setSelectedClass] = useState<string>("all");
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
 
@@ -209,10 +211,14 @@ export default function QuestionOrderPage() {
         if (Array.isArray(data.sessions)) {
           setExamSessions(data.sessions);
           if (data.sessions.length > 0) {
-            const def = data.sessions.find((s: any) => s.isDefault) || data.sessions[0];
-            if (def) {
-              setSelectedSessionId(def._id);
-            }
+            setSelectedSessionId((prev) => {
+              // If previously selected session still exists by ID, preserve it
+              if (prev !== "all" && data.sessions.some((s: any) => String(s._id) === String(prev))) {
+                return prev;
+              }
+              const def = data.sessions.find((s: any) => s.isDefault) || data.sessions[0];
+              return def ? String(def._id) : "all";
+            });
           }
         }
       })
@@ -223,28 +229,45 @@ export default function QuestionOrderPage() {
     });
   }, []);
 
+  // Helper to dynamically resolve session name by ID so that name edits never mismatch
+  const getSessionDisplayNameById = useCallback(
+    (sessionId?: string, fallbackName?: string) => {
+      if (!sessionId) return fallbackName || "";
+      const match = examSessions.find((s) => String(s._id) === String(sessionId));
+      if (match) {
+        return (match.title?.trim() || match.sessionYear?.trim() || "").trim();
+      }
+      return fallbackName || "";
+    },
+    [examSessions]
+  );
+
   const allQuestionItems = useMemo<QuestionItem[]>(() => {
     const list: QuestionItem[] = [];
 
     const sessionsToScan =
       selectedSessionId === "all"
         ? examSessions
-        : examSessions.filter((s) => s._id === selectedSessionId || s.sessionYear === selectedSessionId);
+        : examSessions.filter((s) => String(s._id) === String(selectedSessionId));
 
     // Merge session exams question sets added from admin
     sessionsToScan.forEach((session) => {
       session.exams?.forEach((exam: any) => {
         exam.questionSets?.forEach((qs: any) => {
           if (qs.isActive === false) return;
+          const cId = qs.classId ? String(qs.classId) : generateClassId(qs.className);
+          // GUARANTEED IMMUTABLE ID:
+          const itemId = qs._id ? String(qs._id) : `item_${session._id}_${exam._id || 'ex'}_${cId}_${qs.setName}`;
           list.push({
-            id: qs._id ? `qs_${qs._id}` : `qs_${exam._id || exam.name}_${qs.className}_${qs.setName}`,
+            id: itemId,
             name: qs.setName || `${qs.className} — ${exam.name}`,
             category: "প্রশ্নপত্র",
+            classId: cId,
             className: qs.className || "সাধারণ",
             examTerm: exam.name || exam.examTerm || "সাধারণ",
             pricePerSet: qs.pricePerSet || 0,
             description: qs.details || (qs.subjects && qs.subjects.length > 0 ? qs.subjects.join(", ") : "প্রশ্নপত্র সেট"),
-            sessionId: session._id,
+            sessionId: String(session._id),
             sessionYear: session.sessionYear,
             sessionName: (session.title || session.sessionYear || "").trim(),
             attachmentUrl: qs.attachmentUrl,
@@ -257,10 +280,12 @@ export default function QuestionOrderPage() {
     });
 
     dbProducts.forEach((p) => {
+      const cId = p.classId ? String(p.classId) : generateClassId(p.className || "অন্যান্য");
       list.push({
         id: `db_${p.id}`,
         name: p.name,
         category: p.category || "প্রশ্নপত্র",
+        classId: cId,
         className: p.className || "অন্যান্য",
         examTerm: p.subject || "সাধারণ",
         pricePerSet: p.price || 0,
@@ -276,7 +301,7 @@ export default function QuestionOrderPage() {
     const sessionsToScan =
       selectedSessionId === "all"
         ? examSessions
-        : examSessions.filter((s) => s._id === selectedSessionId || s.sessionYear === selectedSessionId);
+        : examSessions.filter((s) => String(s._id) === String(selectedSessionId));
 
     const termSet = new Set<string>();
     sessionsToScan.forEach((session) => {
@@ -294,15 +319,21 @@ export default function QuestionOrderPage() {
     return Array.from(termSet);
   }, [examSessions, selectedSessionId, allQuestionItems]);
 
-  const classNames = useMemo(() => {
+  const availableClasses = useMemo<{ id: string; name: string }[]>(() => {
     // Only classes present in actual question items for this session/exam
     const relevantItems =
       selectedTerm === "all"
         ? allQuestionItems
         : allQuestionItems.filter((i) => i.examTerm === selectedTerm);
 
-    const classes = Array.from(new Set(relevantItems.map((i) => i.className).filter(Boolean)));
-    return classes;
+    const classMap = new Map<string, string>();
+    relevantItems.forEach((item) => {
+      if (item.classId && !classMap.has(item.classId)) {
+        classMap.set(item.classId, item.className);
+      }
+    });
+
+    return Array.from(classMap.entries()).map(([id, name]) => ({ id, name }));
   }, [allQuestionItems, selectedTerm]);
 
   // Auto-reset filters if current selection is no longer available in the active session
@@ -313,10 +344,10 @@ export default function QuestionOrderPage() {
   }, [examTerms, selectedTerm]);
 
   useEffect(() => {
-    if (selectedClass !== "all" && !classNames.includes(selectedClass)) {
-      setSelectedClass("all");
+    if (selectedClassId !== "all" && !availableClasses.some((c) => c.id === selectedClassId)) {
+      setSelectedClassId("all");
     }
-  }, [classNames, selectedClass]);
+  }, [availableClasses, selectedClassId]);
 
   const getExamInfo = (termName: string) => {
     if (!termName || termName === "all") return null;
@@ -343,10 +374,10 @@ export default function QuestionOrderPage() {
         item.examTerm.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchTerm = selectedTerm === "all" || item.examTerm === selectedTerm;
-      const matchClass = selectedClass === "all" || item.className === selectedClass;
+      const matchClass = selectedClassId === "all" || item.classId === selectedClassId;
       return matchSearch && matchTerm && matchClass;
     });
-  }, [allQuestionItems, searchQuery, selectedTerm, selectedClass]);
+  }, [allQuestionItems, searchQuery, selectedTerm, selectedClassId]);
 
   const updateQty = (item: QuestionItem, delta: number) => {
     setCart((prev) => {
@@ -508,7 +539,11 @@ export default function QuestionOrderPage() {
       const ilhakNote = ilhak.trim() ? ` (ইলহাক: ${ilhak.trim()})` : "";
       const deliveryNote = hasSeparateDelivery && deliveryAddress.fullAddress ? ` | ডেলিভারি ঠিকানা: ${deliveryAddress.fullAddress}` : "";
       const questionOrderDetails = Object.values(cart)
-        .map((c) => `[${c.item.name}: ${c.qty} সেট]`)
+        .map((c) => {
+          const sName = getSessionDisplayNameById(c.item.sessionId, c.item.sessionName);
+          const sLabel = sName ? ` (${sName})` : "";
+          return `[${c.item.name}${sLabel}: ${c.qty} সেট]`;
+        })
         .join(", ");
 
       const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}`;
@@ -663,11 +698,11 @@ export default function QuestionOrderPage() {
               <div className="w-full sm:w-52 shrink-0">
                 <label className="block text-[11px] font-bold text-slate-500 mb-1">সেশন:</label>
                 <select
-                  value={selectedSessionId}
+                  value={String(selectedSessionId)}
                   onChange={(e) => {
                     setSelectedSessionId(e.target.value);
                     setSelectedTerm("all");
-                    setSelectedClass("all");
+                    setSelectedClassId("all");
                   }}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer"
                 >
@@ -675,7 +710,7 @@ export default function QuestionOrderPage() {
                   {examSessions.map((session) => {
                     const exactName = (session.title || session.sessionYear || "").trim();
                     return (
-                      <option key={session._id} value={session._id}>
+                      <option key={String(session._id)} value={String(session._id)}>
                         {exactName}
                       </option>
                     );
@@ -689,7 +724,10 @@ export default function QuestionOrderPage() {
               <label className="block text-[11px] font-bold text-slate-500 mb-1">পরীক্ষার নাম নির্বাচন করুন:</label>
               <select
                 value={selectedTerm}
-                onChange={(e) => setSelectedTerm(e.target.value)}
+                onChange={(e) => {
+                  setSelectedTerm(e.target.value);
+                  setSelectedClassId("all");
+                }}
                 disabled={examTerms.length === 0}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer disabled:opacity-60"
               >
@@ -763,7 +801,7 @@ export default function QuestionOrderPage() {
                   onClick={() => {
                     setSelectedSessionId("all");
                     setSelectedTerm("all");
-                    setSelectedClass("all");
+                    setSelectedClassId("all");
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 ${
                     selectedSessionId === "all"
@@ -775,16 +813,16 @@ export default function QuestionOrderPage() {
                 </button>
               )}
               {examSessions.map((session) => {
-                const isSelected = selectedSessionId === session._id;
+                const isSelected = String(selectedSessionId) === String(session._id);
                 const exactName = (session.title || session.sessionYear || "").trim();
                 return (
                   <button
-                    key={session._id}
+                    key={String(session._id)}
                     type="button"
                     onClick={() => {
-                      setSelectedSessionId(session._id);
+                      setSelectedSessionId(String(session._id));
                       setSelectedTerm("all");
-                      setSelectedClass("all");
+                      setSelectedClassId("all");
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 shrink-0 ${
                       isSelected
@@ -808,7 +846,10 @@ export default function QuestionOrderPage() {
               </span>
               <button
                 type="button"
-                onClick={() => setSelectedTerm("all")}
+                onClick={() => {
+                  setSelectedTerm("all");
+                  setSelectedClassId("all");
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 ${
                   selectedTerm === "all"
                     ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
@@ -825,7 +866,10 @@ export default function QuestionOrderPage() {
                   <button
                     key={term}
                     type="button"
-                    onClick={() => setSelectedTerm(term)}
+                    onClick={() => {
+                      setSelectedTerm(term);
+                      setSelectedClassId("all");
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 shrink-0 ${
                       isSelected
                         ? "bg-[#095738] text-white border-[#095738] shadow-xs"
@@ -855,36 +899,36 @@ export default function QuestionOrderPage() {
           )}
 
           {/* CLASS NAME AS TABS (WITH GENEROUS MOBILE PADDING & SMOOTH AUTO-CENTERING) */}
-          {classNames.length > 0 && (
+          {availableClasses.length > 0 && (
             <div className="pt-2.5 border-t border-slate-100">
               <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <button
                   onClick={(e) => {
-                    setSelectedClass("all");
+                    setSelectedClassId("all");
                     e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
                   }}
                   className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 active:scale-95 border ${
-                    selectedClass === "all"
+                    selectedClassId === "all"
                       ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs ring-2 ring-amber-400/40"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                   }`}
                 >
                   সকল শ্রেণি
                 </button>
-                {classNames.map((cls) => (
+                {availableClasses.map((cls) => (
                   <button
-                    key={cls}
+                    key={cls.id}
                     onClick={(e) => {
-                      setSelectedClass(cls);
+                      setSelectedClassId(cls.id);
                       e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
                     }}
                     className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 active:scale-95 border ${
-                      selectedClass === cls
+                      selectedClassId === cls.id
                         ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs ring-2 ring-amber-400/40"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                     }`}
                   >
-                    {cls}
+                    {cls.name}
                   </button>
                 ))}
               </div>
@@ -949,11 +993,14 @@ export default function QuestionOrderPage() {
                                 <span className="text-[#095738] font-black">{item.className}</span>
                                 <span className="text-slate-300 font-normal">—</span>
                                 <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
-                                {item.sessionName && (
-                                  <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                                    {item.sessionName}
-                                  </span>
-                                )}
+                                {(() => {
+                                  const sName = getSessionDisplayNameById(item.sessionId, item.sessionName);
+                                  return sName ? (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                      {sName}
+                                    </span>
+                                  ) : null;
+                                })()}
                                 {examStatus && (
                                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
                                     {examStatus.badgeText}
@@ -1041,11 +1088,14 @@ export default function QuestionOrderPage() {
                       <span className="text-[#095738] font-black">{item.className}</span>
                       <span className="text-slate-300 font-normal">—</span>
                       <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
-                      {item.sessionName && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                          {item.sessionName}
-                        </span>
-                      )}
+                      {(() => {
+                        const sName = getSessionDisplayNameById(item.sessionId, item.sessionName);
+                        return sName ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            {sName}
+                          </span>
+                        ) : null;
+                      })()}
                       {examStatus && (
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
                           {examStatus.badgeText}
@@ -1167,9 +1217,14 @@ export default function QuestionOrderPage() {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug line-clamp-1">{item.name}</h4>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          {item.sessionName && (
-                            <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.2 rounded font-bold">{item.sessionName}</span>
-                          )}
+                          {(() => {
+                            const sName = getSessionDisplayNameById(item.sessionId, item.sessionName);
+                            return sName ? (
+                              <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.2 rounded font-bold">
+                                {sName}
+                              </span>
+                            ) : null;
+                          })()}
                           <span className="text-[10.5px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-bold">{item.className}</span>
                           <span className="text-[10.5px] bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.2 rounded font-bold">{item.examTerm}</span>
                           <span className="text-[11px] text-slate-500 font-semibold ml-1">
@@ -1307,11 +1362,14 @@ export default function QuestionOrderPage() {
                   <span className="text-[#095738] font-black">{selectedDetailItem.className}</span>
                   <span className="text-slate-300 font-normal">—</span>
                   <span className="text-slate-900 font-black">{selectedDetailItem.examTerm.includes("পরীক্ষা") ? selectedDetailItem.examTerm : `${selectedDetailItem.examTerm} পরীক্ষা`}</span>
-                  {selectedDetailItem.sessionName && (
-                    <span className="text-[11px] px-2.5 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                      {selectedDetailItem.sessionName}
-                    </span>
-                  )}
+                  {(() => {
+                    const sName = getSessionDisplayNameById(selectedDetailItem.sessionId, selectedDetailItem.sessionName);
+                    return sName ? (
+                      <span className="text-[11px] px-2.5 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        {sName}
+                      </span>
+                    ) : null;
+                  })()}
                 </h2>
                 {(() => {
                   const matchingExam = getExamInfo(selectedDetailItem.examTerm);

@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb";
 import ExamSession from "@/lib/models/ExamQuestion";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
+import { generateClassId } from "@/lib/classUtils";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "nurani_board_khulna_secret_key_2024"
@@ -33,6 +34,7 @@ export async function POST(
     const body = await request.json();
     const {
       examId,
+      classId,
       className,
       setName,
       pricePerSet,
@@ -73,7 +75,9 @@ export async function POST(
       effectiveCenterPrice = Math.max(0, price - discountAmt);
     }
 
+    const finalClassId = (classId || generateClassId(className)).trim();
     const newQuestionSet: any = {
+      classId: finalClassId,
       className: className.trim(),
       setName: setName.trim(),
       pricePerSet: price,
@@ -115,6 +119,7 @@ export async function PATCH(
     const {
       examId,
       questionSetId,
+      classId,
       className,
       setName,
       pricePerSet,
@@ -149,6 +154,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Question set not found" }, { status: 404 });
     }
 
+    if (classId !== undefined) {
+      qSet.classId = classId.trim();
+    } else if (className !== undefined && !qSet.classId) {
+      qSet.classId = generateClassId(className).trim();
+    }
     if (className !== undefined) qSet.className = className.trim();
     if (setName !== undefined) qSet.setName = setName.trim();
     if (pricePerSet !== undefined) qSet.pricePerSet = Number(pricePerSet) || 0;
