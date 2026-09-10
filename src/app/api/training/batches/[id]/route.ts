@@ -29,6 +29,12 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (body.link !== undefined) updateData.link = body.link.trim();
     if (body.regLink !== undefined) updateData.regLink = body.regLink.trim();
     if (body.coverImage !== undefined) updateData.coverImage = body.coverImage.trim();
+    if (body.muallimId !== undefined) updateData.muallimId = body.muallimId || null;
+    if (body.muallimName !== undefined) updateData.muallimName = body.muallimName.trim();
+    if (body.muallimDesignation !== undefined) updateData.muallimDesignation = body.muallimDesignation.trim();
+    if (body.muallimPhone !== undefined) updateData.muallimPhone = body.muallimPhone.trim();
+    if (body.muallimPhoto !== undefined) updateData.muallimPhoto = body.muallimPhoto.trim();
+    if (body.muallimTiming !== undefined) updateData.muallimTiming = body.muallimTiming.trim();
     if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
     if (body.order !== undefined) updateData.order = Number(body.order) || 0;
 

@@ -19,31 +19,40 @@ export async function GET(req: Request) {
     const batchId = searchParams.get('batchId');
     const search = searchParams.get('search');
 
-    const filter: any = {};
+    const andConditions: any[] = [];
 
     if (status && status !== 'ALL') {
-      filter.status = status;
+      andConditions.push({ status });
     }
     if (medium && medium !== 'ALL') {
-      filter.medium = medium.toLowerCase();
+      andConditions.push({ medium: medium.toLowerCase() });
     }
     if (batchId && batchId !== 'ALL') {
-      filter.batchId = batchId;
+      andConditions.push({
+        $or: [
+          { batchId: batchId },
+          { batchName: batchId }
+        ]
+      });
     }
     if (search && search.trim() !== '') {
       const searchRegex = new RegExp(search.trim(), 'i');
-      filter.$or = [
-        { trackingId: searchRegex },
-        { applicantName: searchRegex },
-        { applicantNameEn: searchRegex },
-        { phone: searchRegex },
-        { fatherName: searchRegex },
-        { batchName: searchRegex },
-        { currentMadrasa: searchRegex },
-        { district: searchRegex },
-        { transactionId: searchRegex }
-      ];
+      andConditions.push({
+        $or: [
+          { trackingId: searchRegex },
+          { applicantName: searchRegex },
+          { applicantNameEn: searchRegex },
+          { phone: searchRegex },
+          { fatherName: searchRegex },
+          { batchName: searchRegex },
+          { currentMadrasa: searchRegex },
+          { district: searchRegex },
+          { transactionId: searchRegex }
+        ]
+      });
     }
+
+    const filter = andConditions.length > 0 ? { $and: andConditions } : {};
 
     const admissions = await TrainingAdmission.find(filter)
       .sort({ createdAt: -1 })

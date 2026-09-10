@@ -477,7 +477,7 @@ export default function AdmissionModal({
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                               b.medium === "bangla" ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"
                             }`}>
-                              {b.medium === "bangla" ? "বাংলা মাধ্যম" : "আরবি মাধ্যম"}
+                              {b.medium === "bangla" ? "বাংলা" : "আরবি"}
                             </span>
                             <span className="font-black text-xs text-emerald-800">{b.price}</span>
                           </div>

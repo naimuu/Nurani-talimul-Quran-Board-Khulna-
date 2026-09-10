@@ -15,6 +15,12 @@ export interface ITrainingBatch extends Document {
   link?: string;
   regLink?: string;
   coverImage?: string;
+  muallimId?: string;
+  muallimName?: string;
+  muallimDesignation?: string;
+  muallimPhone?: string;
+  muallimPhoto?: string;
+  muallimTiming?: string;
   isActive: boolean;
   order: number;
   createdAt: Date;
@@ -37,6 +43,12 @@ const TrainingBatchSchema = new Schema<ITrainingBatch>(
     link: { type: String, default: '' },
     regLink: { type: String, default: '/register' },
     coverImage: { type: String, default: '' },
+    muallimId: { type: Schema.Types.ObjectId, ref: 'Muallim', default: null },
+    muallimName: { type: String, default: '' },
+    muallimDesignation: { type: String, default: '' },
+    muallimPhone: { type: String, default: '' },
+    muallimPhoto: { type: String, default: '' },
+    muallimTiming: { type: String, default: '' },
     isActive: { type: Boolean, default: true, index: true },
     order: { type: Number, default: 0 },
   },

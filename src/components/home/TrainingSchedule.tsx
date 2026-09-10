@@ -41,7 +41,7 @@ const fallbackBanglaBatches: BatchData[] = [
     medium: "bangla",
     title: "মুয়াল্লিম প্রশিক্ষণ (বাংলা)",
     subtitle: "৩০ দিন ব্যাপী বিশেষ শিক্ষক প্রশিক্ষণ কোর্স",
-    badge: "বাংলা মাধ্যম",
+    badge: "বাংলা",
     durationDays: "৩০",
     durationText: "দিন মেয়াদী প্রশিক্ষণ",
     price: "৳ ৫,৫০০",
@@ -61,7 +61,7 @@ const fallbackArabicBatches: BatchData[] = [
     medium: "arabic",
     title: "মুয়াল্লিম প্রশিক্ষণ (আরবী)",
     subtitle: "৫০ দিন ব্যাপী উচ্চতর আরবী শিক্ষক প্রশিক্ষণ",
-    badge: "আরবি মাধ্যম",
+    badge: "আরবি",
     durationDays: "৫০",
     durationText: "দিন মেয়াদী প্রশিক্ষণ",
     price: "৳ ৭,৫০০",
@@ -200,7 +200,9 @@ function MediumTrainingCard({
       <div className="relative z-10 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span className={`text-xs font-bold px-3 py-1 rounded-full border ${theme.badgeBg}`}>
-            {activeBatch.badge || (isBangla ? "বাংলা মাধ্যম" : "আরবি মাধ্যম")}
+            {activeBatch.badge && activeBatch.badge !== "বাংলা মাধ্যম" && activeBatch.badge !== "আরবি মাধ্যম"
+              ? activeBatch.badge
+              : (isBangla ? "বাংলা" : "আরবি")}
           </span>
 
           {validBatches.length > 1 && (

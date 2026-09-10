@@ -152,13 +152,7 @@ const DEFAULT_INITIAL_SESSIONS = [
 export async function GET(request: Request) {
   try {
     await connectDB();
-    let sessions = await ExamSession.find({}).sort({ sessionYear: -1 }).lean();
-
-    if (sessions.length === 0) {
-      await ExamSession.insertMany(DEFAULT_INITIAL_SESSIONS as any);
-      sessions = await ExamSession.find({}).sort({ sessionYear: -1 }).lean();
-    }
-
+    const sessions = await ExamSession.find({}).sort({ sessionYear: -1 }).lean();
     return NextResponse.json({ sessions });
   } catch (error: any) {
     console.error("Error fetching exams:", error);
@@ -179,18 +173,21 @@ export async function POST(request: Request) {
     await connectDB();
 
     if (action === "create_session") {
-      if (!sessionYear || !sessionYear.trim()) {
-        return NextResponse.json({ error: "সেশন নাম/বছর আবশ্যক" }, { status: 400 });
+      const customName = sessionYear?.trim();
+      if (!customName) {
+        return NextResponse.json({ error: "সেশনের নাম আবশ্যক" }, { status: 400 });
       }
 
-      const existing = await ExamSession.findOne({ sessionYear: sessionYear.trim() });
+      const existing = await ExamSession.findOne({
+        $or: [{ sessionYear: customName }, { title: customName }]
+      });
       if (existing) {
-        return NextResponse.json({ error: "এই সেশনটি ইতিমধ্যে বিদ্যমান" }, { status: 400 });
+        return NextResponse.json({ error: "এই নামের সেশন ইতিমধ্যে বিদ্যমান" }, { status: 400 });
       }
 
       const newSession = await ExamSession.create({
-        sessionYear: sessionYear.trim(),
-        title: title || `${sessionYear.trim()} শিক্ষাবর্ষ`,
+        sessionYear: customName,
+        title: title?.trim() || customName,
         status: "ACTIVE",
         exams: [],
       });

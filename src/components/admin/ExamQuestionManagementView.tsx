@@ -173,8 +173,11 @@ export default function ExamQuestionManagementView() {
 
   // Modals State
   const [showSessionModal, setShowSessionModal] = useState(false);
+  const [editingSession, setEditingSession] = useState<ExamSessionType | null>(null);
   const [sessionForm, setSessionForm] = useState({ sessionYear: "", title: "" });
   const [savingSession, setSavingSession] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<ExamSessionType | null>(null);
+  const [deletingSession, setDeletingSession] = useState(false);
 
   const [showExamModal, setShowExamModal] = useState(false);
   const [examForm, setExamForm] = useState<{
@@ -356,34 +359,70 @@ export default function ExamQuestionManagementView() {
     });
   }, [activeExam, selectedClassFilter, searchQuery]);
 
-  // Session Creation
+  // Session Creation & Edit Handlers
+  const handleOpenCreateSession = () => {
+    setEditingSession(null);
+    setSessionForm({ sessionYear: "", title: "" });
+    setShowSessionModal(true);
+  };
+
+  const handleOpenEditSession = (s: ExamSessionType) => {
+    setEditingSession(s);
+    setSessionForm({
+      sessionYear: s.sessionYear || "",
+      title: s.title || "",
+    });
+    setShowSessionModal(true);
+  };
+
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionForm.sessionYear.trim()) {
-      alert({ title: "সতর্কতা", message: "সেশনের বছর দিন (উদাঃ ২০২৬)", type: "warning" });
+    const customName = sessionForm.sessionYear.trim();
+    if (!customName) {
+      alert({ title: "সতর্কতা", message: "সেশনের নাম লিখুন (উদাঃ ২০২৬, ২০২৬-২০২৭, বা বিশেষ সেশন)", type: "warning" });
       return;
     }
     setSavingSession(true);
     try {
-      const res = await fetch("/api/admin/exams", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "create_session",
-          sessionYear: sessionForm.sessionYear.trim(),
-          title: sessionForm.title.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create session");
+      if (editingSession) {
+        // Update existing session
+        const res = await fetch(`/api/admin/exams/${editingSession._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "update_session",
+            sessionYear: customName,
+            title: sessionForm.title.trim() || customName,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to update session");
 
-      alert({ title: "সফল", message: "নতুন সেশন তৈরি হয়েছে", type: "success" });
+        alert({ title: "সফল", message: `"${customName}" সেশন সফলভাবে আপডেট হয়েছে`, type: "success" });
+      } else {
+        // Create new session
+        const res = await fetch("/api/admin/exams", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "create_session",
+            sessionYear: customName,
+            title: sessionForm.title.trim() || customName,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to create session");
+
+        alert({ title: "সফল", message: `"${customName}" সেশন সফলভাবে তৈরি হয়েছে`, type: "success" });
+        if (data.session) {
+          setActiveSessionId(data.session._id);
+        }
+      }
+
       setShowSessionModal(false);
+      setEditingSession(null);
       setSessionForm({ sessionYear: "", title: "" });
       await fetchSessions();
-      if (data.session) {
-        setActiveSessionId(data.session._id);
-      }
     } catch (err: any) {
       alert({ title: "ত্রুটি", message: err.message, type: "error" });
     } finally {
@@ -391,24 +430,22 @@ export default function ExamQuestionManagementView() {
     }
   };
 
-  // Delete Session
-  const handleDeleteSession = async (sessionId: string) => {
-    const isConfirmed = await confirm({
-      title: "সতর্কতা",
-      message: "এই শিক্ষাবর্ষ ও এর সকল পরীক্ষা মুছে ফেলতে চান?",
-      type: "error",
-      confirmText: "মুছে ফেলুন",
-      cancelText: "বাতিল",
-    });
-    if (!isConfirmed) return;
-
+  // Delete Session with Custom Confirmation
+  const handleExecuteDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    setDeletingSession(true);
     try {
-      const res = await fetch(`/api/admin/exams/${sessionId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete session");
-      alert({ title: "সফল", message: "সেশন মুছে ফেলা হয়েছে", type: "success" });
+      const res = await fetch(`/api/admin/exams/${sessionToDelete._id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete session");
+
+      alert({ title: "সফল", message: `"${sessionToDelete.title?.trim() || sessionToDelete.sessionYear}" সেশন সফলভাবে মুছে ফেলা হয়েছে`, type: "success" });
+      setSessionToDelete(null);
       await fetchSessions();
     } catch (err: any) {
       alert({ title: "ত্রুটি", message: err.message, type: "error" });
+    } finally {
+      setDeletingSession(false);
     }
   };
 
@@ -831,20 +868,33 @@ export default function ExamQuestionManagementView() {
           </div>
 
           <div className="flex items-center gap-2">
-            {activeSession && sessions.length > 1 && (
-              <button
-                onClick={() => handleDeleteSession(activeSession._id)}
-                className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
-                title="বর্তমান সেশন ডিলিট"
-              >
-                <Trash2 className="w-3 h-3" />
-                <span>সেশন ডিলিট</span>
-              </button>
+            {activeSession && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleOpenEditSession(activeSession)}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors cursor-pointer"
+                  title={`"${activeSession.title?.trim() || activeSession.sessionYear}" সেশন এডিট করুন`}
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                  <span>সেশন এডিট</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSessionToDelete(activeSession)}
+                  className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
+                  title={`"${activeSession.title?.trim() || activeSession.sessionYear}" সেশন মুছে ফেলুন`}
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  <span>সেশন ডিলিট</span>
+                </button>
+              </>
             )}
 
             <button
-              onClick={() => setShowSessionModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-lg border border-emerald-200 transition-all"
+              onClick={handleOpenCreateSession}
+              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-lg border border-emerald-200 transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>সেশন যোগ</span>
@@ -857,24 +907,63 @@ export default function ExamQuestionManagementView() {
           {sessions.length === 0 ? (
             <span className="text-xs text-slate-400">কোনো সেশন তৈরি করা হয়নি। "+ সেশন যোগ" করুন।</span>
           ) : (
-            sessions.map((s) => (
-              <button
-                key={s._id}
-                onClick={() => handleSelectSession(s._id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  activeSessionId === s._id
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                <span>{s.sessionYear}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  activeSessionId === s._id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-                }`}>
-                  {s.exams?.length || 0} পরীক্ষা
-                </span>
-              </button>
-            ))
+            sessions.map((s) => {
+              const isSelected = activeSessionId === s._id;
+              const displayName = s.title?.trim() || s.sessionYear;
+              return (
+                <div
+                  key={s._id}
+                  className={`inline-flex items-center rounded-lg border transition-all ${
+                    isSelected
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSession(s._id)}
+                    className="px-3 py-1.5 text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>{displayName}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {s.exams?.length || 0} পরীক্ষা
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEditSession(s);
+                    }}
+                    className={`p-1.5 rounded hover:bg-black/10 transition-colors ${
+                      isSelected ? "text-white/80 hover:text-white" : "text-slate-400 hover:text-blue-600"
+                    }`}
+                    title={`"${displayName}" সেশন এডিট করুন`}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSessionToDelete(s);
+                    }}
+                    className={`p-1.5 mr-1 rounded hover:bg-black/10 transition-colors ${
+                      isSelected ? "text-white/80 hover:text-white" : "text-slate-400 hover:text-red-600"
+                    }`}
+                    title={`"${displayName}" সেশন ডিলিট করুন`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -1301,12 +1390,14 @@ export default function ExamQuestionManagementView() {
 
       {/* ----------------- CLEAN MODALS ----------------- */}
 
-      {/* 1. Session Modal */}
+      {/* 1. Session Modal with Custom Name (Create or Edit) */}
       {showSessionModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden border border-slate-100">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
-              <h3 className="font-bold text-sm text-slate-800">নতুন শিক্ষাবর্ষ</h3>
+              <h3 className="font-bold text-sm text-slate-800">
+                {editingSession ? "সেশন সম্পাদনা" : "নতুন সেশন তৈরি"}
+              </h3>
               <button onClick={() => setShowSessionModal(false)} className="p-1 hover:bg-slate-100 rounded-full text-slate-400">
                 <X className="w-4 h-4" />
               </button>
@@ -1314,26 +1405,32 @@ export default function ExamQuestionManagementView() {
             <form onSubmit={handleSaveSession} className="p-4 space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  সেশনের বছর <span className="text-red-500">*</span>
+                  সেশনের নাম (Custom Name) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="উদাঃ ২০২৬"
+                  placeholder="যেমন: ২০২৬, ২০২৬-২০২৭, বা বিশেষ সেশন"
                   value={sessionForm.sessionYear}
                   onChange={(e) => setSessionForm({ ...sessionForm, sessionYear: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3 py-2 border rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600"
                   required
+                  autoFocus
                 />
+                <p className="text-[10.5px] text-slate-400 mt-1">
+                  এখানে আপনার পছন্দমতো যে কোনো কাস্টম নাম বা শিক্ষাবর্ষ লিখতে পারেন।
+                </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">শিরোনাম</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  উপ-শিরোনাম / অতিরিক্ত বিবরণ (ঐচ্ছিক)
+                </label>
                 <input
                   type="text"
-                  placeholder="উদাঃ ২০২৬ শিক্ষাবর্ষ (১৪৪৭ হিজরি)"
+                  placeholder="যেমন: ১৪৪৭-১৪৪৮ হিজরি"
                   value={sessionForm.title}
                   onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-emerald-600 text-slate-700"
                 />
               </div>
 
@@ -1350,10 +1447,68 @@ export default function ExamQuestionManagementView() {
                   disabled={savingSession}
                   className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {savingSession ? "অপেক্ষা করুন..." : "সংরক্ষণ"}
+                  {savingSession ? "অপেক্ষা করুন..." : editingSession ? "আপডেট করুন" : "সংরক্ষণ"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM SESSION DELETE CONFIRMATION MODAL */}
+      {sessionToDelete && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-red-100 animate-in zoom-in-95 duration-200">
+            <div className="p-4 bg-red-50/80 border-b border-red-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-red-900">সেশন মুছে ফেলার নিশ্চিতকরণ</h3>
+                <p className="text-[11px] text-red-700">এই পরিবর্তনটি পূর্বাবস্থায় ফেরানো যাবে না</p>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                আপনি কি নিশ্চিতভাবে{" "}
+                <strong className="text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded font-bold">
+                  {sessionToDelete.title?.trim() || sessionToDelete.sessionYear}
+                </strong>{" "}
+                সেশনটি মুছে ফেলতে চান?
+              </p>
+
+              {sessionToDelete.exams && sessionToDelete.exams.length > 0 && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <span>⚠ সতর্কতা:</span>
+                  </p>
+                  <p className="text-[11.5px] leading-relaxed">
+                    এই সেশনের অধীনে <strong className="font-black">{sessionToDelete.exams.length}টি পরীক্ষা</strong> এবং সকল প্রশ্নপত্র সংরক্ষিত আছে। সেশন ডিলিট করলে এগুলো স্থায়ীভাবে মুছে যাবে।
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setSessionToDelete(null)}
+                disabled={deletingSession}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 transition-colors disabled:opacity-50"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteDeleteSession}
+                disabled={deletingSession}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{deletingSession ? "মুছে ফেলা হচ্ছে..." : "হ্যাঁ, মুছে ফেলুন"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ import StoreManagementView from "@/components/admin/store/StoreManagementView";
 import CurriculumManagementView from "@/components/admin/CurriculumManagementView";
 import BatchManagementView from "@/components/admin/BatchManagementView";
 import ExamQuestionManagementView from "@/components/admin/ExamQuestionManagementView";
+import MuallimManagementView from "@/components/admin/MuallimManagementView";
 import { FileCheck } from "lucide-react";
 
 type UserType = {
@@ -2612,6 +2613,7 @@ function AdminDashboardContent() {
             { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
             { id: "exams", icon: FileCheck, label: "পরীক্ষা ও প্রশ্নপত্র" },
             { id: "batches", icon: GraduationCap, label: "প্রশিক্ষণ ব্যাচ" },
+            { id: "muallim", icon: UserCheck, label: "মুয়াল্লিম পরিচালনা" },
             { id: "store", icon: ShoppingBag, label: "স্টোর পরিচালনা" },
             { id: "curriculum", icon: BookOpen, label: "কারিকুলাম" },
             { id: "applications", icon: ClipboardList, label: "আবেদন", badge: applications.filter(a=>a.status==='PENDING').length },
@@ -2668,6 +2670,7 @@ function AdminDashboardContent() {
         {activeTab === "applications" && renderApplicationManagement()}
         {activeTab === "exams" && <ExamQuestionManagementView />}
         {activeTab === "batches" && <BatchManagementView />}
+        {activeTab === "muallim" && <MuallimManagementView />}
         {activeTab === "store" && renderStoreManagement()}
         {activeTab === "curriculum" && <CurriculumManagementView />}
         {activeTab === "dashboard" && renderDashboard()}

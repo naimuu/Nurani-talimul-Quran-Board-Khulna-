@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, 
@@ -107,6 +107,37 @@ export default function AdmissionRequestsTab({
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "ACCEPTED" | "REJECTED">("ALL");
   const [mediumFilter, setMediumFilter] = useState<"ALL" | "bangla" | "arabic">("ALL");
   const [batchFilter, setBatchFilter] = useState<string>("ALL");
+  const [allBatches, setAllBatches] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/training/batches?all=true")
+      .then(res => res.json())
+      .then(data => {
+        if (data.batches) setAllBatches(data.batches);
+      })
+      .catch(err => console.error("Error fetching batches:", err));
+  }, []);
+
+  const batchOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    allBatches.forEach(b => {
+      if (b.batch) {
+        map.set(b.id || b._id || b.batch, b.batch);
+      }
+    });
+    counts.batchCounts?.forEach(bc => {
+      if (bc.batchName) {
+        const key = bc.batchId || bc.batchName;
+        if (!map.has(key)) {
+          map.set(key, bc.batchName);
+        }
+      }
+    });
+    return Array.from(map.entries()).map(([val, label]) => ({
+      value: val,
+      label: label
+    }));
+  }, [allBatches, counts.batchCounts]);
 
   // Modals
   const [selectedAdmission, setSelectedAdmission] = useState<AdmissionItem | null>(null);
@@ -265,97 +296,113 @@ export default function AdmissionRequestsTab({
     <div className="space-y-6">
       
       {/* 4 Stat Overview Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         
         {/* Total Applications */}
         <div 
           onClick={() => setStatusFilter("ALL")}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+          className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
             statusFilter === "ALL" 
-              ? "bg-emerald-900 text-white border-emerald-950 shadow-md scale-[1.02]" 
-              : "bg-white text-slate-800 border-slate-200/80 hover:border-emerald-300"
+              ? "bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-600/20 shadow-xs" 
+              : "bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold uppercase ${statusFilter === "ALL" ? "text-emerald-200" : "text-slate-500"}`}>
-              সর্বমোট আবেদন
-            </span>
-            <Users className={`w-4 h-4 ${statusFilter === "ALL" ? "text-amber-300" : "text-emerald-700"}`} />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              statusFilter === "ALL" ? "bg-emerald-700 text-white" : "bg-emerald-50 text-emerald-700"
+            }`}>
+              <Users className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-slate-600 block leading-tight truncate">
+                সর্বমোট আবেদন
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium">সকল ব্যাচ</span>
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black mt-2 leading-none">
+          <span className="text-xl sm:text-2xl font-black text-slate-900 shrink-0">
             {counts.total}
-          </p>
-          <span className={`text-[11px] font-semibold mt-1 block ${statusFilter === "ALL" ? "text-emerald-200" : "text-slate-400"}`}>
-            সকল ব্যাচের আবেদন
           </span>
         </div>
 
         {/* Pending Requests */}
         <div 
           onClick={() => setStatusFilter("PENDING")}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+          className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
             statusFilter === "PENDING" 
-              ? "bg-amber-600 text-white border-amber-700 shadow-md scale-[1.02]" 
-              : "bg-white text-slate-800 border-slate-200/80 hover:border-amber-300"
+              ? "bg-amber-50/80 border-amber-600 ring-2 ring-amber-600/20 shadow-xs" 
+              : "bg-white border-slate-200/90 hover:border-amber-300 hover:bg-amber-50/30 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold uppercase ${statusFilter === "PENDING" ? "text-amber-100" : "text-amber-800"}`}>
-              অপেক্ষমান (Pending)
-            </span>
-            <Clock className={`w-4 h-4 ${statusFilter === "PENDING" ? "text-white" : "text-amber-600"}`} />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              statusFilter === "PENDING" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-600"
+            }`}>
+              <Clock className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-slate-600 block leading-tight truncate">
+                অপেক্ষমান
+              </span>
+              <span className="text-[11px] text-amber-700 font-medium">যাচাই প্রয়োজন</span>
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black mt-2 leading-none text-amber-700">
+          <span className="text-xl sm:text-2xl font-black text-amber-700 shrink-0">
             {counts.pending}
-          </p>
-          <span className={`text-[11px] font-semibold mt-1 block ${statusFilter === "PENDING" ? "text-amber-100" : "text-amber-700/80"}`}>
-            যাচাই ও অনুমোদন প্রয়োজন
           </span>
         </div>
 
         {/* Accepted Students */}
         <div 
           onClick={() => setStatusFilter("ACCEPTED")}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+          className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
             statusFilter === "ACCEPTED" 
-              ? "bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]" 
-              : "bg-white text-slate-800 border-slate-200/80 hover:border-emerald-300"
+              ? "bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-600/20 shadow-xs" 
+              : "bg-white border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/30 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold uppercase ${statusFilter === "ACCEPTED" ? "text-emerald-100" : "text-emerald-800"}`}>
-              অনুমোদিত শিক্ষার্থী
-            </span>
-            <CheckCircle2 className={`w-4 h-4 ${statusFilter === "ACCEPTED" ? "text-white" : "text-emerald-600"}`} />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              statusFilter === "ACCEPTED" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-600"
+            }`}>
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-slate-600 block leading-tight truncate">
+                অনুমোদিত
+              </span>
+              <span className="text-[11px] text-emerald-700 font-medium">ভর্তি নিশ্চিত</span>
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black mt-2 leading-none text-emerald-700">
+          <span className="text-xl sm:text-2xl font-black text-emerald-700 shrink-0">
             {counts.accepted}
-          </p>
-          <span className={`text-[11px] font-semibold mt-1 block ${statusFilter === "ACCEPTED" ? "text-emerald-100" : "text-emerald-700/80"}`}>
-            ভর্তি নিশ্চিতকৃত শিক্ষার্থী
           </span>
         </div>
 
         {/* Rejected Requests */}
         <div 
           onClick={() => setStatusFilter("REJECTED")}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+          className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
             statusFilter === "REJECTED" 
-              ? "bg-red-600 text-white border-red-700 shadow-md scale-[1.02]" 
-              : "bg-white text-slate-800 border-slate-200/80 hover:border-red-300"
+              ? "bg-red-50/80 border-red-600 ring-2 ring-red-600/20 shadow-xs" 
+              : "bg-white border-slate-200/90 hover:border-red-300 hover:bg-red-50/30 shadow-2xs"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold uppercase ${statusFilter === "REJECTED" ? "text-red-100" : "text-red-700"}`}>
-              বাতিলকৃত আবেদন
-            </span>
-            <XCircle className={`w-4 h-4 ${statusFilter === "REJECTED" ? "text-white" : "text-red-500"}`} />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              statusFilter === "REJECTED" ? "bg-red-600 text-white" : "bg-red-50 text-red-600"
+            }`}>
+              <XCircle className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-slate-600 block leading-tight truncate">
+                বাতিলকৃত
+              </span>
+              <span className="text-[11px] text-red-600 font-medium">অনুপযুক্ত</span>
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black mt-2 leading-none text-red-600">
+          <span className="text-xl sm:text-2xl font-black text-red-600 shrink-0">
             {counts.rejected}
-          </p>
-          <span className={`text-[11px] font-semibold mt-1 block ${statusFilter === "REJECTED" ? "text-red-100" : "text-red-600/80"}`}>
-            অনুপযুক্ত বা বাতিল আবেদন
           </span>
         </div>
 
@@ -381,14 +428,16 @@ export default function AdmissionRequestsTab({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {counts.batchCounts.map((bc, idx) => {
-              const isSelected = batchFilter === bc.batchId || (batchFilter === "ALL" && false);
+              const isSelected = batchFilter === bc.batchId || batchFilter === bc.batchName;
               return (
                 <div
                   key={idx}
                   className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
-                    bc.medium === "bangla" 
-                      ? "bg-emerald-50/40 border-emerald-200 hover:border-emerald-400" 
-                      : "bg-amber-50/40 border-amber-200 hover:border-amber-400"
+                    isSelected
+                      ? "ring-2 ring-emerald-600 bg-emerald-100/60 border-emerald-400 shadow-sm"
+                      : bc.medium === "bangla" 
+                        ? "bg-emerald-50/40 border-emerald-200 hover:border-emerald-400" 
+                        : "bg-amber-50/40 border-amber-200 hover:border-amber-400"
                   }`}
                 >
                   <div className="space-y-1">
@@ -413,10 +462,12 @@ export default function AdmissionRequestsTab({
                   <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
                     <button
                       type="button"
-                      onClick={() => setBatchFilter(bc.batchId || "ALL")}
-                      className="text-[11px] font-bold text-emerald-800 hover:underline flex items-center gap-1"
+                      onClick={() => setBatchFilter(isSelected ? "ALL" : (bc.batchId || bc.batchName))}
+                      className={`text-[11px] font-bold flex items-center gap-1 ${
+                        isSelected ? "text-emerald-950 underline font-black" : "text-emerald-800 hover:underline"
+                      }`}
                     >
-                      <span>আবেদন ফিল্টার করুন</span>
+                      <span>{isSelected ? "ফিল্টার সরানো (রিসেট)" : "আবেদন ফিল্টার করুন"}</span>
                     </button>
 
                     <button
@@ -481,14 +532,53 @@ export default function AdmissionRequestsTab({
             className="px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-emerald-600"
           >
             <option value="ALL">সকল মাধ্যম</option>
-            <option value="bangla">বাংলা মাধ্যম</option>
-            <option value="arabic">আরবি মাধ্যম</option>
+            <option value="bangla">বাংলা</option>
+            <option value="arabic">আরবি</option>
           </select>
+
+          {/* Batch Selector Filter */}
+          <select
+            value={batchFilter}
+            onChange={e => setBatchFilter(e.target.value)}
+            className={`px-3 py-2 text-xs font-bold rounded-xl border transition-all ${
+              batchFilter !== "ALL"
+                ? "border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/20"
+                : "border-slate-200 bg-white text-slate-700"
+            } focus:outline-none focus:border-emerald-600 max-w-[200px] truncate`}
+            title="নির্দিষ্ট ব্যাচ অনুযায়ী ফিল্টার করুন"
+          >
+            <option value="ALL">সকল ব্যাচ {batchOptions.length > 0 ? `(${batchOptions.length})` : ""}</option>
+            {batchOptions.map(b => (
+              <option key={b.value} value={b.value}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Reset button if any filter active */}
+          {(statusFilter !== "ALL" || mediumFilter !== "ALL" || batchFilter !== "ALL" || searchQuery) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("ALL");
+                setMediumFilter("ALL");
+                setBatchFilter("ALL");
+                setSearchQuery("");
+              }}
+              className="px-2.5 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              title="সকল ফিল্টার রিসেট করুন"
+            >
+              রিসেট
+            </button>
+          )}
 
           {/* Print Button */}
           <button
             type="button"
-            onClick={() => openBatchPrint("ALL")}
+            onClick={() => {
+              const selectedBatchObj = batchOptions.find(b => b.value === batchFilter);
+              openBatchPrint(selectedBatchObj ? selectedBatchObj.label : (batchFilter !== "ALL" ? batchFilter : "ALL"));
+            }}
             className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -606,7 +696,7 @@ export default function AdmissionRequestsTab({
                             ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
                             : "bg-amber-50 text-amber-900 border-amber-200"
                         }`}>
-                          {isBangla ? "বাংলা মাধ্যম" : "আরবি মাধ্যম"}
+                          {isBangla ? "বাংলা" : "আরবি"}
                         </span>
                       </td>
 
@@ -748,7 +838,7 @@ export default function AdmissionRequestsTab({
                         </p>
                       )}
                       <p className="text-xs text-emerald-800 font-bold mt-0.5">
-                        ব্যাচ: {selectedAdmission.batchName} ({selectedAdmission.medium === "bangla" ? "বাংলা মাধ্যম" : "আরবি মাধ্যম"})
+                        ব্যাচ: {selectedAdmission.batchName} ({selectedAdmission.medium === "bangla" ? "বাংলা" : "আরবি"})
                       </p>
                     </div>
                   </div>

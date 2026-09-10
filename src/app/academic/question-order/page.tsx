@@ -41,143 +41,14 @@ type QuestionItem = {
   pricePerSet: number;
   description: string;
   dbProductId?: string;
+  sessionId?: string;
+  sessionYear?: string;
+  sessionName?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  subjects?: string[];
+  instructions?: string;
 };
-
-const DEFAULT_QUESTION_SETS: QuestionItem[] = [
-  // ১ম শ্রেণী
-  {
-    id: "q_class1_term1",
-    name: "১ম সাময়িক পরীক্ষা — নূরানী ১ম শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "১ম শ্রেণী",
-    examTerm: "১ম সাময়িক",
-    pricePerSet: 15,
-    description: "কুরআন মাজীদ, তাজবীদ, বাংলা, ইংরেজি ও গণিত প্রশ্নপত্র সেট"
-  },
-  {
-    id: "q_class1_term2",
-    name: "২য় সাময়িক পরীক্ষা — নূরানী ১ম শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "১ম শ্রেণী",
-    examTerm: "২য় সাময়িক",
-    pricePerSet: 15,
-    description: "কুরআন মাজীদ, তাজবীদ, বাংলা, ইংরেজি ও গণিত প্রশ্নপত্র সেট"
-  },
-  {
-    id: "q_class1_annual",
-    name: "বার্ষিক পরীক্ষা — নূরানী ১ম শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "১ম শ্রেণী",
-    examTerm: "বার্ষিক পরীক্ষা",
-    pricePerSet: 18,
-    description: "কেন্দ্রীয় বার্ষিক সমাপনী পরীক্ষার পূর্ণাঙ্গ প্রশ্নপত্র সেট"
-  },
-
-  // ২য় শ্রেণী
-  {
-    id: "q_class2_term1",
-    name: "১ম সাময়িক পরীক্ষা — নূরানী ২য় শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "২য় শ্রেণী",
-    examTerm: "১ম সাময়িক",
-    pricePerSet: 18,
-    description: "কুরআন, আকাইদ ও মাসায়েল, বাংলা, ইংরেজি, অংক ও আরবি"
-  },
-  {
-    id: "q_class2_term2",
-    name: "২য় সাময়িক পরীক্ষা — নূরানী ২য় শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "২য় শ্রেণী",
-    examTerm: "২য় সাময়িক",
-    pricePerSet: 18,
-    description: "কুরআন, আকাইদ ও মাসায়েল, বাংলা, ইংরেজি, অংক ও আরবি"
-  },
-  {
-    id: "q_class2_annual",
-    name: "বার্ষিক পরীক্ষা — নূরানী ২য় শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "২য় শ্রেণী",
-    examTerm: "বার্ষিক পরীক্ষা",
-    pricePerSet: 20,
-    description: "কেন্দ্রীয় বার্ষিক মূল্যায়ন পরীক্ষার পূর্ণাঙ্গ প্রশ্নপত্র সেট"
-  },
-
-  // ৩য় শ্রেণী
-  {
-    id: "q_class3_term1",
-    name: "১ম সাময়িক পরীক্ষা — নূরানী ৩য় শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "৩য় শ্রেণী",
-    examTerm: "১ম সাময়িক",
-    pricePerSet: 20,
-    description: "তাজবীদসহ কুরআন, ফারসি/উর্দু, বাংলা, ইংরেজি, অংক ও সাধারণ জ্ঞান"
-  },
-  {
-    id: "q_class3_term2",
-    name: "২য় সাময়িক পরীক্ষা — নূরানী ৩য় শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "৩য় শ্রেণী",
-    examTerm: "২য় সাময়িক",
-    pricePerSet: 20,
-    description: "তাজবীদসহ কুরআন, ফারসি/উর্দু, বাংলা, ইংরেজি, অংক ও সাধারণ জ্ঞান"
-  },
-  {
-    id: "q_class3_annual",
-    name: "বার্ষিক পরীক্ষা — নূরানী ৩য় শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "৩য় শ্রেণী",
-    examTerm: "বার্ষিক পরীক্ষা",
-    pricePerSet: 22,
-    description: "নূরানী ৩য় শ্রেণী কেন্দ্রীয় বার্ষিক পরীক্ষার প্রশ্নপত্র সেট"
-  },
-  {
-    id: "q_class3_board",
-    name: "বোর্ড সমাপনী পরীক্ষা — নূরানী ৩য় শ্রেণী",
-    category: "প্রশ্নপত্র",
-    className: "৩য় শ্রেণী",
-    examTerm: "বোর্ড সমাপনী",
-    pricePerSet: 25,
-    description: "কেন্দ্রীয় নূরানী বোর্ড সমাপনী পরীক্ষার সকল বিষয়ের প্রশ্ন সেট"
-  },
-
-  // শিশু / প্লে ও অন্যান্য
-  {
-    id: "q_play_term1",
-    name: "১ম সাময়িক পরীক্ষা — শিশু শ্রেণী (প্লে)",
-    category: "প্রশ্নপত্র",
-    className: "শিশু / প্লে",
-    examTerm: "১ম সাময়িক",
-    pricePerSet: 12,
-    description: "শিশু শ্রেণীর প্রাথমিক কায়েদা, সংখ্যা ও বর্ণমালা মূল্যায়ন"
-  },
-  {
-    id: "q_play_annual",
-    name: "বার্ষিক পরীক্ষা — শিশু শ্রেণী (প্লে)",
-    category: "প্রশ্নপত্র",
-    className: "শিশু / প্লে",
-    examTerm: "বার্ষিক পরীক্ষা",
-    pricePerSet: 15,
-    description: "শিশু শ্রেণীর বার্ষিক সমাপনী মূল্যায়ন প্রশ্নপত্র"
-  },
-  {
-    id: "q_hifz_exam",
-    name: "হিফযুল কুরআন মূল্যায়ন পরীক্ষা",
-    category: "প্রশ্নপত্র",
-    className: "হিফয বিভাগ",
-    examTerm: "হিফয পরীক্ষা",
-    pricePerSet: 20,
-    description: "হিফজুল কুরআন শোনানো ও তাজবীদ যাচাই মূল্যায়ন পত্র"
-  },
-  {
-    id: "q_moallem_exam",
-    name: "মুয়াল্লিম প্রশিক্ষণ সমাপনী পরীক্ষা",
-    category: "প্রশ্নপত্র",
-    className: "মুয়াল্লিম কোর্স",
-    examTerm: "মুয়াল্লিম পরীক্ষা",
-    pricePerSet: 30,
-    description: "মুয়াল্লিম প্রশিক্ষণ কোর্স সমাপনী পরীক্ষার বিষয়ভিত্তিক প্রশ্ন সেট"
-  }
-];
 
 export default function QuestionOrderPage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
@@ -239,7 +110,18 @@ export default function QuestionOrderPage() {
       if (savedCart) {
         const parsed = JSON.parse(savedCart);
         if (parsed && typeof parsed === "object") {
-          setCart(parsed);
+          const cleaned: Record<string, any> = {};
+          Object.entries(parsed).forEach(([key, val]: [string, any]) => {
+            if (
+              !key.startsWith("q_class") &&
+              !key.startsWith("q_play") &&
+              !key.startsWith("q_hifz") &&
+              !key.startsWith("q_moallem")
+            ) {
+              cleaned[key] = val;
+            }
+          });
+          setCart(cleaned);
         }
       }
 
@@ -302,9 +184,12 @@ export default function QuestionOrderPage() {
   };
 
   const [examSessions, setExamSessions] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/store/products")
+    setIsLoading(true);
+    const p1 = fetch("/api/store/products")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -318,84 +203,120 @@ export default function QuestionOrderPage() {
       })
       .catch(() => {});
 
-    fetch("/api/exams")
+    const p2 = fetch("/api/exams")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data.sessions)) {
           setExamSessions(data.sessions);
+          if (data.sessions.length > 0) {
+            const def = data.sessions.find((s: any) => s.isDefault) || data.sessions[0];
+            if (def) {
+              setSelectedSessionId(def._id);
+            }
+          }
         }
       })
       .catch(() => {});
+
+    Promise.allSettled([p1, p2]).finally(() => {
+      setIsLoading(false);
+    });
   }, []);
 
   const allQuestionItems = useMemo<QuestionItem[]>(() => {
-    const list: QuestionItem[] = [...DEFAULT_QUESTION_SETS];
+    const list: QuestionItem[] = [];
 
-    // Merge session exams question sets
-    examSessions.forEach((session) => {
+    const sessionsToScan =
+      selectedSessionId === "all"
+        ? examSessions
+        : examSessions.filter((s) => s._id === selectedSessionId || s.sessionYear === selectedSessionId);
+
+    // Merge session exams question sets added from admin
+    sessionsToScan.forEach((session) => {
       session.exams?.forEach((exam: any) => {
         exam.questionSets?.forEach((qs: any) => {
-          if (!qs.isActive && qs.isActive !== undefined) return;
-          const matchIndex = list.findIndex(
-            (d) => d.name === qs.setName || (d.className === qs.className && d.examTerm === exam.name)
-          );
-          if (matchIndex >= 0) {
-            list[matchIndex] = {
-              ...list[matchIndex],
-              pricePerSet: qs.pricePerSet || list[matchIndex].pricePerSet,
-              description: qs.details || list[matchIndex].description,
-            };
-          } else {
-            list.push({
-              id: qs._id ? `qs_${qs._id}` : `qs_${exam._id}_${qs.className}`,
-              name: qs.setName || `${qs.className} — ${exam.name}`,
-              category: "প্রশ্নপত্র",
-              className: qs.className || "সাধারণ",
-              examTerm: exam.name || "সাধারণ",
-              pricePerSet: qs.pricePerSet || 15,
-              description: qs.details || (qs.subjects && qs.subjects.length > 0 ? qs.subjects.join(", ") : "প্রশ্নপত্র সেট"),
-            });
-          }
+          if (qs.isActive === false) return;
+          list.push({
+            id: qs._id ? `qs_${qs._id}` : `qs_${exam._id || exam.name}_${qs.className}_${qs.setName}`,
+            name: qs.setName || `${qs.className} — ${exam.name}`,
+            category: "প্রশ্নপত্র",
+            className: qs.className || "সাধারণ",
+            examTerm: exam.name || exam.examTerm || "সাধারণ",
+            pricePerSet: qs.pricePerSet || 0,
+            description: qs.details || (qs.subjects && qs.subjects.length > 0 ? qs.subjects.join(", ") : "প্রশ্নপত্র সেট"),
+            sessionId: session._id,
+            sessionYear: session.sessionYear,
+            sessionName: (session.title || session.sessionYear || "").trim(),
+            attachmentUrl: qs.attachmentUrl,
+            attachmentName: qs.attachmentName,
+            subjects: qs.subjects,
+            instructions: qs.instructions,
+          });
         });
       });
     });
 
     dbProducts.forEach((p) => {
-      const matchIndex = list.findIndex((d) => d.name === p.name);
-      if (matchIndex >= 0) {
-        list[matchIndex] = {
-          ...list[matchIndex],
-          pricePerSet: p.price,
-          dbProductId: p.id,
-          description: p.description || list[matchIndex].description
-        };
-      } else {
-        list.push({
-          id: `db_${p.id}`,
-          name: p.name,
-          category: p.category || "প্রশ্নপত্র",
-          className: p.className || "অন্যান্য",
-          examTerm: p.subject || "সাধারণ",
-          pricePerSet: p.price,
-          description: p.description || "কেন্দ্রীয় পরীক্ষার প্রশ্নপত্র",
-          dbProductId: p.id
-        });
-      }
+      list.push({
+        id: `db_${p.id}`,
+        name: p.name,
+        category: p.category || "প্রশ্নপত্র",
+        className: p.className || "অন্যান্য",
+        examTerm: p.subject || "সাধারণ",
+        pricePerSet: p.price || 0,
+        description: p.description || "কেন্দ্রীয় পরীক্ষার প্রশ্নপত্র",
+        dbProductId: p.id,
+      });
     });
+
     return list;
-  }, [examSessions, dbProducts]);
+  }, [examSessions, selectedSessionId, dbProducts]);
 
   const examTerms = useMemo(() => {
-    const defaultTerms = ["১ম সাময়িক", "২য় সাময়িক", "বার্ষিক পরীক্ষা", "বোর্ড সমাপনী"];
-    const dynamicTerms = Array.from(new Set(allQuestionItems.map((i) => i.examTerm).filter(Boolean)));
-    return Array.from(new Set([...defaultTerms, ...dynamicTerms]));
-  }, [allQuestionItems]);
+    const sessionsToScan =
+      selectedSessionId === "all"
+        ? examSessions
+        : examSessions.filter((s) => s._id === selectedSessionId || s.sessionYear === selectedSessionId);
+
+    const termSet = new Set<string>();
+    sessionsToScan.forEach((session) => {
+      session.exams?.forEach((exam: any) => {
+        if (exam.name) termSet.add(exam.name);
+      });
+    });
+
+    allQuestionItems.forEach((item) => {
+      if (item.examTerm && item.examTerm !== "সাধারণ") {
+        termSet.add(item.examTerm);
+      }
+    });
+
+    return Array.from(termSet);
+  }, [examSessions, selectedSessionId, allQuestionItems]);
 
   const classNames = useMemo(() => {
-    const defaultClasses = ["১ম শ্রেণী", "২য় শ্রেণী", "৩য় শ্রেণী", "শিশু / প্লে", "হিফয বিভাগ", "মুয়াল্লিম কোর্স"];
-    const dynamicClasses = Array.from(new Set(allQuestionItems.map((i) => i.className).filter(Boolean)));
-    return Array.from(new Set([...defaultClasses, ...dynamicClasses]));
-  }, [allQuestionItems]);
+    // Only classes present in actual question items for this session/exam
+    const relevantItems =
+      selectedTerm === "all"
+        ? allQuestionItems
+        : allQuestionItems.filter((i) => i.examTerm === selectedTerm);
+
+    const classes = Array.from(new Set(relevantItems.map((i) => i.className).filter(Boolean)));
+    return classes;
+  }, [allQuestionItems, selectedTerm]);
+
+  // Auto-reset filters if current selection is no longer available in the active session
+  useEffect(() => {
+    if (selectedTerm !== "all" && !examTerms.includes(selectedTerm)) {
+      setSelectedTerm("all");
+    }
+  }, [examTerms, selectedTerm]);
+
+  useEffect(() => {
+    if (selectedClass !== "all" && !classNames.includes(selectedClass)) {
+      setSelectedClass("all");
+    }
+  }, [classNames, selectedClass]);
 
   const getExamInfo = (termName: string) => {
     if (!termName || termName === "all") return null;
@@ -736,6 +657,32 @@ export default function QuestionOrderPage() {
         <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs mb-3 space-y-2.5">
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+
+            {/* SESSION SELECTOR DROPDOWN */}
+            {examSessions.length > 0 && (
+              <div className="w-full sm:w-52 shrink-0">
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">সেশন:</label>
+                <select
+                  value={selectedSessionId}
+                  onChange={(e) => {
+                    setSelectedSessionId(e.target.value);
+                    setSelectedTerm("all");
+                    setSelectedClass("all");
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer"
+                >
+                  {examSessions.length > 1 && <option value="all">সকল সেশন</option>}
+                  {examSessions.map((session) => {
+                    const exactName = (session.title || session.sessionYear || "").trim();
+                    return (
+                      <option key={session._id} value={session._id}>
+                        {exactName}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
             
             {/* EXAM AS DROPDOWN */}
             <div className="flex-1 min-w-0 sm:max-w-xs">
@@ -743,9 +690,10 @@ export default function QuestionOrderPage() {
               <select
                 value={selectedTerm}
                 onChange={(e) => setSelectedTerm(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer"
+                disabled={examTerms.length === 0}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer disabled:opacity-60"
               >
-                <option value="all">সকল পরীক্ষা (সবগুলো)</option>
+                <option value="all">{examTerms.length === 0 ? "কোনো পরীক্ষা নেই" : "সকল পরীক্ষা (সবগুলো)"}</option>
                 {examTerms.map((term) => {
                   const matchingExam = getExamInfo(term);
                   const status = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
@@ -768,7 +716,7 @@ export default function QuestionOrderPage() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="যেমন: কুরআন, বাংলা, ১ম সাময়িক..."
+                    placeholder="যেমন: কুরআন, বাংলা..."
                     className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-emerald-600 focus:bg-white transition-colors"
                   />
                   {searchQuery && (
@@ -801,6 +749,55 @@ export default function QuestionOrderPage() {
             </div>
 
           </div>
+
+          {/* SESSION PILLS (ONLY SHOW IF CREATED, EXACT NAME) */}
+          {examSessions.length > 0 && (
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-1 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <span className="text-[11px] font-bold text-slate-500 shrink-0 mr-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                সেশন:
+              </span>
+              {examSessions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSessionId("all");
+                    setSelectedTerm("all");
+                    setSelectedClass("all");
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 ${
+                    selectedSessionId === "all"
+                      ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  সকল সেশন
+                </button>
+              )}
+              {examSessions.map((session) => {
+                const isSelected = selectedSessionId === session._id;
+                const exactName = (session.title || session.sessionYear || "").trim();
+                return (
+                  <button
+                    key={session._id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSessionId(session._id);
+                      setSelectedTerm("all");
+                      setSelectedClass("all");
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 shrink-0 ${
+                      isSelected
+                        ? "bg-[#095738] text-white border-[#095738] shadow-xs"
+                        : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>{exactName}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* EXAM STATUS PILLS WITH LIVE COUNTDOWN BADGES */}
           {examTerms.length > 0 && (
@@ -858,46 +855,61 @@ export default function QuestionOrderPage() {
           )}
 
           {/* CLASS NAME AS TABS (WITH GENEROUS MOBILE PADDING & SMOOTH AUTO-CENTERING) */}
-          <div className="pt-2.5 border-t border-slate-100">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <button
-                onClick={(e) => {
-                  setSelectedClass("all");
-                  e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-                }}
-                className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 active:scale-95 border ${
-                  selectedClass === "all"
-                    ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs ring-2 ring-amber-400/40"
-                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                }`}
-              >
-                সকল শ্রেণী
-              </button>
-              {classNames.map((cls) => (
+          {classNames.length > 0 && (
+            <div className="pt-2.5 border-t border-slate-100">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <button
-                  key={cls}
                   onClick={(e) => {
-                    setSelectedClass(cls);
+                    setSelectedClass("all");
                     e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
                   }}
                   className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 active:scale-95 border ${
-                    selectedClass === cls
+                    selectedClass === "all"
                       ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs ring-2 ring-amber-400/40"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                   }`}
                 >
-                  {cls}
+                  সকল শ্রেণি
                 </button>
-              ))}
+                {classNames.map((cls) => (
+                  <button
+                    key={cls}
+                    onClick={(e) => {
+                      setSelectedClass(cls);
+                      e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                    }}
+                    className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 active:scale-95 border ${
+                      selectedClass === cls
+                        ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs ring-2 ring-amber-400/40"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                    }`}
+                  >
+                    {cls}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
 
         {/* ─── 4. DEFAULT CLEAN TABLE OR CARD VIEW ──────────────────────────── */}
-        {filteredItems.length === 0 ? (
-          <div className="bg-white p-8 text-center rounded-xl border border-slate-200 text-xs text-slate-500">
-            কোনো প্রশ্নপত্র পাওয়া যায়নি। উপরের ফিল্টার পরিবর্তন করুন।
+        {isLoading ? (
+          <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 shadow-xs my-4 space-y-3">
+            <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs sm:text-sm text-slate-500 font-semibold">প্রশ্নপত্র লোড হচ্ছে...</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="bg-white p-10 sm:p-14 text-center rounded-2xl border border-slate-200 shadow-xs my-4 space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto text-[#095738]">
+              <FileQuestion className="w-7 h-7" />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-slate-800">কোনো প্রশ্নপত্র পাওয়া যায়নি</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              {allQuestionItems.length === 0
+                ? "অ্যাডমিন প্যানেল থেকে এই শিক্ষাবর্ষে এখনও কোনো প্রশ্নপত্র যুক্ত করা হয়নি। অ্যাডমিন কর্তৃক প্রশ্নপত্র যুক্ত করা হলে তা এখানে প্রদর্শিত হবে।"
+                : "নির্বাচিত ফিল্টারের সাথে মিলে এমন কোনো প্রশ্নপত্র পাওয়া যায়নি। অনুগ্রহ করে উপরের ফিল্টার পরিবর্তন করুন।"}
+            </p>
           </div>
         ) : viewMode === "table" ? (
           <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -937,6 +949,11 @@ export default function QuestionOrderPage() {
                                 <span className="text-[#095738] font-black">{item.className}</span>
                                 <span className="text-slate-300 font-normal">—</span>
                                 <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
+                                {item.sessionName && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                    {item.sessionName}
+                                  </span>
+                                )}
                                 {examStatus && (
                                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
                                     {examStatus.badgeText}
@@ -1024,6 +1041,11 @@ export default function QuestionOrderPage() {
                       <span className="text-[#095738] font-black">{item.className}</span>
                       <span className="text-slate-300 font-normal">—</span>
                       <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
+                      {item.sessionName && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                          {item.sessionName}
+                        </span>
+                      )}
                       {examStatus && (
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
                           {examStatus.badgeText}
@@ -1144,7 +1166,10 @@ export default function QuestionOrderPage() {
                     <div key={item.id} className="pt-2.5 first:pt-0 flex items-center justify-between gap-2.5">
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug line-clamp-1">{item.name}</h4>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {item.sessionName && (
+                            <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.2 rounded font-bold">{item.sessionName}</span>
+                          )}
                           <span className="text-[10.5px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-bold">{item.className}</span>
                           <span className="text-[10.5px] bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.2 rounded font-bold">{item.examTerm}</span>
                           <span className="text-[11px] text-slate-500 font-semibold ml-1">
@@ -1282,6 +1307,11 @@ export default function QuestionOrderPage() {
                   <span className="text-[#095738] font-black">{selectedDetailItem.className}</span>
                   <span className="text-slate-300 font-normal">—</span>
                   <span className="text-slate-900 font-black">{selectedDetailItem.examTerm.includes("পরীক্ষা") ? selectedDetailItem.examTerm : `${selectedDetailItem.examTerm} পরীক্ষা`}</span>
+                  {selectedDetailItem.sessionName && (
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      {selectedDetailItem.sessionName}
+                    </span>
+                  )}
                 </h2>
                 {(() => {
                   const matchingExam = getExamInfo(selectedDetailItem.examTerm);

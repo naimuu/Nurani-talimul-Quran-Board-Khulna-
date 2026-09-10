@@ -28,7 +28,8 @@ import {
   Upload,
   X,
   Loader2,
-  Users
+  Users,
+  UserCheck
 } from "lucide-react";
 import { useDialog } from "@/components/ui/DialogProvider";
 import AdmissionRequestsTab from "./training/AdmissionRequestsTab";
@@ -50,6 +51,12 @@ export interface BatchItem {
   link?: string;
   regLink?: string;
   coverImage?: string;
+  muallimId?: string;
+  muallimName?: string;
+  muallimDesignation?: string;
+  muallimPhone?: string;
+  muallimPhoto?: string;
+  muallimTiming?: string;
   isActive: boolean;
   order?: number;
   createdAt?: string;
@@ -70,6 +77,12 @@ const emptyForm: BatchItem = {
   link: "/training/moallem-bangla",
   regLink: "/register",
   coverImage: "",
+  muallimId: "",
+  muallimName: "",
+  muallimDesignation: "",
+  muallimPhone: "",
+  muallimPhoto: "",
+  muallimTiming: "",
   isActive: true,
   order: 0
 };
@@ -114,8 +127,23 @@ export default function BatchManagementView() {
     }
   };
 
+  const [muallims, setMuallims] = useState<any[]>([]);
+
+  const fetchMuallims = async () => {
+    try {
+      const res = await fetch("/api/muallims");
+      if (res.ok) {
+        const data = await res.json();
+        setMuallims(data.muallims || []);
+      }
+    } catch (err) {
+      console.error("Failed to load muallims", err);
+    }
+  };
+
   useEffect(() => {
     fetchBatches();
+    fetchMuallims();
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +187,7 @@ export default function BatchManagementView() {
         medium: "arabic",
         title: "মুয়াল্লিম প্রশিক্ষণ (আরবী)",
         subtitle: "উচ্চতর আরবী শিক্ষক প্রশিক্ষণ",
-        badge: "আরবি মাধ্যম",
+        badge: "আরবি",
         durationDays: "",
         price: "",
         batch: "",
@@ -173,7 +201,7 @@ export default function BatchManagementView() {
         medium: "bangla",
         title: "মুয়াল্লিম প্রশিক্ষণ (বাংলা)",
         subtitle: "শিক্ষক প্রশিক্ষণ কোর্স",
-        badge: "বাংলা মাধ্যম",
+        badge: "বাংলা",
         durationDays: "",
         price: "",
         batch: "",
@@ -199,7 +227,7 @@ export default function BatchManagementView() {
       setFormData(prev => ({
         ...prev,
         medium: newMedium,
-        badge: newMedium === "arabic" ? "আরবি মাধ্যম" : "বাংলা মাধ্যম"
+        badge: newMedium === "arabic" ? "আরবি" : "বাংলা"
       }));
     } else {
       if (newMedium === "arabic") {
@@ -208,7 +236,7 @@ export default function BatchManagementView() {
           medium: "arabic",
           title: "মুয়াল্লিম প্রশিক্ষণ (আরবী)",
           subtitle: "৫০ দিন ব্যাপী উচ্চতর আরবী শিক্ষক প্রশিক্ষণ",
-          badge: "আরবি মাধ্যম",
+          badge: "আরবি",
           durationDays: "৫০",
           price: "৳ ৭,৫০০",
           link: "/training/moallem-arabic"
@@ -219,7 +247,7 @@ export default function BatchManagementView() {
           medium: "bangla",
           title: "মুয়াল্লিম প্রশিক্ষণ (বাংলা)",
           subtitle: "৩০ দিন ব্যাপী বিশেষ শিক্ষক প্রশিক্ষণ কোর্স",
-          badge: "বাংলা মাধ্যম",
+          badge: "বাংলা",
           durationDays: "৩০",
           price: "৳ ৫,৫০০",
           link: "/training/moallem-bangla"
@@ -457,7 +485,7 @@ export default function BatchManagementView() {
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
                   </div>
                   <div>
-                    <span className="text-xs font-bold block text-slate-900 group-hover:text-emerald-900">বাংলা মাধ্যম ব্যাচ</span>
+                    <span className="text-xs font-bold block text-slate-900 group-hover:text-emerald-900">বাংলা ব্যাচ</span>
                     <span className="text-[10.5px] text-slate-400">নতুন সেশন বা ব্যাচ যুক্ত করুন</span>
                   </div>
                 </button>
@@ -474,7 +502,7 @@ export default function BatchManagementView() {
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
                   </div>
                   <div>
-                    <span className="text-xs font-bold block text-slate-900 group-hover:text-amber-950">আরবি মাধ্যম ব্যাচ</span>
+                    <span className="text-xs font-bold block text-slate-900 group-hover:text-amber-950">আরবি ব্যাচ</span>
                     <span className="text-[10.5px] text-slate-400">নতুন সেশন বা ব্যাচ যুক্ত করুন</span>
                   </div>
                 </button>
@@ -507,7 +535,7 @@ export default function BatchManagementView() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>বাংলা মাধ্যম ({banglaCount})</span>
+            <span>বাংলা ({banglaCount})</span>
           </button>
           <button
             onClick={() => setFilterMedium("arabic")}
@@ -518,7 +546,7 @@ export default function BatchManagementView() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span>আরবি মাধ্যম ({arabicCount})</span>
+            <span>আরবি ({arabicCount})</span>
           </button>
         </div>
 
@@ -579,7 +607,9 @@ export default function BatchManagementView() {
                         ? "bg-emerald-100 text-emerald-900 border-emerald-300" 
                         : "bg-amber-100 text-amber-950 border-amber-300"
                     }`}>
-                      {item.badge || (isBangla ? "বাংলা মাধ্যম" : "আরবি মাধ্যম")}
+                      {item.badge && item.badge !== "বাংলা মাধ্যম" && item.badge !== "আরবি মাধ্যম"
+                        ? item.badge
+                        : (isBangla ? "বাংলা" : "আরবি")}
                     </span>
 
                     <div className="flex items-center gap-1.5">
@@ -655,6 +685,46 @@ export default function BatchManagementView() {
                       <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{item.date}</span>
                     </div>
+
+                    {/* Assigned Muallim / Trainer */}
+                    {item.muallimName && (
+                      <div className="flex items-center gap-2.5 p-2 rounded-xl bg-emerald-50/80 border border-emerald-200">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 border border-emerald-300 overflow-hidden shrink-0 flex items-center justify-center">
+                          {item.muallimPhoto ? (
+                            <img src={item.muallimPhoto} alt={item.muallimName} className="w-full h-full object-cover" />
+                          ) : (
+                            <UserCheck className="w-4 h-4 text-emerald-700" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-extrabold text-emerald-950 text-xs truncate">
+                              {item.muallimName}
+                            </span>
+                            {item.muallimDesignation && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white text-emerald-800 border border-emerald-200">
+                                {item.muallimDesignation}
+                              </span>
+                            )}
+                          </div>
+                          {item.muallimTiming && (
+                            <div className="text-[11px] font-bold text-amber-900 flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 text-amber-700 shrink-0" />
+                              <span className="truncate">{item.muallimTiming}</span>
+                            </div>
+                          )}
+                        </div>
+                        {item.muallimPhone && (
+                          <a
+                            href={`tel:${item.muallimPhone}`}
+                            title={`মুয়াল্লিমকে কল করুন: ${item.muallimPhone}`}
+                            className="p-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-900 transition-colors shrink-0"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    )}
 
                     {/* Separate Clickable Mobile Numbers */}
                     <div className="flex items-start gap-2 pt-1.5 border-t border-slate-100">
@@ -751,7 +821,7 @@ export default function BatchManagementView() {
                       }`}
                     >
                       <span className="w-3 h-3 rounded-full bg-emerald-600"></span>
-                      <span>বাংলা মাধ্যম</span>
+                      <span>বাংলা</span>
                     </button>
 
                     <button
@@ -764,7 +834,7 @@ export default function BatchManagementView() {
                       }`}
                     >
                       <span className="w-3 h-3 rounded-full bg-amber-600"></span>
-                      <span>আরবি মাধ্যম</span>
+                      <span>আরবি</span>
                     </button>
                   </div>
                 </div>
@@ -919,6 +989,112 @@ export default function BatchManagementView() {
                       className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
                     />
                   </div>
+                </div>
+
+                {/* Muallim Assignment Section */}
+                <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-emerald-700" />
+                      <label className="text-xs font-black text-emerald-950">
+                        দায়িত্বপ্রাপ্ত শিক্ষক / মুয়াল্লিম ও সময়সূচী (Assigned Trainer)
+                      </label>
+                    </div>
+                    {formData.muallimId && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData(prev => ({
+                            ...prev,
+                            muallimId: "",
+                            muallimName: "",
+                            muallimDesignation: "",
+                            muallimPhone: "",
+                            muallimPhoto: "",
+                            muallimTiming: ""
+                          }))
+                        }
+                        className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline"
+                      >
+                        মুয়াল্লিম অ্যাসাইন বাতিল
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        মুয়াল্লিম নির্বাচন করুন
+                      </label>
+                      <select
+                        value={formData.muallimId || ""}
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          if (!selectedId) {
+                            setFormData(prev => ({
+                              ...prev,
+                              muallimId: "",
+                              muallimName: "",
+                              muallimDesignation: "",
+                              muallimPhone: "",
+                              muallimPhoto: ""
+                            }));
+                          } else {
+                            const found = muallims.find(m => (m.id === selectedId || m._id === selectedId));
+                            if (found) {
+                              setFormData(prev => ({
+                                ...prev,
+                                muallimId: found.id || found._id,
+                                muallimName: found.name,
+                                muallimDesignation: found.designation || "প্রশিক্ষক",
+                                muallimPhone: found.phone || "",
+                                muallimPhoto: found.photoUrl || ""
+                              }));
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600"
+                      >
+                        <option value="">-- কোনো মুয়াল্লিম নির্ধারিত নেই --</option>
+                        {muallims.map(m => (
+                          <option key={m.id || m._id} value={m.id || m._id}>
+                            {m.name} ({m.designation || "প্রশিক্ষক"}) - {m.district || ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        দায়িত্বের সময়সূচী / টাইমিং (Duty Timing)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="উদাঃ সকাল ৯:০০ - দুপুর ১২:৩০ বা মাগরিব-এশা"
+                        value={formData.muallimTiming || ""}
+                        onChange={(e) => setFormData({ ...formData, muallimTiming: e.target.value })}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  {formData.muallimName && (
+                    <div className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-emerald-200 text-xs">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 overflow-hidden shrink-0 flex items-center justify-center">
+                        {formData.muallimPhoto ? (
+                          <img src={formData.muallimPhoto} alt={formData.muallimName} className="w-full h-full object-cover" />
+                        ) : (
+                          <UserCheck className="w-5 h-5 text-emerald-700" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-extrabold text-slate-900">{formData.muallimName}</div>
+                        <div className="text-slate-500 text-[11px]">
+                          {formData.muallimDesignation} {formData.muallimPhone ? `• ফোন: ${formData.muallimPhone}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Cover Image for Batch Card */}
