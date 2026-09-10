@@ -22,7 +22,7 @@ async function verifyAdmin() {
 export async function GET() {
   try {
     const sales = await (prisma as any).storeSale.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
       include: {
         items: { include: { product: true } },
         payments: true,

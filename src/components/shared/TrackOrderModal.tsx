@@ -1,8 +1,45 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Search, X, Package, CheckCircle2, Clock, Truck, Printer, Copy, Camera, QrCode, Sparkles, AlertCircle } from 'lucide-react';
+import { 
+  Search, X, Package, CheckCircle2, Clock, Truck, Printer, Copy, 
+  Camera, QrCode, Sparkles, AlertCircle, UserCheck, ShieldCheck, 
+  CheckCircle, ArrowRight 
+} from 'lucide-react';
 import { QRScannerModal } from './QRScannerModal';
 import { generateQRCodeDataUrl, generateBarcodeSVG } from '@/lib/qrHelper';
+
+function parseTrackingInfo(notes?: string | null, courierName?: string | null) {
+  let trackingId = '';
+  if (notes) {
+    const match = notes.match(/\[(?:Tracking|ট্র্যাকিং|Consignment):\s*([^\]]+)\]/i);
+    if (match) trackingId = match[1].trim();
+  }
+  return {
+    trackingId,
+    courier: courierName || 'পাঠাও কুরিয়ার'
+  };
+}
+
+function getOrderStepNumber(status: string): number {
+  const s = (status || '').trim().toLowerCase();
+  if (s === 'pending order') return 1;
+  if (s === 'confirmed' || s === 'accepted') return 2;
+  if (s === 'packaging') return 3;
+  if (s === 'shipped' || s === 'courier' || s === 'in courier') return 4;
+  if (s === 'delivered' || s === 'completed') return 5;
+  if (s === 'rejected' || s === 'cancelled') return -1;
+  // Counter sales or fallback
+  if (s === 'paid' || s === 'partial' || s === 'pending') return 2;
+  return 1;
+}
+
+const TRACKING_STEPS = [
+  { step: 1, label: "অর্ডার গৃহীত", desc: "সিস্টেমে সফলভাবে গৃহীত", icon: Clock },
+  { step: 2, label: "অনুমোদিত ও নিশ্চিত", desc: "বোর্ড কর্তৃক যাচাই সম্পন্ন", icon: UserCheck },
+  { step: 3, label: "প্যাকেজিং চলছে", desc: "প্যাকিং ও ডেলিভারি প্রস্তুত", icon: Package },
+  { step: 4, label: "কুরিয়ারে হস্তান্তর", desc: "কুরিয়ার সার্ভিসে প্রেরিত", icon: Truck },
+  { step: 5, label: "ডেলিভারি সম্পন্ন", desc: "গ্রাহকের ঠিকানায় পৌঁছেছে", icon: CheckCircle2 },
+];
 
 export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [invoiceId, setInvoiceId] = useState('');
@@ -62,15 +99,25 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
   };
 
   const getStatusIcon = (status: string) => {
-    if (status === 'Completed' || status === 'Delivered') return <CheckCircle2 className="w-5 h-5 text-emerald-600" />;
-    if (status === 'Pending Order' || status === 'Pending') return <Clock className="w-5 h-5 text-amber-500" />;
-    return <Truck className="w-5 h-5 text-blue-500" />;
+    const s = (status || '').trim().toLowerCase();
+    if (s === 'completed' || s === 'delivered') return <CheckCircle2 className="w-5 h-5 text-emerald-600" />;
+    if (s === 'shipped' || s === 'courier') return <Truck className="w-5 h-5 text-cyan-600" />;
+    if (s === 'packaging') return <Package className="w-5 h-5 text-purple-600" />;
+    if (s === 'confirmed' || s === 'accepted') return <CheckCircle className="w-5 h-5 text-blue-600" />;
+    if (s === 'rejected' || s === 'cancelled') return <AlertCircle className="w-5 h-5 text-red-600" />;
+    return <Clock className="w-5 h-5 text-amber-500" />;
   };
 
   const getStatusText = (status: string) => {
-    if (status === 'Completed' || status === 'Delivered') return 'সম্পন্ন হয়েছে';
-    if (status === 'Pending Order' || status === 'Pending') return 'অপেক্ষমান';
-    if (status === 'Shipped') return 'ডেলিভারিতে রয়েছে';
+    const s = (status || '').trim().toLowerCase();
+    if (s === 'completed' || s === 'delivered') return 'ডেলিভারি সম্পন্ন';
+    if (s === 'shipped' || s === 'courier') return 'কুরিয়ারে হস্তান্তরকৃত';
+    if (s === 'packaging') return 'প্যাকেজিং চলছে';
+    if (s === 'confirmed' || s === 'accepted') return 'অনুমোদিত ও নিশ্চিত';
+    if (s === 'rejected' || s === 'cancelled') return 'বাতিলকৃত অর্ডার';
+    if (s === 'pending order' || s === 'pending') return 'অপেক্ষমান অর্ডার';
+    if (s === 'paid') return 'অনুমোদিত (পরিশোধিত)';
+    if (s === 'partial') return 'অনুমোদিত (আংশিক)';
     return status;
   };
 
@@ -345,6 +392,128 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                     </div>
                   </div>
                 </div>
+
+                {/* 5-Step Order Lifecycle Stepper */}
+                {(() => {
+                  const stepNumber = getOrderStepNumber(order.status);
+                  const trackingInfo = parseTrackingInfo(order.notes, order.courierName);
+
+                  if (stepNumber === -1) {
+                    return (
+                      <div className="p-4 sm:p-5 bg-red-50 border-b border-red-200/80 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 shadow-xs">
+                          <AlertCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-red-900 text-sm">এই অর্ডারটি বাতিল করা হয়েছে</h4>
+                          <p className="text-xs text-red-700 mt-0.5 leading-relaxed">
+                            কোনো জিজ্ঞাসা বা সহায়তার জন্য নূরানী বোর্ডের কেন্দ্রীয় হেল্পলাইনে (01820-580560) যোগাযোগ করার জন্য অনুরোধ করা হলো।
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="p-4 sm:p-6 bg-gradient-to-b from-slate-50/90 via-emerald-50/20 to-white border-b border-slate-200/80">
+                      <div className="flex items-center justify-between mb-5">
+                        <div>
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <span>অর্ডার ট্র্যাকিং অগ্রগতি</span>
+                            <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              ধাপ {Math.min(stepNumber, 5)} / ৫
+                            </span>
+                          </span>
+                        </div>
+                        <span className="text-xs font-extrabold text-emerald-800 bg-white px-3 py-1 rounded-full border border-emerald-200 shadow-2xs">
+                          {stepNumber === 1 && "নতুন অর্ডার গৃহীত"}
+                          {stepNumber === 2 && "অনুমোদন সম্পন্ন"}
+                          {stepNumber === 3 && "প্যাকেজিং প্রস্তুত হচ্ছে"}
+                          {stepNumber === 4 && "কুরিয়ারে হস্তান্তর সম্পন্ন"}
+                          {stepNumber === 5 && "ডেলিভারি সম্পন্ন"}
+                        </span>
+                      </div>
+
+                      {/* Horizontal Stepper */}
+                      <div className="relative">
+                        {/* Connecting line for desktop */}
+                        <div className="absolute top-5 left-8 right-8 h-1 bg-slate-200 -translate-y-1/2 z-0 hidden sm:block">
+                          <div 
+                            className="h-full bg-emerald-600 transition-all duration-700 ease-in-out rounded-full" 
+                            style={{ width: `${Math.max(0, Math.min(100, ((stepNumber - 1) / 4) * 100))}%` }}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-2 relative z-10">
+                          {TRACKING_STEPS.map((s) => {
+                            const isCompleted = stepNumber > s.step;
+                            const isCurrent = stepNumber === s.step;
+                            const isUpcoming = stepNumber < s.step;
+
+                            return (
+                              <div key={s.step} className="flex flex-col items-center text-center group">
+                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                                  isCompleted
+                                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                                    : isCurrent
+                                    ? "bg-emerald-600 text-white ring-4 ring-emerald-200 shadow-md animate-pulse"
+                                    : "bg-white text-slate-400 border-2 border-slate-200 shadow-2xs"
+                                }`}>
+                                  {isCompleted ? (
+                                    <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                                  ) : (
+                                    <s.icon className="w-5 h-5 stroke-[2]" />
+                                  )}
+                                </div>
+                                <p className={`mt-2 text-xs font-extrabold leading-tight ${
+                                  isCurrent ? "text-emerald-800" : isCompleted ? "text-slate-800" : "text-slate-400"
+                                }`}>
+                                  {s.label}
+                                </p>
+                                <p className="text-[10px] text-slate-500 mt-0.5 hidden sm:block leading-tight">
+                                  {s.desc}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Highlighted Courier Info Card if in Courier (Step 4 or 5) */}
+                      {stepNumber >= 4 && (
+                        <div className="mt-5 p-3.5 sm:p-4 bg-gradient-to-r from-cyan-50 via-teal-50 to-blue-50 border border-cyan-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <Truck className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-extrabold text-cyan-950">
+                                কুরিয়ার পার্টনার: <span className="text-cyan-800 font-black">{trackingInfo.courier}</span>
+                              </p>
+                              {trackingInfo.trackingId ? (
+                                <p className="text-xs text-slate-700 font-mono mt-0.5">
+                                  ট্র্যাকিং / কনসাইনমেন্ট: <strong className="text-slate-900 bg-white px-2 py-0.5 rounded border border-cyan-300 font-black">{trackingInfo.trackingId}</strong>
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-slate-600 mt-0.5">আপনার পার্সেলটি কুরিয়ারে হস্তান্তর করা হয়েছে।</p>
+                              )}
+                            </div>
+                          </div>
+                          {trackingInfo.trackingId && (
+                            <button
+                              type="button"
+                              onClick={() => navigator.clipboard.writeText(trackingInfo.trackingId)}
+                              className="self-end sm:self-center px-3.5 py-1.5 bg-white hover:bg-cyan-100 text-cyan-900 text-xs font-extrabold rounded-xl border border-cyan-300 shadow-2xs transition-colors flex items-center gap-1.5 active:scale-95"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>ট্র্যাকিং কপি</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 
                 {/* Customer Details Grid */}
                 <div className="p-4 sm:p-5 grid grid-cols-2 gap-4 border-b border-slate-100 bg-white/50 text-xs sm:text-sm">

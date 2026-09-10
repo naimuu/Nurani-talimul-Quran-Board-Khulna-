@@ -42,10 +42,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     });
     if (!existingSale) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Handle Order Accept
-    if (body.action === 'acceptOrder') {
+    // Handle Order Accept / Status Change
+    if (body.action === 'acceptOrder' || body.action === 'updateStatus') {
+      const newStatus = body.status || 'Confirmed';
       const data: Record<string, unknown> = {
-        status: body.status || 'Pending',
+        status: newStatus,
       };
       
       let paymentAmount = 0;
@@ -61,13 +62,26 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       if (body.deliveryCharge !== undefined) data.deliveryCharge = Number(body.deliveryCharge);
       if (body.discount !== undefined) data.discount = Number(body.discount);
       if (body.totalAmount !== undefined) data.totalAmount = Number(body.totalAmount);
+      if (body.courierName !== undefined) data.courierName = body.courierName;
+      if (body.totalWeight !== undefined) data.totalWeight = Number(body.totalWeight);
+      if (body.notes !== undefined) data.notes = body.notes;
 
-      // Deduct stock for all items
-      for (const item of existingSale.items) {
-        await (prisma as any).storeProduct.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
+      // Deduct stock only once when transitioning from 'Pending Order'
+      if (existingSale.status === 'Pending Order' && newStatus !== 'Rejected') {
+        for (const item of existingSale.items) {
+          await (prisma as any).storeProduct.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          });
+        }
+      } else if (newStatus === 'Rejected' && existingSale.status !== 'Pending Order' && existingSale.status !== 'Rejected') {
+        // Return stock if previously accepted order is now rejected
+        for (const item of existingSale.items) {
+          await (prisma as any).storeProduct.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
       }
 
       const sale = await (prisma as any).storeSale.update({

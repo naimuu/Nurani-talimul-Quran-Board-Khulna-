@@ -15,6 +15,12 @@ type Product = {
   weight?: number | null;
 };
 
+function isQuestionProduct(item: { name?: string; category?: string }): boolean {
+  const cat = (item.category || "").trim().toLowerCase();
+  const name = (item.name || "").trim().toLowerCase();
+  return cat.includes("প্রশ্ন") || name.includes("প্রশ্ন") || cat.includes("question") || name.includes("question");
+}
+
 const STAR_RATINGS: Record<string, { rating: number; reviews: number }> = {};
 
 function StarDisplay({ rating, reviews }: { rating: number; reviews: number }) {
@@ -38,12 +44,25 @@ function ListProductRow({
     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors bg-slate-100/50">
       <td className="p-3 text-center font-bold text-slate-800 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
       <td className="p-2 hidden sm:table-cell">
-        <div className="w-12 h-12 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-sm">
+        <div className="w-12 h-12 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-sm border border-slate-100 relative">
           {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-          ) : (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const p = e.currentTarget.parentElement;
+                if (p) {
+                  const fb = p.querySelector('.img-fb');
+                  if (fb) (fb as HTMLElement).style.display = 'flex';
+                }
+              }}
+            />
+          ) : null}
+          <div className={`img-fb w-full h-full items-center justify-center bg-slate-50 ${product.imageUrl ? 'hidden' : 'flex'}`}>
             <Package className="w-6 h-6 text-slate-300" />
-          )}
+          </div>
         </div>
       </td>
       <td className="p-3 text-center text-sm font-bold text-slate-700 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
@@ -89,10 +108,23 @@ function ProductDetailModal({
         <div className="relative">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 h-56 flex items-center justify-center rounded-t-2xl overflow-hidden relative">
             {product.imageUrl ? (
-              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain p-4" />
-            ) : (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-contain p-4"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const p = e.currentTarget.parentElement;
+                  if (p) {
+                    const fb = p.querySelector('.modal-img-fb');
+                    if (fb) (fb as HTMLElement).style.display = 'flex';
+                  }
+                }}
+              />
+            ) : null}
+            <div className={`modal-img-fb w-full h-full items-center justify-center ${product.imageUrl ? 'hidden' : 'flex'}`}>
               <Package className="w-24 h-24 text-slate-300" />
-            )}
+            </div>
           </div>
           <button onClick={onClose} className="absolute top-3 right-3 bg-white/80 hover:bg-white p-2 rounded-full shadow transition-colors">
             <X className="w-4 h-4 text-slate-600" />
@@ -123,6 +155,183 @@ function ProductDetailModal({
           >
             <ShoppingCart className="w-5 h-5" /> কার্টে যোগ করুন
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeliveryPolicyAlertModal({
+  isOpen,
+  onClose,
+  onProceedToOrder,
+  mode = "first_visit",
+  cartTotal = 0,
+  deliveryInfo
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onProceedToOrder?: () => void;
+  mode?: "first_visit" | "before_order" | "manual";
+  cartTotal?: number;
+  deliveryInfo?: any;
+}) {
+  if (!isOpen) return null;
+
+  const isBeforeOrder = mode === "before_order";
+  const isFree = deliveryInfo?.isFreeDelivery ?? (cartTotal >= 5000);
+  const remainingForFree = Math.max(0, 5000 - cartTotal);
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Modal Dialog */}
+      <div 
+        className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full mx-auto z-10 overflow-hidden flex flex-col border border-slate-200 animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-[#052e23] via-emerald-800 to-[#0a4233] text-white relative flex-shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-sm">
+                <Truck className="w-5 h-5 text-amber-300" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 block w-fit mb-0.5">
+                  {isBeforeOrder ? "অর্ডার সতর্কতা ও কুরিয়ার তথ্য" : "গুরুত্বপূর্ণ ডেলিভারি বিজ্ঞপ্তি"}
+                </span>
+                <h3 className="text-base sm:text-lg font-black text-white leading-tight truncate">
+                  এজেন্ট ও কেন্দ্রের ডেলিভারি নীতিমালা
+                </h3>
+              </div>
+            </div>
+
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+              title="বন্ধ করুন"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        <div className="p-5 sm:p-6 space-y-4 text-xs sm:text-sm text-slate-700 max-h-[75vh] overflow-y-auto">
+          {/* Status Box if before order */}
+          {isBeforeOrder && (
+            <div className={`p-3.5 rounded-2xl border ${
+              isFree 
+                ? "bg-emerald-50 border-emerald-200 text-emerald-900" 
+                : "bg-amber-50/80 border-amber-200 text-amber-900"
+            }`}>
+              <div className="flex items-start gap-2.5">
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                  isFree ? "bg-emerald-600 text-white" : "bg-amber-500 text-white"
+                }`}>
+                  {isFree ? <CheckCircle className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
+                </div>
+                <div className="leading-relaxed">
+                  {isFree ? (
+                    <p className="font-bold text-emerald-800">
+                      🎉 অভিনন্দন! আপনার বর্তমান অর্ডারের মূল্য ৳{cartTotal.toFixed(2)} (৫,০০০ ৳ বা তদূর্ধ্ব) হওয়ায় ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!
+                    </p>
+                  ) : (
+                    <div>
+                      <p className="font-bold text-amber-900">
+                        আপনার বর্তমান অর্ডারের মূল্য: ৳{cartTotal.toFixed(2)}। ৫,০০০ ৳ এর কম হওয়ায় পাঠাও কুরিয়ার ফি প্রযোজ্য: ৳{deliveryInfo?.deliveryCharge?.toFixed(2) || "১৮০"} (মোট ওজন: {deliveryInfo?.totalWeightKg || 0} কেজি)।
+                      </p>
+                      {remainingForFree > 0 && (
+                        <p className="mt-1 text-xs font-semibold text-emerald-700 bg-white/80 p-1.5 rounded-lg border border-emerald-200 inline-block">
+                          💡 আর মাত্র ৳{remainingForFree.toFixed(2)} টাকার পণ্য যোগ করলেই ডেলিভারি সম্পূর্ণ ফ্রি পাবেন!
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delivery Policy Breakdown */}
+          <div className="space-y-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+              <span>📋 কুরিয়ার ও ডেলিভারির প্রধান নিয়মাবলী:</span>
+            </h4>
+            
+            <div className="space-y-2">
+              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                <span className="text-base leading-none">🚚</span>
+                <div>
+                  <strong className="text-slate-900">পাঠাও কুরিয়ার:</strong> ৫,০০০ টাকার কম অর্ডার হলে দ্রুততম সময়ে <strong>“পাঠাও কুরিয়ার”</strong>-এর মাধ্যমে ডেলিভারি পাঠানো হবে (সর্বোচ্চ ১৫ কেজি পর্যন্ত)।
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                <span className="text-base leading-none">💰</span>
+                <div>
+                  <strong className="text-slate-900">কুরিয়ার খরচ নির্ধারণ:</strong> প্রথম ২ কেজি ১৮০ ৳, পরবর্তী প্রতি কেজির জন্য মাত্র ২৫ ৳ যুক্ত হবে।
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
+                <span className="text-base leading-none">🎁</span>
+                <div>
+                  <strong className="text-emerald-900">ফ্রি ডেলিভারি অফার:</strong> ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে কোনো কুরিয়ার চার্জ লাগবে না (সম্পূর্ণ ফ্রি ডেলিভারি)।
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                <span className="text-base leading-none">⚖️</span>
+                <div>
+                  <strong className="text-slate-900">স্বয়ংক্রিয় ওজন ও বিল হিসাব:</strong> কার্টে বই ও স্টেশনারী যোগ করার সাথে সাথে স্বয়ংক্রিয়ভাবে মোট ওজন ও কুরিয়ার ফি হিসাব হয়ে যায়।
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-end gap-2.5">
+          {isBeforeOrder ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold transition-all"
+              >
+                আরও পণ্য যোগ করুন
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onProceedToOrder) onProceedToOrder();
+                }}
+                className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm font-black shadow-md hover:scale-102 active:scale-98 transition-all flex items-center gap-1.5"
+              >
+                <span>অর্ডার ফরম খুলুন</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full sm:w-auto px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>বুঝেছি, কেনাকাটা করুন</span>
+              <CheckCircle className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -859,7 +1068,7 @@ export default function StorePage() {
   };
   const [search, setSearch] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [sortBy, setSortBy] = useState<"default" | "price-asc" | "price-desc" | "name" | "rating">("default");
   const [showOnlyInStock, setShowOnlyInStock] = useState(false);
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
@@ -875,27 +1084,62 @@ export default function StorePage() {
   const [ratingFilter, setRatingFilter] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Delivery policy alert modal & banner states
+  const [isDeliveryAlertOpen, setIsDeliveryAlertOpen] = useState(false);
+  const [deliveryAlertMode, setDeliveryAlertMode] = useState<"first_visit" | "before_order" | "manual">("first_visit");
+  const [isDeliveryBannerDismissed, setIsDeliveryBannerDismissed] = useState(false);
+  const [cartToast, setCartToast] = useState<{
+    show: boolean;
+    productName: string;
+    price: number;
+  } | null>(null);
+
   useEffect(() => {
     setIsMounted(true);
     fetch("/api/store/products")
       .then(r => r.json())
-      .then(data => { setProducts(Array.isArray(data) ? data : []); setLoading(false); })
+      .then(data => {
+        const raw = Array.isArray(data) ? data : [];
+        // Only show books and stationery in store, exclude question papers
+        const storeOnly = raw.filter((p: Product) => !isQuestionProduct(p));
+        setProducts(storeOnly);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
-    // Load view mode from localStorage
+    // Load view mode from localStorage (default to table/list)
     try {
       const savedView = localStorage.getItem("store_view_mode");
-      if (savedView === "card" || savedView === "list") setViewMode(savedView);
+      if (savedView === "card" || savedView === "list") {
+        setViewMode(savedView);
+      } else {
+        setViewMode("list");
+        localStorage.setItem("store_view_mode", "list");
+      }
     } catch { }
     // Load favourites from localStorage
     try {
       const fav = JSON.parse(localStorage.getItem("store_favourites") || "[]");
       setFavourites(new Set(fav));
     } catch { }
-    // Load cart from localStorage
+    // Load cart from localStorage (filter out any question items)
     try {
       const savedCart = JSON.parse(localStorage.getItem("store_cart") || "[]");
       if (Array.isArray(savedCart) && savedCart.length > 0) {
-        setCart(savedCart);
+        const cleanCart = savedCart.filter((i: any) => !isQuestionProduct(i?.product || {}));
+        setCart(cleanCart);
+      }
+    } catch { }
+
+    // First visit delivery policy alert popup
+    try {
+      const seen = sessionStorage.getItem("store_first_visit_delivery_alert");
+      if (!seen) {
+        const timer = setTimeout(() => {
+          setDeliveryAlertMode("first_visit");
+          setIsDeliveryAlertOpen(true);
+          sessionStorage.setItem("store_first_visit_delivery_alert", "true");
+        }, 500);
+        return () => clearTimeout(timer);
       }
     } catch { }
 
@@ -906,6 +1150,16 @@ export default function StorePage() {
       document.documentElement.style.overflow = "auto";
     };
   }, []);
+
+  // Auto hide cart toast
+  useEffect(() => {
+    if (cartToast?.show) {
+      const timer = setTimeout(() => {
+        setCartToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [cartToast]);
 
   useEffect(() => {
     if (isMounted) {
@@ -928,15 +1182,27 @@ export default function StorePage() {
       if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + qty } : i);
       return [...prev, { product, qty }];
     });
+    setCartToast({ show: true, productName: product.name, price: product.price });
   };
 
   const updateCartQty = (product: Product, qty: number) => {
     setCart(prev => {
       if (qty <= 0) return prev.filter(i => i.product.id !== product.id);
       const existing = prev.find(i => i.product.id === product.id);
-      if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty } : i);
+      if (existing) {
+        if (qty > existing.qty) {
+          setCartToast({ show: true, productName: product.name, price: product.price });
+        }
+        return prev.map(i => i.product.id === product.id ? { ...i, qty } : i);
+      }
+      setCartToast({ show: true, productName: product.name, price: product.price });
       return [...prev, { product, qty }];
     });
+  };
+
+  const handleOpenOrder = () => {
+    setDeliveryAlertMode("before_order");
+    setIsDeliveryAlertOpen(true);
   };
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
@@ -944,13 +1210,16 @@ export default function StorePage() {
   const deliveryInfo = useMemo(() => calculateDeliveryCost(cart), [cart]);
   const grandTotal = cartTotal + deliveryInfo.deliveryCharge;
 
-  const categories = useMemo(() => Array.from(new Set(products.map(p => p.category))), [products]);
+  const categories = useMemo(() => {
+    const raw = Array.from(new Set(products.map(p => p.category)));
+    return raw.filter(cat => !isQuestionProduct({ category: cat }));
+  }, [products]);
   const highestPrice = useMemo(() => products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000, [products]);
 
   const getProductRating = (id: string) => STAR_RATINGS[id] || { rating: 4 + Math.random(), reviews: Math.floor(Math.random() * 50) + 5 };
 
   const filtered = useMemo(() => {
-    let list = [...products];
+    let list = products.filter(p => !isQuestionProduct(p));
     if (search) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
     if (selectedCategories.size > 0) list = list.filter(p => selectedCategories.has(p.category));
     if (showOnlyInStock) list = list.filter(p => p.stock > 0);
@@ -1061,16 +1330,38 @@ export default function StorePage() {
           </div>
 
           {/* Delivery Policy Announcement Banner */}
-          <div className="mb-3.5 p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/70 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm flex-shrink-0">
-            <div className="flex items-start sm:items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
-                <Truck className="w-4 h-4" />
+          {!isDeliveryBannerDismissed && (
+            <div className="mb-3.5 p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/70 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm flex-shrink-0 animate-in fade-in">
+              <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
+                  <Truck className="w-4 h-4" />
+                </div>
+                <div className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <span className="font-bold text-emerald-800">এজেন্ট ও কেন্দ্রের ডেলিভারি নীতিমালা:</span> ৫,০০০ টাকার কম অর্ডার হলে <strong className="text-slate-900">“পাঠাও কুরিয়ার”</strong>-এর মাধ্যমে পাঠানো হবে (সর্বোচ্চ ১৫ কেজি পর্যন্ত)। কুরিয়ার খরচ: প্রথম ২ কেজি ১৮০ ৳, পরবর্তী প্রতি কেজি ২৫ ৳। <span className="inline-block font-bold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-300 ml-1">৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি!</span>
+                </div>
               </div>
-              <div className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                <span className="font-bold text-emerald-800">এজেন্ট ও কেন্দ্রের ডেলিভারি নীতিমালা:</span> ৫,০০০ টাকার কম অর্ডার হলে <strong className="text-slate-900">“পাঠাও কুরিয়ার”</strong>-এর মাধ্যমে পাঠানো হবে (সর্বোচ্চ ১৫ কেজি পর্যন্ত)। কুরিয়ার খরচ: প্রথম ২ কেজি ১৮০ ৳, পরবর্তী প্রতি কেজি ২৫ ৳। <span className="inline-block font-bold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-300 ml-1">৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি!</span>
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryAlertMode("manual");
+                    setIsDeliveryAlertOpen(true);
+                  }}
+                  className="text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-white/80 hover:bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs transition-colors"
+                >
+                  বিস্তারিত
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDeliveryBannerDismissed(true)}
+                  className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-black/5 flex items-center justify-center transition-colors"
+                  title="বিজ্ঞপ্তি বন্ধ করুন"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Results Bar */}
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
@@ -1120,10 +1411,23 @@ export default function StorePage() {
                       <div key={product.id} onClick={() => setDetailProduct(product)} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-row sm:flex-col cursor-pointer">
                         <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 flex items-center justify-center overflow-hidden border-r sm:border-r-0 sm:border-b border-slate-100">
                           {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          ) : (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const p = e.currentTarget.parentElement;
+                                if (p) {
+                                  const fb = p.querySelector('.card-img-fb');
+                                  if (fb) (fb as HTMLElement).style.display = 'flex';
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div className={`card-img-fb w-full h-full items-center justify-center ${product.imageUrl ? 'hidden' : 'flex'}`}>
                             <Package className="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform" />
-                          )}
+                          </div>
                           <span className="absolute bottom-2 left-2 text-[10px] sm:text-xs text-primary font-bold bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm z-10 max-w-[calc(100%-16px)] truncate">
                             {product.category}
                           </span>
@@ -1314,7 +1618,7 @@ export default function StorePage() {
                   <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
                 </div>
 
-                <button onClick={() => setIsOrderModalOpen(true)} className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
+                <button onClick={handleOpenOrder} className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
                   অর্ডার করুন
                 </button>
 
@@ -1437,7 +1741,7 @@ export default function StorePage() {
                   <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
                 </div>
 
-                <button onClick={() => setIsOrderModalOpen(true)} className="w-full py-3.5 bg-primary text-white rounded-xl font-black text-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
+                <button onClick={handleOpenOrder} className="w-full py-3.5 bg-primary text-white rounded-xl font-black text-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
                   অর্ডার করুন
                 </button>
 
@@ -1448,6 +1752,63 @@ export default function StorePage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Delivery Policy Alert Modal (First visit, Before order, or Details) */}
+      <DeliveryPolicyAlertModal
+        isOpen={isDeliveryAlertOpen}
+        mode={deliveryAlertMode}
+        cartTotal={cartTotal}
+        deliveryInfo={deliveryInfo}
+        onClose={() => setIsDeliveryAlertOpen(false)}
+        onProceedToOrder={() => {
+          setIsDeliveryAlertOpen(false);
+          setIsOrderModalOpen(true);
+        }}
+      />
+
+      {/* Toast Alert after clicking add to cart / bill button */}
+      {cartToast && (
+        <div className="fixed top-20 right-4 sm:right-6 z-[100] max-w-sm w-full bg-slate-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-start gap-3 animate-in slide-in-from-top-4 duration-200">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <CheckCircle className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-emerald-300 truncate leading-tight">
+              ✓ {cartToast.productName} কার্টে যোগ হয়েছে!
+            </p>
+            <p className="text-[11px] text-slate-300 mt-1 leading-snug">
+              বর্তমান বিল: <strong className="text-white">৳{cartTotal.toFixed(2)}</strong> · {deliveryInfo.isFreeDelivery ? <span className="text-emerald-400 font-bold">ফ্রি ডেলিভারি 🎉</span> : <span className="text-amber-300">কুরিয়ার: ৳{deliveryInfo.deliveryCharge}</span>}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliveryAlertMode("manual");
+                  setIsDeliveryAlertOpen(true);
+                }}
+                className="text-[10px] font-bold text-amber-300 hover:text-amber-200 underline"
+              >
+                ডেলিভারি নীতিমালা
+              </button>
+              <span className="text-slate-500 text-[10px]">·</span>
+              <button
+                type="button"
+                onClick={() => setCartOpen(true)}
+                className="text-[10px] font-bold text-emerald-300 hover:text-emerald-200 underline"
+              >
+                কার্ট দেখুন ({cartCount})
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCartToast(null)}
+            className="w-6 h-6 rounded-lg text-slate-400 hover:text-white flex items-center justify-center shrink-0 hover:bg-white/10 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
