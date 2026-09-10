@@ -1,0 +1,33 @@
+{
+  "name": "খুলনা নূরানী তালিমুল কুরআন বোর্ড",
+  "short_name": "নূরানী বোর্ড",
+  "description": "খুলনা নূরানী বোর্ডের অফিসিয়াল ওয়েব ও ডেস্কটপ/মোবাইল সফটওয়্যার",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#095738",
+  "theme_color": "#095738",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

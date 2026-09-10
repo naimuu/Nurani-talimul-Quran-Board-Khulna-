@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   Trash2,
@@ -159,6 +160,11 @@ export default function ExamQuestionManagementView() {
   const [loading, setLoading] = useState(true);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [activeExamId, setActiveExamId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -476,7 +482,8 @@ export default function ExamQuestionManagementView() {
       alert({ title: "সতর্কতা", message: "প্রথমে একটি শিক্ষাবর্ষ নির্বাচন করুন", type: "warning" });
       return;
     }
-    if (!examForm.name.trim()) {
+    const cleanName = examForm.name.trim();
+    if (!cleanName) {
       alert({ title: "সতর্কতা", message: "পরীক্ষার নাম লিখুন", type: "warning" });
       return;
     }
@@ -493,7 +500,8 @@ export default function ExamQuestionManagementView() {
           body: JSON.stringify({
             action: "update_exam",
             examId: examForm._id,
-            name: examForm.name,
+            name: cleanName,
+            examName: cleanName,
             code: examForm.code,
             examTerm: examForm.examTerm,
             startDate: examForm.startDate,
@@ -510,17 +518,25 @@ export default function ExamQuestionManagementView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "create_exam",
-            sessionId: activeSession._id,
-            name: examForm.name,
-            code: examForm.code,
-            examTerm: examForm.examTerm,
-            startDate: examForm.startDate,
-            endDate: examForm.endDate,
+            sessionId: String(activeSession._id),
+            name: cleanName,
+            examName: cleanName,
+            code: examForm.code || `EXAM-${Date.now().toString().slice(-4)}`,
+            examTerm: examForm.examTerm || "১ম সাময়িক",
+            startDate: examForm.startDate || "",
+            endDate: examForm.endDate || "",
             status: calculated.status,
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to create exam");
+
+        if (data.session && data.session.exams?.length > 0) {
+          const lastExam = data.session.exams[data.session.exams.length - 1];
+          if (lastExam?._id) {
+            setActiveExamId(String(lastExam._id));
+          }
+        }
       }
 
       alert({ title: "সফল", message: "পরীক্ষা সংরক্ষিত হয়েছে", type: "success" });
@@ -1415,11 +1431,12 @@ export default function ExamQuestionManagementView() {
         </div>
       )}
 
-      {/* ----------------- CLEAN MODALS ----------------- */}
-
-      {/* 1. Session Modal with Custom Name (Create or Edit) */}
-      {showSessionModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+      {/* ----------------- CLEAN MODALS (PORTALED TO BODY TO ELIMINATE TOP GAP) ----------------- */}
+      {mounted && typeof document !== "undefined" && createPortal(
+        <>
+          {/* 1. Session Modal with Custom Name (Create or Edit) */}
+          {showSessionModal && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden border border-slate-100">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <h3 className="font-bold text-sm text-slate-800">
@@ -1484,7 +1501,7 @@ export default function ExamQuestionManagementView() {
 
       {/* CUSTOM SESSION DELETE CONFIRMATION MODAL */}
       {sessionToDelete && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-red-100 animate-in zoom-in-95 duration-200">
             <div className="p-4 bg-red-50/80 border-b border-red-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
@@ -1542,7 +1559,7 @@ export default function ExamQuestionManagementView() {
 
       {/* 2. Exam Modal with Date Pickers & Auto Computed Status */}
       {showExamModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden border border-slate-100">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <h3 className="font-bold text-sm text-slate-800">
@@ -1663,7 +1680,7 @@ export default function ExamQuestionManagementView() {
 
       {/* 3. Add / Edit Question Set Modal with Dynamic Curriculum Classes & Books */}
       {showQuestionModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100 flex-shrink-0">
               <h3 className="font-bold text-sm text-slate-800">
@@ -1956,7 +1973,7 @@ export default function ExamQuestionManagementView() {
 
       {/* 4. PDF Preview Modal */}
       {previewPdfUrl && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-3xl h-[85vh] shadow-2xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-900 text-white flex-shrink-0">
               <div className="flex items-center gap-2">
@@ -1988,6 +2005,9 @@ export default function ExamQuestionManagementView() {
             </div>
           </div>
         </div>
+      )}
+        </>,
+        document.body
       )}
     </div>
   );

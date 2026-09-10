@@ -196,28 +196,103 @@ export async function POST(request: Request) {
     }
 
     if (action === "create_exam") {
-      if (!sessionId || !examName || !examName.trim()) {
-        return NextResponse.json({ error: "সেশন ও পরীক্ষার নাম আবশ্যক" }, { status: 400 });
+      const finalExamName = (body.name || examName || "")?.trim();
+      const targetSessionId = (sessionId || body.sessionId || "")?.trim();
+
+      if (!targetSessionId) {
+        return NextResponse.json({ error: "সেশন নির্বাচন করুন" }, { status: 400 });
+      }
+      if (!finalExamName) {
+        return NextResponse.json({ error: "পরীক্ষার নাম লিখুন" }, { status: 400 });
       }
 
-      const session = await ExamSession.findById(sessionId);
+      let session = null;
+      try {
+        session = await ExamSession.findById(targetSessionId);
+      } catch {
+        // May not be a valid ObjectId, search by sessionYear or title
+      }
+      if (!session) {
+        session = await ExamSession.findOne({
+          $or: [{ sessionYear: targetSessionId }, { title: targetSessionId }]
+        });
+      }
+
       if (!session) {
         return NextResponse.json({ error: "সেশন পাওয়া যায়নি" }, { status: 404 });
       }
 
       const newExam: any = {
-        name: examName.trim(),
-        code: code?.trim() || `EXAM-${Date.now().toString().slice(-4)}`,
-        examTerm: examTerm || "১ম সাময়িক",
-        startDate: startDate || "",
-        endDate: endDate || "",
-        status: status || "ACTIVE",
+        name: finalExamName,
+        code: (body.code || code)?.trim() || `EXAM-${Date.now().toString().slice(-4)}`,
+        examTerm: body.examTerm || examTerm || "১ম সাময়িক",
+        startDate: body.startDate || startDate || "",
+        endDate: body.endDate || endDate || "",
+        status: body.status || status || "ACTIVE",
         questionSets: [],
       };
 
       session.exams.push(newExam);
       await session.save();
 
+      return NextResponse.json({ success: true, session });
+    }
+
+    if (action === "update_exam") {
+      const targetSessionId = (sessionId || body.sessionId || "")?.trim();
+      let session = null;
+      try {
+        session = await ExamSession.findById(targetSessionId);
+      } catch {
+        // Fallback
+      }
+      if (!session) {
+        session = await ExamSession.findOne({
+          $or: [{ sessionYear: targetSessionId }, { title: targetSessionId }]
+        });
+      }
+      if (!session) {
+        return NextResponse.json({ error: "সেশন পাওয়া যায়নি" }, { status: 404 });
+      }
+
+      const targetExamId = body.examId || body._id;
+      const exam = session.exams.find((e: any) => e._id?.toString() === targetExamId);
+      if (!exam) {
+        return NextResponse.json({ error: "পরীক্ষা পাওয়া যায়নি" }, { status: 404 });
+      }
+
+      const updatedName = (body.name || examName || "")?.trim();
+      if (updatedName) exam.name = updatedName;
+      if (body.code !== undefined) exam.code = body.code?.trim();
+      if (body.examTerm !== undefined) exam.examTerm = body.examTerm;
+      if (body.startDate !== undefined) exam.startDate = body.startDate;
+      if (body.endDate !== undefined) exam.endDate = body.endDate;
+      if (body.status !== undefined) exam.status = body.status;
+
+      await session.save();
+      return NextResponse.json({ success: true, session });
+    }
+
+    if (action === "delete_exam") {
+      const targetSessionId = (sessionId || body.sessionId || "")?.trim();
+      let session = null;
+      try {
+        session = await ExamSession.findById(targetSessionId);
+      } catch {
+        // Fallback
+      }
+      if (!session) {
+        session = await ExamSession.findOne({
+          $or: [{ sessionYear: targetSessionId }, { title: targetSessionId }]
+        });
+      }
+      if (!session) {
+        return NextResponse.json({ error: "সেশন পাওয়া যায়নি" }, { status: 404 });
+      }
+
+      const targetExamId = body.examId || body._id;
+      session.exams = session.exams.filter((e: any) => e._id?.toString() !== targetExamId);
+      await session.save();
       return NextResponse.json({ success: true, session });
     }
 

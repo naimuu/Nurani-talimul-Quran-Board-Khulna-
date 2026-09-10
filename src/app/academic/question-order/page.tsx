@@ -57,7 +57,7 @@ export default function QuestionOrderPage() {
   const [selectedTerm, setSelectedTerm] = useState<string>("all");
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [viewMode, setViewMode] = useState<"table" | "card">("card");
 
   // Cart state: Record of item id -> quantity
   const [cart, setCart] = useState<Record<string, { item: QuestionItem; qty: number }>>({});
@@ -688,162 +688,75 @@ export default function QuestionOrderPage() {
           </button>
         </div>
 
-        {/* ─── 2. EXAM DROPDOWN & SEARCH CONTROL BAR ─────────────────── */}
+        {/* ─── 2. FILTER CONTROL BAR ─────────────────────────────────── */}
         <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs mb-3 space-y-2.5">
-          
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
 
-            {/* SESSION SELECTOR DROPDOWN */}
+          {/* ROW 1 — SESSION DROPDOWN + SEARCH + VIEW TOGGLE */}
+          <div className="flex items-center gap-2">
+            {/* SESSION DROPDOWN */}
             {examSessions.length > 0 && (
-              <div className="w-full sm:w-52 shrink-0">
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">সেশন:</label>
-                <select
-                  value={String(selectedSessionId)}
-                  onChange={(e) => {
-                    setSelectedSessionId(e.target.value);
-                    setSelectedTerm("all");
-                    setSelectedClassId("all");
-                  }}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer"
-                >
-                  {examSessions.length > 1 && <option value="all">সকল সেশন</option>}
-                  {examSessions.map((session) => {
-                    const exactName = (session.title || session.sessionYear || "").trim();
-                    return (
-                      <option key={String(session._id)} value={String(session._id)}>
-                        {exactName}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            )}
-            
-            {/* EXAM AS DROPDOWN */}
-            <div className="flex-1 min-w-0 sm:max-w-xs">
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">পরীক্ষার নাম নির্বাচন করুন:</label>
               <select
-                value={selectedTerm}
+                value={String(selectedSessionId)}
                 onChange={(e) => {
-                  setSelectedTerm(e.target.value);
+                  setSelectedSessionId(e.target.value);
+                  setSelectedTerm("all");
                   setSelectedClassId("all");
                 }}
-                disabled={examTerms.length === 0}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer disabled:opacity-60"
+                className="shrink-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer max-w-[150px] sm:max-w-[200px]"
               >
-                <option value="all">{examTerms.length === 0 ? "কোনো পরীক্ষা নেই" : "সকল পরীক্ষা (সবগুলো)"}</option>
-                {examTerms.map((term) => {
-                  const matchingExam = getExamInfo(term);
-                  const status = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
+                {examSessions.length > 1 && <option value="all">সকল সেশন</option>}
+                {examSessions.map((session) => {
+                  const exactName = (session.title || session.sessionYear || "").trim();
                   return (
-                    <option key={term} value={term}>
-                      {term} {status ? `— ${status.badgeText}` : ""}
+                    <option key={String(session._id)} value={String(session._id)}>
+                      {exactName}
                     </option>
                   );
                 })}
               </select>
-            </div>
-
-            {/* SEARCH INPUT & SINGLE VIEW TOGGLE BUTTON IN SAME ROW */}
-            <div className="flex-1 min-w-0">
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">প্রশ্ন বা বিষয় খুঁজুন:</label>
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="যেমন: কুরআন, বাংলা..."
-                    className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-emerald-600 focus:bg-white transition-colors"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* SINGLE TOGGLE BUTTON RIGHT OF SEARCHBAR */}
-                <button
-                  type="button"
-                  onClick={() => changeViewMode(viewMode === "table" ? "card" : "table")}
-                  className="px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shrink-0 transition-all active:scale-95 shadow-2xs"
-                  title={viewMode === "table" ? "কার্ড ভিউতে পরিবর্তন করুন" : "টেবিল ভিউতে পরিবর্তন করুন"}
-                >
-                  {viewMode === "table" ? (
-                    <>
-                      <LayoutGrid className="w-4 h-4 text-emerald-700" />
-                      <span className="hidden sm:inline">কার্ড ভিউ</span>
-                    </>
-                  ) : (
-                    <>
-                      <TableIcon className="w-4 h-4 text-emerald-700" />
-                      <span className="hidden sm:inline">টেবিল ভিউ</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-          </div>
-
-          {/* SESSION PILLS (ONLY SHOW IF CREATED, EXACT NAME) */}
-          {examSessions.length > 0 && (
-            <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-1 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <span className="text-[11px] font-bold text-slate-500 shrink-0 mr-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                সেশন:
-              </span>
-              {examSessions.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedSessionId("all");
-                    setSelectedTerm("all");
-                    setSelectedClassId("all");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 ${
-                    selectedSessionId === "all"
-                      ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  সকল সেশন
+            )}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="প্রশ্ন বা বিষয় খুঁজুন (যেমন: কুরআন, বাংলা...)"
+                className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-emerald-600 focus:bg-white transition-colors"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
-              {examSessions.map((session) => {
-                const isSelected = String(selectedSessionId) === String(session._id);
-                const exactName = (session.title || session.sessionYear || "").trim();
-                return (
-                  <button
-                    key={String(session._id)}
-                    type="button"
-                    onClick={() => {
-                      setSelectedSessionId(String(session._id));
-                      setSelectedTerm("all");
-                      setSelectedClassId("all");
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 shrink-0 ${
-                      isSelected
-                        ? "bg-[#095738] text-white border-[#095738] shadow-xs"
-                        : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span>{exactName}</span>
-                  </button>
-                );
-              })}
             </div>
-          )}
+
+            {/* SINGLE TOGGLE BUTTON RIGHT OF SEARCHBAR */}
+            <button
+              type="button"
+              onClick={() => changeViewMode(viewMode === "table" ? "card" : "table")}
+              className="px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shrink-0 transition-all active:scale-95 shadow-2xs"
+              title={viewMode === "table" ? "কার্ড ভিউতে পরিবর্তন করুন" : "টেবিল ভিউতে পরিবর্তন করুন"}
+            >
+              {viewMode === "table" ? (
+                <>
+                  <LayoutGrid className="w-4 h-4 text-emerald-700" />
+                  <span className="hidden sm:inline">কার্ড ভিউ</span>
+                </>
+              ) : (
+                <>
+                  <TableIcon className="w-4 h-4 text-emerald-700" />
+                  <span className="hidden sm:inline">টেবিল ভিউ</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* ROW 2 — EXAM TABS */}
 
           {/* EXAM STATUS PILLS WITH LIVE COUNTDOWN BADGES */}
           {examTerms.length > 0 && (
             <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-1 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <span className="text-[11px] font-bold text-slate-500 shrink-0 mr-1 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-emerald-700" />
-                পরীক্ষা:
-              </span>
               <button
                 type="button"
                 onClick={() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, Users, FileText, Settings, LogOut, UserCircle, ChevronDown, ShieldAlert, CheckCircle2, Building2, MapPin, ChevronRight, Plus, Trash2, ClipboardList, Clock, XCircle, X, Eye, Phone, MessageCircle, PhoneCall, MoreVertical, LayoutGrid, List, Package, ShoppingCart, CreditCard, ShoppingBag, BookOpen, GraduationCap, Search, Calendar, Filter, RotateCcw, CalendarDays, UserCheck, Printer, SlidersHorizontal, Check } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -141,6 +142,11 @@ function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState(urlTab || "dashboard");
   const containerRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<string>('calc(100vh - 95px)');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const updateHeight = () => {
@@ -2237,8 +2243,8 @@ function AdminDashboardContent() {
         </div>
 
         {/* Print Columns Selection Modal */}
-        {showPrintColumnsModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+        {mounted && typeof document !== "undefined" && showPrintColumnsModal && createPortal(
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
               <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/80">
                 <div className="flex items-center gap-2">
@@ -2318,7 +2324,8 @@ function AdminDashboardContent() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     );
@@ -2500,93 +2507,96 @@ function AdminDashboardContent() {
       </div>
 
       {/* Modern Add Location Modal */}
-      <AnimatePresence>
-        {activeAddForm && typeof activeAddForm === 'object' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
-              onClick={() => setActiveAddForm(null)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2rem] p-6 md:p-8 max-w-md w-full shadow-2xl relative z-10 border border-white/20"
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-800">নতুন {activeAddForm.title.replace(/[০-৯. ]/g, '')}</h3>
-                  <p className="text-sm text-slate-500 mt-1">সিস্টেমে নতুন লোকেশন যুক্ত করুন</p>
-                </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                  <MapPin className="w-6 h-6" />
-                </div>
-              </div>
-              
-              <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-2xl">
-                <button 
-                  onClick={() => setAddMode('single')}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${addMode === 'single' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  একক (Single)
-                </button>
-                <button 
-                  onClick={() => setAddMode('bulk')}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${addMode === 'bulk' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  একাধিক (Bulk)
-                </button>
-              </div>
-
-              {addMode === 'single' ? (
-                <div className="space-y-4">
+      {mounted && typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {activeAddForm && typeof activeAddForm === 'object' && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+                onClick={() => setActiveAddForm(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-[2rem] p-6 md:p-8 max-w-md w-full shadow-2xl relative z-10 border border-white/20"
+              >
+                <div className="flex justify-between items-start mb-6">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">বাংলা নাম</label>
-                    <input type="text" placeholder="উদাঃ খুলনা" value={newLocationBnName} onChange={e => setNewLocationBnName(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all" />
+                    <h3 className="text-2xl font-bold text-slate-800">নতুন {activeAddForm.title.replace(/[০-৯. ]/g, '')}</h3>
+                    <p className="text-sm text-slate-500 mt-1">সিস্টেমে নতুন লোকেশন যুক্ত করুন</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">ইংরেজি নাম</label>
-                    <input type="text" placeholder="e.g. Khulna" value={newLocationName} onChange={e => setNewLocationName(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all" />
+                  <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                    <MapPin className="w-6 h-6" />
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end mb-1">
-                    <label className="block text-sm font-semibold text-slate-700 ml-1">তালিকা পেস্ট করুন</label>
-                    <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">বাংলা, ইংরেজি</span>
-                  </div>
-                  <textarea 
-                    rows={6}
-                    placeholder={`ডুমুরিয়া, Dumuria\nকয়রা, Koyra`}
-                    value={bulkInput}
-                    onChange={e => setBulkInput(e.target.value)}
-                    className="w-full px-4 py-3 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all font-mono resize-none leading-relaxed"
-                  ></textarea>
+                
+                <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-2xl">
+                  <button 
+                    onClick={() => setAddMode('single')}
+                    className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${addMode === 'single' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    একক (Single)
+                  </button>
+                  <button 
+                    onClick={() => setAddMode('bulk')}
+                    className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all ${addMode === 'bulk' ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    একাধিক (Bulk)
+                  </button>
                 </div>
-              )}
 
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setActiveAddForm(null)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3.5 rounded-2xl transition-all"
-                >
-                  বাতিল
-                </button>
-                <button
-                  onClick={() => handleAddLocation(activeAddForm.type, activeAddForm.parentId)}
-                  disabled={isAddingLocation || (addMode === 'single' ? (!newLocationName || !newLocationBnName) : !bulkInput.trim())}
-                  className="flex-1 text-white font-semibold py-3.5 rounded-2xl transition-all shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-                >
-                  {isAddingLocation ? 'অপেক্ষা করুন...' : 'সংরক্ষণ করুন'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                {addMode === 'single' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">বাংলা নাম</label>
+                      <input type="text" placeholder="উদাঃ খুলনা" value={newLocationBnName} onChange={e => setNewLocationBnName(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">ইংরেজি নাম</label>
+                      <input type="text" placeholder="e.g. Khulna" value={newLocationName} onChange={e => setNewLocationName(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-end mb-1">
+                      <label className="block text-sm font-semibold text-slate-700 ml-1">তালিকা পেস্ট করুন</label>
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">বাংলা, ইংরেজি</span>
+                    </div>
+                    <textarea 
+                      rows={6}
+                      placeholder={`ডুমুরিয়া, Dumuria\nকয়রা, Koyra`}
+                      value={bulkInput}
+                      onChange={e => setBulkInput(e.target.value)}
+                      className="w-full px-4 py-3 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 bg-slate-50 transition-all font-mono resize-none leading-relaxed"
+                    ></textarea>
+                  </div>
+                )}
+
+                <div className="flex gap-3 mt-8">
+                  <button
+                    onClick={() => setActiveAddForm(null)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3.5 rounded-2xl transition-all"
+                  >
+                    বাতিল
+                  </button>
+                  <button
+                    onClick={() => handleAddLocation(activeAddForm.type, activeAddForm.parentId)}
+                    disabled={isAddingLocation || (addMode === 'single' ? (!newLocationName || !newLocationBnName) : !bulkInput.trim())}
+                    className="flex-1 text-white font-semibold py-3.5 rounded-2xl transition-all shadow-lg shadow-primary/30 bg-primary hover:bg-primary/90 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
+                  >
+                    {isAddingLocation ? 'অপেক্ষা করুন...' : 'সংরক্ষণ করুন'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 
