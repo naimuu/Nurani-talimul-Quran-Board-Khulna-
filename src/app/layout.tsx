@@ -21,8 +21,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "খুলনা নূরানী বোর্ড | পেশাদার ইসলামি শিক্ষা",
-  description: "খুলনা নূরানী বোর্ডের অফিসিয়াল ওয়েবসাইট। বিশুদ্ধ ইসলামি শিক্ষা এবং প্রশাসন প্রদান।",
+  title: "নূরানী বোর্ড খুলনা | পেশাদার ইসলামি শিক্ষা",
+  description: "নূরানী বোর্ড খুলনার অফিসিয়াল ওয়েবসাইট। বিশুদ্ধ ইসলামি শিক্ষা এবং প্রশাসন প্রদান।",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

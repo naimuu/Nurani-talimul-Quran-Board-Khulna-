@@ -51,7 +51,7 @@ model PageContent {
 
 model BoardSettings {
   id                     String   @id @default(auto()) @map("_id") @db.ObjectId
-  name                   String?  @default("খুলনা নূরানী তালিমুল কুরআন বোর্ড")
+  name                   String?  @default("নূরানী তালিমুল কুরআন বোর্ড খুলনা")
   address                String?
   logoUrl                String?
   coverUrl               String?

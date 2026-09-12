@@ -26,7 +26,8 @@ import {
   PackageCheck,
   BookOpen,
   Calendar,
-  Clock
+  Clock,
+  Building2
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
@@ -86,16 +87,29 @@ export default function QuestionOrderPage() {
     fullAddress: "",
   });
   const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "found" | "not_found" | "error">("idle");
+  const [autoFilledFields, setAutoFilledFields] = useState<{
+    instituteName?: boolean;
+    ownerName?: boolean;
+    contactNo?: boolean;
+    address?: boolean;
+  }>({});
 
   // Payment States
+  const [paymentStep, setPaymentStep] = useState(false);
   const [paymentOption, setPaymentOption] = useState<"pay_now" | "pay_later" | "money_receipt">("pay_now");
   const [paymentProvider, setPaymentProvider] = useState<"bKash" | "Nagad" | "Rocket" | "Bank">("bKash");
   const [trxId, setTrxId] = useState("");
+  const [promiseDate, setPromiseDate] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
   const [receiptVerifyStatus, setReceiptVerifyStatus] = useState<"idle" | "verifying" | "valid" | "invalid">("idle");
   const [receiptVerifyMsg, setReceiptVerifyMsg] = useState("");
   const [receiptBalance, setReceiptBalance] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [remainingOption, setRemainingOption] = useState<"pay_now" | "pay_later" | "skip_receipt">("pay_now");
+  const [remainingProvider, setRemainingProvider] = useState<"bKash" | "Nagad" | "Rocket" | "Bank">("bKash");
+  const [remainingTrxId, setRemainingTrxId] = useState("");
+  const [remainingCopied, setRemainingCopied] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // UI & Submission state
   const [selectedDetailItem, setSelectedDetailItem] = useState<QuestionItem | null>(null);
@@ -415,14 +429,33 @@ export default function QuestionOrderPage() {
   const searchIlhak = async () => {
     if (!ilhak.trim()) return;
     setSearchStatus("loading");
+    setAutoFilledFields({});
     try {
       const res = await fetch(`/api/madrasa/by-code?code=${encodeURIComponent(ilhak.trim())}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.name) setInstituteName(data.name);
-        if (data.ownerName) setOwnerName(data.ownerName);
-        if (data.contactNo) setContactNo(data.contactNo);
-        if (data.ilhak) setIlhak(data.ilhak);
+        const autoFilled: {
+          instituteName?: boolean;
+          ownerName?: boolean;
+          contactNo?: boolean;
+          address?: boolean;
+        } = {};
+
+        if (data.name?.trim()) {
+          setInstituteName(data.name.trim());
+          autoFilled.instituteName = true;
+        }
+        if (data.ownerName?.trim()) {
+          setOwnerName(data.ownerName.trim());
+          autoFilled.ownerName = true;
+        }
+        if (data.contactNo?.trim()) {
+          setContactNo(data.contactNo.trim());
+          autoFilled.contactNo = true;
+        }
+        if (data.ilhak?.trim()) {
+          setIlhak(data.ilhak.trim());
+        }
 
         const newGeo: GeoAddressData = {
           division: data.division || geoAddress.division || "",
@@ -435,11 +468,12 @@ export default function QuestionOrderPage() {
         setGeoAddress(newGeo);
         setAddress(newGeo.fullAddress);
 
+        setAutoFilledFields(autoFilled);
         setSearchStatus("found");
         const missingFields = [];
-        if (!data.name) missingFields.push("মাদরাসার নাম");
-        if (!data.ownerName) missingFields.push("মুহতামিমের নাম");
-        if (!data.contactNo) missingFields.push("মোবাইল নম্বর");
+        if (!data.name?.trim()) missingFields.push("মাদরাসার নাম");
+        if (!data.ownerName?.trim()) missingFields.push("মুহতামিমের নাম");
+        if (!data.contactNo?.trim()) missingFields.push("মোবাইল নম্বর");
         if (!newGeo.division || !newGeo.district) missingFields.push("ঠিকানা");
 
         if (missingFields.length > 0) {
@@ -449,10 +483,12 @@ export default function QuestionOrderPage() {
         }
       } else {
         setSearchStatus("not_found");
+        setAutoFilledFields({});
         toast.error("ইলহাক বা নম্বর পাওয়া যায়নি, অনুগ্রহ করে তথ্য ম্যানুয়ালি লিখুন");
       }
     } catch {
       setSearchStatus("error");
+      setAutoFilledFields({});
     }
   };
 
@@ -479,33 +515,97 @@ export default function QuestionOrderPage() {
     }
   };
 
-  const handleCopyNumber = () => {
-    const number = paymentProvider === "Bank" ? "123456789" : "01700000000";
+  const handleCopyNumber = (prov: string = paymentProvider) => {
+    const number = prov === "Bank" ? "123456789" : "01700000000";
     navigator.clipboard.writeText(number);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSubmitOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRemainingCopy = () => {
+    const number = remainingProvider === "Bank" ? "123456789" : "01700000000";
+    navigator.clipboard.writeText(number);
+    setRemainingCopied(true);
+    setTimeout(() => setRemainingCopied(false), 2000);
+  };
+
+  const validateAndProceedToPayment = () => {
+    setErrorMsg("");
+    const effectiveAddress = geoAddress.fullAddress || address;
+    if (!instituteName.trim()) {
+      setErrorMsg("মাদরাসা বা প্রতিষ্ঠানের নাম পূরণ করুন");
+      toast.error("মাদরাসা বা প্রতিষ্ঠানের নাম পূরণ করুন");
+      return;
+    }
+    if (!ownerName.trim()) {
+      setErrorMsg("মুহতামিম / আবেদনকারীর নাম পূরণ করুন");
+      toast.error("মুহতামিম / আবেদনকারীর নাম পূরণ করুন");
+      return;
+    }
+    if (!contactNo.trim()) {
+      setErrorMsg("মোবাইল নম্বর পূরণ করুন");
+      toast.error("মোবাইল নম্বর পূরণ করুন");
+      return;
+    }
+    if (!effectiveAddress.trim() || !geoAddress.division || !geoAddress.district) {
+      setErrorMsg("মাদরাসার বিভাগ, জেলা ও পূর্ণাঙ্গ ঠিকানা প্রদান করুন");
+      toast.error("মাদরাসার বিভাগ, জেলা ও পূর্ণাঙ্গ ঠিকানা প্রদান করুন");
+      return;
+    }
+    if (totalItemCount === 0) {
+      setErrorMsg("অনুগ্রহ করে অন্তত একটি প্রশ্নপত্র সেটের পরিমাণ নির্বাচন করুন");
+      toast.error("অনুগ্রহ করে অন্তত একটি প্রশ্নপত্র সেটের পরিমাণ নির্বাচন করুন");
+      return;
+    }
+    setPaymentStep(true);
+  };
+
+  const handleSubmitOrder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg("");
     const effectiveAddress = geoAddress.fullAddress || address;
     if (!ownerName.trim() || !instituteName.trim() || !contactNo.trim() || !effectiveAddress.trim()) {
+      setErrorMsg("অনুগ্রহ করে নাম, প্রতিষ্ঠান, মোবাইল নম্বর ও ঠিকানা পূরণ করুন");
       toast.error("অনুগ্রহ করে নাম, প্রতিষ্ঠান, মোবাইল নম্বর ও ঠিকানা পূরণ করুন");
       return;
     }
 
     if (totalItemCount === 0) {
+      setErrorMsg("অনুগ্রহ করে অন্তত একটি প্রশ্নপত্র সেটের পরিমাণ নির্বাচন করুন");
       toast.error("অনুগ্রহ করে অন্তত একটি প্রশ্নপত্র সেটের পরিমাণ নির্বাচন করুন");
       return;
     }
 
-    if (paymentOption === "pay_now" && !trxId.trim()) {
+    const isPartialReceipt = paymentOption === "money_receipt" && receiptVerifyStatus === "valid" && receiptBalance < totalAmount;
+    const effectivePaymentOption = (paymentOption === "money_receipt" && isPartialReceipt && remainingOption === "skip_receipt") ? "pay_later" : paymentOption;
+
+    if (effectivePaymentOption === "pay_now" && !trxId.trim()) {
+      setErrorMsg("পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
       toast.error("পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
       return;
     }
 
-    if (paymentOption === "money_receipt" && receiptVerifyStatus !== "valid") {
-      toast.error("মানি রিসিট নম্বর সঠিক নয় বা যাচাই করা হয়নি");
+    if (paymentOption === "money_receipt") {
+      if (receiptVerifyStatus !== "valid" && remainingOption !== "skip_receipt") {
+        setErrorMsg("মানি রিসিট নম্বর সঠিক নয় বা যাচাই করা হয়নি");
+        toast.error("মানি রিসিট নম্বর সঠিক নয় বা যাচাই করা হয়নি");
+        return;
+      }
+      if (isPartialReceipt && remainingOption === "pay_now" && !remainingTrxId.trim()) {
+        setErrorMsg("বাকি টাকার ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
+        toast.error("বাকি টাকার ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
+        return;
+      }
+      if (isPartialReceipt && remainingOption === "pay_later" && !promiseDate) {
+        setErrorMsg("বাকি টাকা পরিশোধের প্রতিশ্রুত তারিখ নির্বাচন করুন");
+        toast.error("বাকি টাকা পরিশোধের প্রতিশ্রুত তারিখ নির্বাচন করুন");
+        return;
+      }
+    }
+
+    if (effectivePaymentOption === "pay_later" && !promiseDate) {
+      setErrorMsg("পরিশোধের প্রতিশ্রুত তারিখ (Promise Date) নির্বাচন করুন");
+      toast.error("পরিশোধের প্রতিশ্রুত তারিখ (Promise Date) নির্বাচন করুন");
       return;
     }
 
@@ -548,6 +648,10 @@ export default function QuestionOrderPage() {
 
       const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}`;
 
+      const effectiveTrxId = effectivePaymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt && remainingOption === "pay_now" ? remainingTrxId.trim() : undefined);
+      const effectiveProvider = effectivePaymentOption === "pay_now" ? paymentProvider : (isPartialReceipt && remainingOption === "pay_now" ? remainingProvider : undefined);
+      const effectivePromiseDate = (effectivePaymentOption === "pay_later" || (isPartialReceipt && remainingOption === "pay_later")) ? promiseDate : undefined;
+
       const res = await fetch("/api/store/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -557,10 +661,11 @@ export default function QuestionOrderPage() {
           instituteId: instituteName.trim(),
           items: orderItems,
           notes: fullNotes,
-          paymentOption,
-          paymentProvider: paymentOption === "pay_now" ? paymentProvider : undefined,
-          trxId: paymentOption === "pay_now" ? trxId.trim() : undefined,
-          receiptNumber: paymentOption === "money_receipt" ? receiptNumber.trim() : undefined
+          paymentOption: effectivePaymentOption,
+          paymentProvider: effectiveProvider,
+          trxId: effectiveTrxId,
+          receiptNumber: paymentOption === "money_receipt" && remainingOption !== "skip_receipt" ? receiptNumber.trim() : undefined,
+          promiseDate: effectivePromiseDate
         })
       });
 
@@ -570,6 +675,7 @@ export default function QuestionOrderPage() {
       setOrderSuccessData(data);
       setCart({});
       setIsCheckoutOpen(false);
+      setPaymentStep(false);
       toast.success("প্রশ্নের অর্ডার সফলভাবে গ্রহণ করা হয়েছে!");
     } catch (err: any) {
       toast.error(err.message || "অর্ডার সম্পন্ন করতে সমস্যা হয়েছে");
@@ -772,8 +878,6 @@ export default function QuestionOrderPage() {
                 সকল পরীক্ষা
               </button>
               {examTerms.map((term) => {
-                const matchingExam = getExamInfo(term);
-                const status = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
                 const isSelected = selectedTerm === term;
                 return (
                   <button
@@ -783,28 +887,13 @@ export default function QuestionOrderPage() {
                       setSelectedTerm(term);
                       setSelectedClassId("all");
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 shrink-0 ${
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                       isSelected
                         ? "bg-[#095738] text-white border-[#095738] shadow-xs"
                         : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     <span>{term}</span>
-                    {status && (
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
-                          isSelected
-                            ? "bg-white/25 text-white"
-                            : status.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : status.status === "UPCOMING"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {status.badgeText}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -1193,6 +1282,7 @@ export default function QuestionOrderPage() {
                   <button
                     onClick={() => {
                       setIsCartDrawerOpen(false);
+                      setPaymentStep(false);
                       setIsCheckoutOpen(true);
                     }}
                     className="w-full py-3 bg-[#095738] hover:bg-[#07472d] text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
@@ -1229,6 +1319,7 @@ export default function QuestionOrderPage() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setPaymentStep(false);
                     setIsCheckoutOpen(true);
                   }}
                   className="bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-transform active:scale-95 flex items-center justify-center gap-1.5 shrink-0 shadow-md cursor-pointer whitespace-nowrap leading-none"
@@ -1390,199 +1481,502 @@ export default function QuestionOrderPage() {
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-3 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
             <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-[#095738] text-white">
               <h3 className="font-bold text-sm sm:text-base flex items-center gap-2">
                 <FileQuestion className="w-4 h-4 text-amber-300" />
-                <span>প্রশ্নের অর্ডার ফরম</span>
+                <span>
+                  {paymentStep ? "প্রশ্নের অর্ডার ফরম (ধাপ ২/২: পেমেন্ট পদ্ধতি)" : "প্রশ্নের অর্ডার ফরম (ধাপ ১/২: ঠিকানা ও তথ্য)"}
+                </span>
               </h3>
-              <button onClick={() => setIsCheckoutOpen(false)} className="p-1 text-white/80 hover:text-white">
+              <button onClick={() => setIsCheckoutOpen(false)} className="p-1 text-white/80 hover:text-white cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmitOrder} className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  ইলহাক বা মোবাইল নম্বর (অটো-ফিল)
-                </label>
-                <div className="flex gap-1.5">
-                  <input
-                    type="text"
-                    value={ilhak}
-                    onChange={(e) => {
-                      setIlhak(e.target.value);
-                      if (searchStatus !== "idle") setSearchStatus("idle");
-                    }}
-                    placeholder="যেমন: 1234 বা 01XXXXXXXXX"
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 font-semibold focus:outline-emerald-600 bg-slate-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={searchIlhak}
-                    disabled={searchStatus === "loading" || !ilhak.trim()}
-                    className="px-3 py-1.5 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 disabled:opacity-50"
-                  >
-                    {searchStatus === "loading" ? "খুঁজছি..." : "খুঁজুন"}
-                  </button>
-                </div>
-                {searchStatus === "found" && <p className="text-[10.5px] text-emerald-600 mt-0.5 font-bold">✓ মাদরাসার তথ্য পাওয়া গেছে!</p>}
-                {searchStatus === "not_found" && <p className="text-[10.5px] text-amber-600 mt-0.5 font-medium">⚠ পাওয়া যায়নি। ম্যানুয়ালি লিখুন।</p>}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500 font-bold">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={instituteName}
-                    onChange={(e) => setInstituteName(e.target.value)}
-                    placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-semibold focus:outline-emerald-600"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    মুহতামিম / আবেদনকারীর নাম <span className="text-red-500 font-bold">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="যেমন: মাওলানা মো: আবদুল্লাহ"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-semibold focus:outline-emerald-600"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">মোবাইল নম্বর *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={contactNo}
-                    onChange={(e) => setContactNo(e.target.value)}
-                    placeholder="01XXXXXXXXX"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-semibold focus:outline-emerald-600"
-                  />
-                </div>
-              </div>
-
-              {/* Geo Cascade Address Selector with Delivery Option */}
-              <div className="pt-2 border-t border-slate-100">
-                <GeoAddressSelector
-                  label="মাদরাসার পূর্ণাঙ্গ ঠিকানা *"
-                  value={geoAddress}
-                  onChange={(newVal) => {
-                    setGeoAddress(newVal);
-                    setAddress(newVal.fullAddress);
-                  }}
-                  hasSeparateDelivery={hasSeparateDelivery}
-                  onSeparateDeliveryChange={setHasSeparateDelivery}
-                  deliveryValue={deliveryAddress}
-                  onDeliveryChange={setDeliveryAddress}
-                />
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <label className="block font-bold text-slate-800">পেমেন্ট পদ্ধতি</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { id: "pay_now", label: "এখনই পেমেন্ট" },
-                    { id: "money_receipt", label: "মানি রিসিট" },
-                    { id: "pay_later", label: "পরে পেমেন্ট" }
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setPaymentOption(opt.id as any)}
-                      className={`p-2 rounded-lg border text-center font-bold transition-all ${
-                        paymentOption === opt.id
-                          ? "border-[#095738] bg-emerald-50 text-[#095738] ring-1 ring-emerald-600"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {paymentOption === "pay_now" && (
-                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <div className="flex gap-1.5">
-                      {(["bKash", "Nagad", "Rocket", "Bank"] as const).map((prov) => (
-                        <button
-                          key={prov}
-                          type="button"
-                          onClick={() => setPaymentProvider(prov)}
-                          className={`flex-1 py-1 rounded text-[11px] font-bold border ${
-                            paymentProvider === prov ? "bg-[#095738] text-white border-[#095738]" : "bg-white text-slate-600 border-slate-200"
-                          }`}
-                        >
-                          {prov}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="p-2 bg-emerald-50 rounded border border-emerald-200 flex items-center justify-between text-[11px]">
-                      <span>নম্বর: <strong>{paymentProvider === "Bank" ? "A/C: 123456789 (IBBL)" : "01700000000 (" + paymentProvider + ")"}</strong></span>
-                      <button type="button" onClick={handleCopyNumber} className="bg-white border px-1.5 py-0.5 rounded font-bold text-[10px]">
-                        {copied ? "কপি হয়েছে" : "কপি"}
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      value={trxId}
-                      onChange={(e) => setTrxId(e.target.value)}
-                      placeholder="ট্রানজেকশন আইডি / রশিদ নং *"
-                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg font-semibold focus:outline-emerald-600"
-                    />
-                  </div>
-                )}
-
-                {paymentOption === "money_receipt" && (
-                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 text-xs">
+              {!paymentStep ? (
+                <>
+                  {/* Step 1: Customer & Address Information */}
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      ইলহাক বা মোবাইল নম্বর (অটো-ফিল)
+                    </label>
                     <div className="flex gap-1.5">
                       <input
                         type="text"
-                        value={receiptNumber}
-                        onChange={(e) => setReceiptNumber(e.target.value)}
-                        placeholder="মানি রিসিট নম্বর *"
-                        className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg font-semibold focus:outline-emerald-600"
+                        value={ilhak}
+                        onChange={(e) => {
+                          setIlhak(e.target.value);
+                          if (searchStatus !== "idle") {
+                            setSearchStatus("idle");
+                            setAutoFilledFields({});
+                          }
+                        }}
+                        placeholder="যেমন: 1234 বা 01XXXXXXXXX"
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 font-semibold focus:outline-emerald-600 bg-slate-50"
                       />
                       <button
                         type="button"
-                        onClick={verifyReceipt}
-                        disabled={receiptVerifyStatus === "verifying" || !receiptNumber.trim()}
-                        className="px-3 py-1.5 bg-slate-800 text-white font-bold rounded-lg"
+                        onClick={searchIlhak}
+                        disabled={searchStatus === "loading" || !ilhak.trim()}
+                        className="px-3 py-1.5 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 disabled:opacity-50 cursor-pointer"
                       >
-                        {receiptVerifyStatus === "verifying" ? "..." : "যাচাই"}
+                        {searchStatus === "loading" ? "খুঁজছি..." : "খুঁজুন"}
                       </button>
                     </div>
-                    {receiptVerifyMsg && <p className={`text-[10.5px] font-bold ${receiptVerifyStatus === "valid" ? "text-emerald-600" : "text-red-500"}`}>{receiptVerifyMsg}</p>}
+                    {searchStatus === "found" && (
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-[10.5px] text-emerald-600 font-bold">✓ মাদরাসার তথ্য পাওয়া গেছে!</p>
+                        <button
+                          type="button"
+                          onClick={() => setAutoFilledFields({})}
+                          className="text-[10px] text-slate-500 hover:text-emerald-700 underline font-semibold cursor-pointer"
+                          title="ম্যানুয়ালি এডিট করতে ক্লিক করুন"
+                        >
+                          তথ্য পরিবর্তন বা আনলক করুন
+                        </button>
+                      </div>
+                    )}
+                    {searchStatus === "not_found" && <p className="text-[10.5px] text-amber-600 mt-0.5 font-medium">⚠ পাওয়া যায়নি। ম্যানুয়ালি লিখুন।</p>}
                   </div>
-                )}
-              </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-500 block">মোট বিল</span>
-                  <span className="text-base font-black text-emerald-900">৳{totalAmount.toFixed(2)}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block font-bold text-slate-700">
+                          মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        {autoFilledFields.instituteName && (
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                            নিবন্ধিত (লক)
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={instituteName}
+                        onChange={(e) => setInstituteName(e.target.value)}
+                        readOnly={!!autoFilledFields.instituteName}
+                        disabled={!!autoFilledFields.instituteName}
+                        placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা"
+                        className={`w-full px-3 py-1.5 border rounded-lg font-semibold transition-all ${
+                          autoFilledFields.instituteName
+                            ? "bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none"
+                            : "border-slate-200 bg-white focus:outline-emerald-600"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block font-bold text-slate-700">
+                          মুহতামিম / আবেদনকারীর নাম <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        {autoFilledFields.ownerName && (
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                            নিবন্ধিত (লক)
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={ownerName}
+                        onChange={(e) => setOwnerName(e.target.value)}
+                        readOnly={!!autoFilledFields.ownerName}
+                        disabled={!!autoFilledFields.ownerName}
+                        placeholder="যেমন: মাওলানা মো: আবদুল্লাহ"
+                        className={`w-full px-3 py-1.5 border rounded-lg font-semibold transition-all ${
+                          autoFilledFields.ownerName
+                            ? "bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none"
+                            : "border-slate-200 bg-white focus:outline-emerald-600"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block font-bold text-slate-700">
+                          মোবাইল নম্বর <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        {autoFilledFields.contactNo && (
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                            নিবন্ধিত (লক)
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        value={contactNo}
+                        onChange={(e) => setContactNo(e.target.value)}
+                        readOnly={!!autoFilledFields.contactNo}
+                        disabled={!!autoFilledFields.contactNo}
+                        placeholder="01XXXXXXXXX"
+                        className={`w-full px-3 py-1.5 border rounded-lg font-semibold transition-all ${
+                          autoFilledFields.contactNo
+                            ? "bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none"
+                            : "border-slate-200 bg-white focus:outline-emerald-600"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Geo Cascade Address Selector with Delivery Option */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <GeoAddressSelector
+                      label="মাদরাসার পূর্ণাঙ্গ ঠিকানা *"
+                      value={geoAddress}
+                      onChange={(newVal) => {
+                        setGeoAddress(newVal);
+                        setAddress(newVal.fullAddress);
+                      }}
+                      hasSeparateDelivery={hasSeparateDelivery}
+                      onSeparateDeliveryChange={setHasSeparateDelivery}
+                      deliveryValue={deliveryAddress}
+                      onDeliveryChange={setDeliveryAddress}
+                    />
+                  </div>
+
+                  {/* Order Bill Summary */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
+                      <span>মোট নির্বাচিত প্রশ্ন:</span>
+                      <span className="font-bold text-slate-800">{totalItemCount} সেট</span>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                      <span className="font-bold text-slate-700 text-sm sm:text-base">সর্বমোট প্রদেয় বিল:</span>
+                      <span className="text-xl sm:text-2xl font-black text-[#095738]">৳{totalAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {errorMsg && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                      <span className="shrink-0 text-sm">⚠️</span>
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCheckoutOpen(false)}
+                      className="w-1/2 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all border border-slate-200 cursor-pointer"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="button"
+                      onClick={validateAndProceedToPayment}
+                      className="w-1/2 py-2.5 bg-[#095738] hover:bg-[#07472d] text-white rounded-xl font-bold transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <span>পেমেন্ট অপশন</span>
+                      <ChevronRight className="w-4 h-4 text-amber-300" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Step 2: Payment Options */
+                <div className="animate-in slide-in-from-right-4 space-y-4">
+                  <h3 className="font-bold text-slate-700 text-sm sm:text-base text-center">কিভাবে পেমেন্ট করতে চান?</h3>
+                  {errorMsg && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                      <span className="shrink-0 text-sm">⚠️</span>
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {/* Option 1: Pay Now */}
+                    <label className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${paymentOption === "pay_now" ? "border-[#095738] bg-emerald-50/50 ring-1 ring-[#095738]" : "border-slate-200 hover:border-[#095738]/50"}`}>
+                      <input
+                        type="radio"
+                        name="payment_opt"
+                        checked={paymentOption === "pay_now"}
+                        onChange={() => setPaymentOption("pay_now")}
+                        className="w-4.5 h-4.5 text-[#095738] focus:ring-[#095738]"
+                      />
+                      <span className="font-bold text-slate-800 text-sm">এখনই পেমেন্ট করুন</span>
+                    </label>
+
+                    {paymentOption === "pay_now" && (
+                      <div className="pl-6 sm:pl-8 pr-2 pb-2 animate-in fade-in space-y-3">
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { id: "bKash", name: "bKash", logo: "https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" },
+                            { id: "Nagad", name: "Nagad", logo: "https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png" },
+                            { id: "Rocket", name: "Rocket", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Rocket_mobile_banking_logo.svg/512px-Rocket_mobile_banking_logo.svg.png" },
+                            { id: "Bank", name: "Bank" }
+                          ].map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setPaymentProvider(p.id as any)}
+                              className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all border-2 cursor-pointer ${
+                                paymentProvider === p.id ? "border-[#095738] bg-emerald-50" : "border-slate-100 hover:border-slate-300 bg-white"
+                              }`}
+                            >
+                              <div className="h-9 flex items-center justify-center">
+                                {p.logo ? (
+                                  <img src={p.logo} alt={p.name} className="max-h-full max-w-full object-contain" />
+                                ) : (
+                                  <Building2 className={`w-7 h-7 ${paymentProvider === p.id ? "text-[#095738]" : "text-slate-600"}`} />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-blue-800 font-medium mb-0.5">এই নাম্বারে টাকা পাঠিয়ে TrxID দিন:</p>
+                            <p className="text-sm sm:text-base font-black text-blue-950 tracking-wider">
+                              {paymentProvider === "bKash" ? "01700000000 (bKash)" :
+                                paymentProvider === "Nagad" ? "01700000000 (Nagad)" :
+                                  paymentProvider === "Rocket" ? "01700000000 (Rocket)" : "A/C: 123456789, Islami Bank"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyNumber(paymentProvider)}
+                            className="flex flex-col items-center justify-center bg-white border border-blue-200 text-blue-700 rounded-lg w-11 h-11 hover:bg-blue-100 transition-colors shrink-0 cursor-pointer"
+                            title="নম্বর কপি করুন"
+                          >
+                            {copied ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                            <span className="text-[9px] font-bold mt-0.5">{copied ? "Copied" : "Copy"}</span>
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            ট্রানজেকশন আইডি (TrxID) / রশিদ নং <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={trxId}
+                            onChange={(e) => setTrxId(e.target.value)}
+                            placeholder="ট্রানজেকশন আইডি / রশিদ নং লিখুন"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Option 2: Money Receipt */}
+                    <label className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${paymentOption === "money_receipt" ? "border-[#095738] bg-emerald-50/50 ring-1 ring-[#095738]" : "border-slate-200 hover:border-[#095738]/50"}`}>
+                      <input
+                        type="radio"
+                        name="payment_opt"
+                        checked={paymentOption === "money_receipt"}
+                        onChange={() => setPaymentOption("money_receipt")}
+                        className="w-4.5 h-4.5 text-[#095738] focus:ring-[#095738]"
+                      />
+                      <span className="font-bold text-slate-800 text-sm">মানি রিসিট আছে</span>
+                    </label>
+
+                    {paymentOption === "money_receipt" && (
+                      <div className="pl-6 sm:pl-8 pr-2 pb-2 animate-in fade-in space-y-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            মানি রিসিট নম্বর <span className="text-red-500">*</span>
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={receiptNumber}
+                              onChange={(e) => {
+                                setReceiptNumber(e.target.value);
+                                if (receiptVerifyStatus !== "idle") {
+                                  setReceiptVerifyStatus("idle");
+                                  setReceiptVerifyMsg("");
+                                  setReceiptBalance(0);
+                                }
+                              }}
+                              placeholder="Receipt Number"
+                              className={`flex-1 px-3 py-2 rounded-lg border focus:outline-none focus:border-[#095738] text-xs font-semibold transition-all ${
+                                receiptVerifyStatus === "valid" ? "border-emerald-400 bg-emerald-50" : receiptVerifyStatus === "invalid" ? "border-red-400 bg-red-50" : "border-slate-200"
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={verifyReceipt}
+                              disabled={receiptVerifyStatus === "verifying" || !receiptNumber.trim()}
+                              className="px-3 py-2 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 text-xs shrink-0 cursor-pointer"
+                            >
+                              {receiptVerifyStatus === "verifying" ? "যাচাই..." : "যাচাই করুন"}
+                            </button>
+                          </div>
+                          {receiptVerifyMsg && (
+                            <p className={`text-xs mt-1.5 font-bold ${receiptVerifyStatus === "valid" ? "text-emerald-700" : "text-red-500"}`}>
+                              {receiptVerifyMsg}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Partial Balance Panel */}
+                        {receiptVerifyStatus === "valid" && receiptBalance < totalAmount && (
+                          <div className="border border-amber-200 rounded-xl overflow-hidden">
+                            <div className="bg-amber-50 p-3 space-y-1.5">
+                              <p className="text-xs font-bold text-amber-800">ব্যালান্স বিবরণ:</p>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-slate-600">মোট বিল:</span>
+                                <span className="font-bold text-slate-800">৳{totalAmount.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-emerald-700">রিসিট ব্যালান্স:</span>
+                                <span className="font-bold text-emerald-700">-৳{receiptBalance.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs border-t border-amber-200 pt-1.5">
+                                <span className="text-red-600 font-bold">বাকি পরিশোধ করতে হবে:</span>
+                                <span className="font-black text-red-600">৳{(totalAmount - receiptBalance).toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            <div className="bg-white p-3 space-y-2">
+                              <p className="text-xs font-bold text-slate-700 mb-2">বাকি টাকা কিভাবে দিবেন?</p>
+
+                              <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${remainingOption === "pay_now" ? "border-[#095738] bg-emerald-50" : "border-slate-200"}`}>
+                                <input type="radio" checked={remainingOption === "pay_now"} onChange={() => setRemainingOption("pay_now")} className="w-4 h-4 text-[#095738]" />
+                                <span className="font-bold">এখনই বাকি পেমেন্ট করব</span>
+                              </label>
+
+                              {remainingOption === "pay_now" && (
+                                <div className="pl-6 space-y-2 animate-in fade-in">
+                                  <div className="grid grid-cols-4 gap-1.5">
+                                    {[
+                                      { id: "bKash", logo: "https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" },
+                                      { id: "Nagad", logo: "https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png" },
+                                      { id: "Rocket", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Rocket_mobile_banking_logo.svg/512px-Rocket_mobile_banking_logo.svg.png" },
+                                      { id: "Bank" }
+                                    ].map((p) => (
+                                      <button
+                                        key={p.id}
+                                        type="button"
+                                        onClick={() => setRemainingProvider(p.id as any)}
+                                        className={`flex items-center justify-center p-1.5 rounded-lg border-2 transition-all cursor-pointer ${
+                                          remainingProvider === p.id ? "border-[#095738] bg-emerald-50" : "border-slate-100 bg-white"
+                                        }`}
+                                      >
+                                        {p.logo ? <img src={p.logo} alt={p.id} className="h-6 object-contain" /> : <Building2 className="w-5 h-5 text-slate-600" />}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
+                                    <div>
+                                      <p className="text-[11px] text-blue-700 font-medium">বাকি ৳{(totalAmount - receiptBalance).toFixed(2)} পাঠান:</p>
+                                      <p className="text-xs font-black text-blue-900">
+                                        {remainingProvider === "Bank" ? "A/C: 123456789" : `01700000000 (${remainingProvider})`}
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleRemainingCopy}
+                                      className="bg-white border border-blue-200 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 cursor-pointer"
+                                    >
+                                      {remainingCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={remainingTrxId}
+                                    onChange={(e) => setRemainingTrxId(e.target.value)}
+                                    placeholder="বাকি টাকার ট্রানজেকশন আইডি / রশিদ নং লিখুন"
+                                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
+                                  />
+                                </div>
+                              )}
+
+                              <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${remainingOption === "pay_later" ? "border-[#095738] bg-emerald-50" : "border-slate-200"}`}>
+                                <input type="radio" checked={remainingOption === "pay_later"} onChange={() => setRemainingOption("pay_later")} className="w-4 h-4 text-[#095738]" />
+                                <span className="font-bold">বাকি পরে দেব (বাকি বাকি থাকবে)</span>
+                              </label>
+
+                              {remainingOption === "pay_later" && (
+                                <div className="pl-6 space-y-1.5 animate-in fade-in">
+                                  <label className="block text-xs font-bold text-slate-700">
+                                    বাকি টাকা পরিশোধের প্রতিশ্রুত তারিখ (Promise Date) <span className="text-red-500">*</span>
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={promiseDate}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setPromiseDate(e.target.value)}
+                                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#095738] cursor-pointer"
+                                  />
+                                </div>
+                              )}
+
+                              <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${remainingOption === "skip_receipt" ? "border-amber-400 bg-amber-50" : "border-slate-200"}`}>
+                                <input type="radio" checked={remainingOption === "skip_receipt"} onChange={() => setRemainingOption("skip_receipt")} className="w-4 h-4 text-amber-500" />
+                                <span className="font-bold text-amber-800">রিসিট অপর্যাপ্ত — এখন ব্যবহার করব না</span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Option 3: Pay Later */}
+                    <label className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${paymentOption === "pay_later" ? "border-[#095738] bg-emerald-50/50 ring-1 ring-[#095738]" : "border-slate-200 hover:border-[#095738]/50"}`}>
+                      <input
+                        type="radio"
+                        name="payment_opt"
+                        checked={paymentOption === "pay_later"}
+                        onChange={() => setPaymentOption("pay_later")}
+                        className="w-4.5 h-4.5 text-[#095738] focus:ring-[#095738]"
+                      />
+                      <span className="font-bold text-slate-800 text-sm">পরে পেমেন্ট করব</span>
+                    </label>
+
+                    {paymentOption === "pay_later" && (
+                      <div className="pl-6 sm:pl-8 pr-2 pb-2 animate-in fade-in space-y-2">
+                        <label className="block text-xs font-bold text-slate-700">
+                          কবে পরিশোধ করতে চান? (প্রতিশ্রুত তারিখ / Promise Date) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={promiseDate}
+                          min={new Date().toISOString().split("T")[0]}
+                          onChange={(e) => setPromiseDate(e.target.value)}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#095738]/20 focus:border-[#095738] transition-all cursor-pointer shadow-2xs"
+                        />
+                        <p className="text-[11px] text-slate-500">
+                          💡 আপনি যে তারিখে বকেয়া টাকা পরিশোধ করতে পারবেন সেই নির্দিষ্ট তারিখটি নির্বাচন করুন।
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary & Submit Buttons in Step 2 */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] text-slate-500 block">সর্বমোট বিল</span>
+                      <span className="text-base font-black text-emerald-900">৳{totalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentStep(false)}
+                        className="px-4 py-2 font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl cursor-pointer transition-colors"
+                      >
+                        ফিরে যান
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSubmitOrder()}
+                        disabled={isSubmitting}
+                        className="px-5 py-2 font-bold text-white bg-[#095738] hover:bg-[#07472d] rounded-xl shadow-md active:scale-95 cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5"
+                      >
+                        {isSubmitting ? "অর্ডার নেওয়া হচ্ছে..." : "অর্ডার নিশ্চিত করুন"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-1.5">
-                  <button type="button" onClick={() => setIsCheckoutOpen(false)} className="px-3 py-1.5 font-bold bg-slate-100 rounded-lg">
-                    বাতিল
-                  </button>
-                  <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 font-bold text-white bg-[#095738] hover:bg-[#07472d] rounded-lg shadow-xs">
-                    {isSubmitting ? "..." : "অর্ডার নিশ্চিত করুন"}
-                  </button>
-                </div>
-              </div>
-            </form>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -17,7 +17,7 @@ export interface HeroSlideItem {
 const defaultSlides: HeroSlideItem[] = [
   {
     id: "default-1",
-    title: "খুলনা নূরানী বোর্ডে স্বাগতম",
+    title: "নূরানী বোর্ড খুলনায় স্বাগতম",
     description: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
     imageUrl: "/images/hero/slide1.jpg",
   },
@@ -41,8 +41,24 @@ function formatBgUrl(url: string): string {
   return `url('${url}')`;
 }
 
+function cleanEmojis(str?: string): string {
+  if (!str) return "";
+  return str
+    .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\uFE00-\uFE0F]/g, "")
+    .trim();
+}
+
+function sanitizeSlides(items: HeroSlideItem[]): HeroSlideItem[] {
+  return items.map((item) => ({
+    ...item,
+    title: cleanEmojis(item.title),
+    subtitle: cleanEmojis(item.subtitle),
+    description: cleanEmojis(item.description),
+  }));
+}
+
 export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean }) {
-  const [slides, setSlides] = useState<HeroSlideItem[]>(defaultSlides);
+  const [slides, setSlides] = useState<HeroSlideItem[]>(sanitizeSlides(defaultSlides));
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -54,9 +70,9 @@ export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean 
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.heroSlides) && data.heroSlides.length > 0) {
-            setSlides(data.heroSlides);
+            setSlides(sanitizeSlides(data.heroSlides));
           } else {
-            setSlides(defaultSlides);
+            setSlides(sanitizeSlides(defaultSlides));
           }
         }
       } catch (err) {
@@ -69,7 +85,7 @@ export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean 
     // Listen for live updates from settings tab
     const handleSettingsUpdated = (e: CustomEvent) => {
       if (e.detail?.heroSlides && Array.isArray(e.detail.heroSlides) && e.detail.heroSlides.length > 0) {
-        setSlides(e.detail.heroSlides);
+        setSlides(sanitizeSlides(e.detail.heroSlides));
         setCurrentSlide(0);
       }
     };

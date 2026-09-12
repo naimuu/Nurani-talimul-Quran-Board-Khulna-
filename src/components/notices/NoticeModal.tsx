@@ -153,7 +153,7 @@ export default function NoticeModal({ notice, isOpen, onClose }: NoticeModalProp
                   <span>{date}</span>
                 </span>
                 <span className="text-[11px] font-medium text-slate-400">
-                  খুলনা নূরানী তালীমুল কুরআন বোর্ড
+                  নূরানী তালীমুল কুরআন বোর্ড খুলনা
                 </span>
               </div>
               <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-800 leading-snug">

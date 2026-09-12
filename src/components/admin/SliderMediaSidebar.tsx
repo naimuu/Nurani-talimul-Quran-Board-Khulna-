@@ -43,7 +43,7 @@ interface SliderMediaSidebarProps {
 
 const PRESET_GALLERY = [
   {
-    title: "খুলনা নূরানী বোর্ড ব্যানার ১",
+    title: "নূরানী বোর্ড খুলনা ব্যানার ১",
     imageUrl: "/images/hero/slide1.jpg",
     description: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
     buttonText: "মাদরাসা নিবন্ধন করুন",
@@ -630,7 +630,7 @@ export default function SliderMediaSidebar({
               </label>
               <input
                 type="text"
-                placeholder="উদাঃ খুলনা নূরানী বোর্ডে স্বাগতম"
+                placeholder="উদাঃ নূরানী বোর্ড খুলনায় স্বাগতম"
                 value={urlForm.title}
                 onChange={(e) => setUrlForm({ ...urlForm, title: e.target.value })}
                 className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 bg-white"

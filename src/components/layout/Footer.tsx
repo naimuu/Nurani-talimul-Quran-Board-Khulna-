@@ -22,8 +22,8 @@ export default function Footer() {
           <div className="lg:col-span-4 space-y-4">
             <div>
               <h3 className="text-2xl font-black text-white flex items-center gap-2">
-                <span className="text-emerald-400">খুলনা</span>
                 <span>নূরানী বোর্ড</span>
+                <span className="text-emerald-400">খুলনা</span>
               </h3>
               <p className="text-xs text-emerald-400/90 font-medium tracking-wide mt-0.5">
                 নূরানী তালীমুল কুরআন বোর্ড খুলনা বাংলাদেশ
@@ -35,7 +35,7 @@ export default function Footer() {
             </p>
 
             {/* Office Address Card */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-2.5 shadow-sm">
+            <div className="bg-slate-900/40 rounded-xl p-3.5 space-y-2.5">
               <div className="flex items-start gap-2.5 text-xs text-slate-300">
                 <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
@@ -44,7 +44,7 @@ export default function Footer() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 text-xs text-slate-300 pt-2 border-t border-slate-800/80">
+              <div className="flex items-start gap-2.5 text-xs text-slate-300 pt-2 border-t border-slate-800/40">
                 <Clock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-white block font-semibold mb-0.5">অফিস সময়:</strong>
@@ -58,7 +58,7 @@ export default function Footer() {
 
           {/* Col 2: Quick Links (2 cols) */}
           <div className="lg:col-span-2 space-y-4">
-            <h4 className="text-base font-bold text-white tracking-wide border-b border-slate-800 pb-2.5 flex items-center gap-2">
+            <h4 className="text-base font-bold text-white tracking-wide border-b border-slate-800/60 pb-2.5 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               গুরুত্বপূর্ণ লিংক
             </h4>
@@ -104,10 +104,10 @@ export default function Footer() {
 
           {/* Col 3: Department Direct Hotlines (6 cols) */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
               <h4 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                জরুরি বিভাগীয় হটলাইন ও যোগাযোগ
+                জরুরি বিভাগীয় হটলাইন ও যোগাযোগ
               </h4>
               <Link 
                 href="/contact" 
@@ -122,13 +122,13 @@ export default function Footer() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               
               {/* Card 1: ইলহাক, পরীক্ষা ও সনদ */}
-              <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition-all">
-                <span className="text-xs font-semibold text-slate-300 block mb-1.5">
+              <div className="bg-slate-900/40 hover:bg-slate-900/70 rounded-xl p-3 transition-colors">
+                <span className="text-xs font-medium text-slate-400 block mb-1.5">
                   ইলহাক, পরীক্ষা ও সনদ:
                 </span>
                 <a
                   href="tel:01820580560"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/90 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 rounded-lg border border-slate-700/80 hover:border-emerald-500/80 text-xs font-mono font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-xs w-full justify-center sm:justify-start"
+                  className="inline-flex items-center gap-2 text-xs font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors py-0.5"
                   title="কল করতে ক্লিক করুন"
                 >
                   <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -137,13 +137,13 @@ export default function Footer() {
               </div>
 
               {/* Card 2: হিসাব বিভাগ */}
-              <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition-all">
-                <span className="text-xs font-semibold text-slate-300 block mb-1.5">
+              <div className="bg-slate-900/40 hover:bg-slate-900/70 rounded-xl p-3 transition-colors">
+                <span className="text-xs font-medium text-slate-400 block mb-1.5">
                   হিসাব বিভাগ:
                 </span>
                 <a
                   href="tel:01893432313"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/90 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 rounded-lg border border-slate-700/80 hover:border-emerald-500/80 text-xs font-mono font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-xs w-full justify-center sm:justify-start"
+                  className="inline-flex items-center gap-2 text-xs font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors py-0.5"
                   title="কল করতে ক্লিক করুন"
                 >
                   <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -152,13 +152,13 @@ export default function Footer() {
               </div>
 
               {/* Card 3: বই ও স্টেশনারি */}
-              <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition-all">
-                <span className="text-xs font-semibold text-slate-300 block mb-1.5">
+              <div className="bg-slate-900/40 hover:bg-slate-900/70 rounded-xl p-3 transition-colors">
+                <span className="text-xs font-medium text-slate-400 block mb-1.5">
                   বই ও স্টেশনারি বিভাগ:
                 </span>
                 <a
                   href="tel:01312135862"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/90 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 rounded-lg border border-slate-700/80 hover:border-emerald-500/80 text-xs font-mono font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-xs w-full justify-center sm:justify-start"
+                  className="inline-flex items-center gap-2 text-xs font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors py-0.5"
                   title="কল করতে ক্লিক করুন"
                 >
                   <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -167,22 +167,23 @@ export default function Footer() {
               </div>
 
               {/* Card 4: আরবি প্রশিক্ষণ */}
-              <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition-all">
-                <span className="text-xs font-semibold text-slate-300 block mb-1.5">
+              <div className="bg-slate-900/40 hover:bg-slate-900/70 rounded-xl p-3 transition-colors">
+                <span className="text-xs font-medium text-slate-400 block mb-1.5">
                   আরবি প্রশিক্ষণ বিভাগ:
                 </span>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                   <a
                     href="tel:01966935832"
-                    className="inline-flex items-center justify-center gap-1.5 px-2 py-1.5 bg-slate-800/90 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 rounded-lg border border-slate-700/80 hover:border-emerald-500/80 text-[11px] font-mono font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-xs"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors py-0.5"
                     title="কল করতে ক্লিক করুন"
                   >
                     <Phone className="w-3 h-3 text-emerald-400 shrink-0" />
                     <span>01966-935832</span>
                   </a>
+                  <span className="text-slate-600 text-xs hidden sm:inline">•</span>
                   <a
                     href="tel:01939895290"
-                    className="inline-flex items-center justify-center gap-1.5 px-2 py-1.5 bg-slate-800/90 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 rounded-lg border border-slate-700/80 hover:border-emerald-500/80 text-[11px] font-mono font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-xs"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors py-0.5"
                     title="কল করতে ক্লিক করুন"
                   >
                     <Phone className="w-3 h-3 text-emerald-400 shrink-0" />
@@ -192,22 +193,23 @@ export default function Footer() {
               </div>
 
               {/* Card 5: বাংলা প্রশিক্ষণ */}
-              <div className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition-all sm:col-span-2">
-                <span className="text-xs font-semibold text-slate-300 block mb-1.5">
+              <div className="bg-slate-900/40 hover:bg-slate-900/70 rounded-xl p-3 transition-colors sm:col-span-2">
+                <span className="text-xs font-medium text-slate-400 block mb-1.5">
                   বাংলা প্রশিক্ষণ বিভাগ:
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
                   <a
                     href="tel:01988977209"
-                    className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-slate-800/90 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 rounded-lg border border-slate-700/80 hover:border-emerald-500/80 text-xs font-mono font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-xs"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors py-0.5"
                     title="কল করতে ক্লিক করুন"
                   >
                     <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>01988-977209</span>
                   </a>
+                  <span className="text-slate-600 text-xs hidden sm:inline">•</span>
                   <a
                     href="tel:01764434552"
-                    className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-slate-800/90 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 rounded-lg border border-slate-700/80 hover:border-emerald-500/80 text-xs font-mono font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-xs"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors py-0.5"
                     title="কল করতে ক্লিক করুন"
                   >
                     <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -225,7 +227,7 @@ export default function Footer() {
         <div className="border-t border-slate-800/90 mt-12 pt-6 text-xs text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="flex items-center gap-1.5">
             <span>&copy; {currentYear}</span>
-            <strong className="text-slate-300 font-medium">খুলনা নূরানী বোর্ড</strong>
+            <strong className="text-slate-300 font-medium">নূরানী বোর্ড খুলনা</strong>
             <span>— সর্বস্বত্ব সংরক্ষিত।</span>
           </p>
           <div className="flex items-center gap-6">

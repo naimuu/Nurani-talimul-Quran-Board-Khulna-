@@ -708,15 +708,17 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
         <table>
           <thead>
             <tr>
+              <th class="text-center" style="width: 45px;">ক্র.নং</th>
               <th>পণ্যের নাম</th>
-              <th class="text-center">পরিমাণ</th>
-              <th class="text-right">একক মূল্য</th>
-              <th class="text-right">মোট মূল্য</th>
+              <th class="text-center" style="width: 75px;">পরিমাণ</th>
+              <th class="text-right" style="width: 95px;">একক মূল্য</th>
+              <th class="text-right" style="width: 105px;">মোট মূল্য</th>
             </tr>
           </thead>
           <tbody>
-            ${sale.items.map(i => `
+            ${sale.items.map((i, idx) => `
               <tr>
+                <td class="text-center" style="font-weight: bold; color: #475569;">${String(idx + 1).padStart(2, '0')}</td>
                 <td style="font-weight: 500; color: #0f172a;">
                   ${i.product.name}
                   ${i.product.className ? `<span style="font-size: 11px; color: #64748b; font-weight: normal; margin-left: 4px;">(${i.product.className})</span>` : ''}
@@ -1242,6 +1244,7 @@ function SaleDetailsModal({ sale, allSales = [], onClose }: { sale: Sale; allSal
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
                   <tr>
+                    <th className="px-3 py-3 font-medium text-center w-12">ক্র.নং</th>
                     <th className="px-4 py-3 font-medium">পণ্য</th>
                     <th className="px-4 py-3 font-medium text-center">পরিমাণ</th>
                     <th className="px-4 py-3 font-medium text-right">দাম</th>
@@ -1249,8 +1252,11 @@ function SaleDetailsModal({ sale, allSales = [], onClose }: { sale: Sale; allSal
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {sale.items.map(item => (
+                  {sale.items.map((item, idx) => (
                     <tr key={item.id} className="bg-white">
+                      <td className="px-3 py-3 text-center font-bold text-slate-500 text-xs">
+                        {String(idx + 1).padStart(2, '0')}
+                      </td>
                       <td className="px-4 py-3 font-medium text-slate-800">{item.product.name}</td>
                       <td className="px-4 py-3 text-center text-slate-600">{item.quantity}</td>
                       <td className="px-4 py-3 text-right text-slate-600">{item.unitPrice} ৳</td>

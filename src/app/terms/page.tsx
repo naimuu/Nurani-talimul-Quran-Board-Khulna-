@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FileText, ArrowLeft } from "lucide-react";
 
 export const metadata = {
-  title: "সেবার শর্তাবলী | খুলনা নূরানী বোর্ড",
+  title: "সেবার শর্তাবলী | নূরানী বোর্ড খুলনা",
   description: "নূরানী তালীমুল কুরআন বোর্ড খুলনা বাংলাদেশ সেবার শর্তাবলী ও নীতিমালা",
 };
 

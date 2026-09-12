@@ -111,7 +111,7 @@ export default function NoticesPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                খুলনা নূরানী বোর্ডের সাম্প্রতিক ঘোষণা, আদেশ ও নোটিশসমূহ
+                নূরানী বোর্ড খুলনার সাম্প্রতিক ঘোষণা, আদেশ ও নোটিশসমূহ
               </p>
             </div>
           </div>
@@ -391,7 +391,7 @@ export default function NoticesPage() {
             {/* Table Footer */}
             <div className="px-5 py-2 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500 flex justify-between items-center">
               <span>মোট {filteredNotices.length} টি নোটিশ</span>
-              <span className="text-emerald-700 font-semibold">খুলনা নূরানী বোর্ড</span>
+              <span className="text-emerald-700 font-semibold">নূরানী বোর্ড খুলনা</span>
             </div>
 
           </div>

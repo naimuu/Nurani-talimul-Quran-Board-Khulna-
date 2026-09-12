@@ -22,6 +22,7 @@ export async function POST(request: Request) {
       remainingOption,
       remainingProvider,
       remainingTrxId,
+      promiseDate,
     } = await request.json();
     
     if (!customerName || !items || items.length === 0) {
@@ -157,7 +158,8 @@ export async function POST(request: Request) {
     const deliveryNoteSummary = deliveryCharge > 0 
       ? ` | কুরিয়ার: ${courierName} (চার্জ: ${deliveryCharge} ৳, ওজন: ${totalWeight} কেজি)`
       : ` | কুরিয়ার: ${courierName} (ফ্রি ডেলিভারি, ওজন: ${totalWeight} কেজি)`;
-    const finalNotes = (notes || "Online Order") + deliveryNoteSummary;
+    const promiseDateSummary = promiseDate ? ` | প্রতিশ্রুত পরিশোধের তারিখ: ${new Date(promiseDate).toLocaleDateString('bn-BD')}` : '';
+    const finalNotes = (notes || "Online Order") + deliveryNoteSummary + promiseDateSummary;
 
     // Create a StoreSale with status 'Pending Order' (does NOT deduct stock)
     let sale;
@@ -176,6 +178,7 @@ export async function POST(request: Request) {
           deliveryCharge,
           courierName,
           totalWeight,
+          promiseDate: promiseDate ? new Date(promiseDate) : null,
           status: "Pending Order",
           notes: finalNotes,
           items: {
@@ -197,6 +200,7 @@ export async function POST(request: Request) {
           deliveryCharge,
           courierName,
           totalWeight,
+          promiseDate: promiseDate ? new Date(promiseDate) : null,
           status: "Pending Order",
           notes: finalNotes,
           items: {

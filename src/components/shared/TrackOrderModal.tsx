@@ -229,8 +229,26 @@ export function TrackOrderModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                   </div>
                 </div>
                 <table>
-                  <tr><th>পণ্যের নাম</th><th class="text-center">পরিমাণ</th><th class="text-right">একক মূল্য</th><th class="text-right">মোট মূল্য</th></tr>
-                  ${order.items.map((i: any) => "<tr><td>" + i.product.name + "</td><td class='text-center'>" + i.quantity + "</td><td class='text-right'>" + i.unitPrice.toFixed(2) + " ৳</td><td class='text-right'>" + (i.quantity * i.unitPrice).toFixed(2) + " ৳</td></tr>").join('')}
+                  <thead>
+                    <tr>
+                      <th class="text-center" style="width: 45px;">ক্র.নং</th>
+                      <th>পণ্যের নাম</th>
+                      <th class="text-center" style="width: 75px;">পরিমাণ</th>
+                      <th class="text-right" style="width: 95px;">একক মূল্য</th>
+                      <th class="text-right" style="width: 105px;">মোট মূল্য</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${order.items.map((i: any, idx: number) => `
+                      <tr>
+                        <td class="text-center" style="font-weight: bold; color: #475569;">${String(idx + 1).padStart(2, '0')}</td>
+                        <td>${i.product.name}</td>
+                        <td class="text-center">${i.quantity}</td>
+                        <td class="text-right">${Number(i.unitPrice).toFixed(2)} ৳</td>
+                        <td class="text-right">${(i.quantity * i.unitPrice).toFixed(2)} ৳</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
                 </table>
                 <div class="totals-section">
                   <div class="totals">

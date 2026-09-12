@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Building2, Layers, Award, BookOpen, Users, ShieldCheck, MapPin, ArrowRight } from "lucide-react";
 
 export const metadata = {
-  title: "আমাদের সম্পর্কে | খুলনা নূরানী বোর্ড",
+  title: "আমাদের সম্পর্কে | নূরানী বোর্ড খুলনা",
   description: "নূরানী তালীমুল কুরআন বোর্ড খুলনা বাংলাদেশ পরিচিতি ও কার্যক্রম",
 };
 
@@ -10,7 +10,7 @@ export default function AboutPage() {
   const sections = [
     {
       title: "বোর্ড পরিচিতি",
-      description: "খুলনা নূরানী বোর্ডের ইতিহাস, লক্ষ্য, উদ্দেশ্য এবং প্রশাসনিক কাঠামো সম্পর্কিত বিস্তারিত তথ্য।",
+      description: "নূরানী বোর্ড খুলনার ইতিহাস, লক্ষ্য, উদ্দেশ্য এবং প্রশাসনিক কাঠামো সম্পর্কিত বিস্তারিত তথ্য।",
       href: "/about/board_introduction",
       icon: Building2,
       badge: "মূল পরিচিতি",
@@ -85,7 +85,7 @@ export default function AboutPage() {
               পরিচিতি ও কার্যক্রম
             </span>
             <h1 className="text-xl sm:text-2xl font-bold mb-1.5">
-              খুলনা নূরানী তালীমুল কুরআন বোর্ড
+              নূরানী তালীমুল কুরআন বোর্ড খুলনা
             </h1>
             <p className="text-emerald-100/90 text-xs sm:text-sm leading-relaxed">
               বিশুদ্ধ কুরআনি শিক্ষা বিস্তার, আদর্শ শিক্ষক তৈরি ও দক্ষ মাদরাসা প্রশাসন গঠনে নিবেদিত শীর্ষ নূরানী শিক্ষা বোর্ড।

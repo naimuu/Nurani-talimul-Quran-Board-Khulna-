@@ -4,7 +4,7 @@ import Link from "next/link";
 import NoticeBoard from "@/components/home/NoticeBoard";
 
 export const metadata = {
-  title: "তথ্য ও যোগাযোগ | খুলনা নূরানী তালিমুল কুরআন বোর্ড",
+  title: "তথ্য ও যোগাযোগ | নূরানী তালিমুল কুরআন বোর্ড খুলনা",
   description: "নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ-এর অফিসিয়াল যোগাযোগের নম্বর ও বিস্তারিত তথ্য।",
 };
 

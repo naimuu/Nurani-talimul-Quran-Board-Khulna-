@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FileText, Download, CheckCircle2, ArrowRight, BookOpen, GraduationCap, ClipboardList, ShieldCheck } from "lucide-react";
 
 export const metadata = {
-  title: "ফর্ম ও আবেদন সমূহ | খুলনা নূরানী বোর্ড",
+  title: "ফর্ম ও আবেদন সমূহ | নূরানী বোর্ড খুলনা",
   description: "বোর্ডের সকল অফিশিয়াল ফরম, ইলহাক, মুয়াল্লিম ভর্তি ও সনদ আবেদন ফরম ডাউনলোড",
 };
 

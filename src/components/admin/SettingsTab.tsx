@@ -169,7 +169,7 @@ const DEFAULT_HERO_SLIDES: HeroSlide[] = [
   {
     id: "slide-default-1",
     imageUrl: "/images/hero/slide1.jpg",
-    title: "খুলনা নূরানী বোর্ডে স্বাগতম",
+    title: "নূরানী বোর্ড খুলনায় স্বাগতম",
     subtitle: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
     description: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
     buttonText: "মাদরাসা নিবন্ধন করুন",
@@ -194,6 +194,23 @@ const DEFAULT_HERO_SLIDES: HeroSlide[] = [
     buttonLink: "/register"
   }
 ];
+
+function cleanEmojis(str?: string): string {
+  if (!str) return "";
+  return str
+    .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\uFE00-\uFE0F]/g, "")
+    .trim();
+}
+
+function sanitizeHeroSlides(slides?: HeroSlide[]): HeroSlide[] {
+  if (!Array.isArray(slides)) return [];
+  return slides.map((s) => ({
+    ...s,
+    title: cleanEmojis(s.title),
+    subtitle: cleanEmojis(s.subtitle),
+    description: cleanEmojis(s.description),
+  }));
+}
 
 function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSave: () => void }) {
   const [formData, setFormData] = useState({
@@ -229,20 +246,21 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
         const parsed = JSON.parse(saved);
         if (parsed) {
           const slides = Array.isArray(parsed.heroSlides) && parsed.heroSlides.length > 0
-            ? parsed.heroSlides
-            : (settings?.heroSlides && settings.heroSlides.length > 0 ? settings.heroSlides : DEFAULT_HERO_SLIDES);
+            ? sanitizeHeroSlides(parsed.heroSlides)
+            : (settings?.heroSlides && settings.heroSlides.length > 0 ? sanitizeHeroSlides(settings.heroSlides) : DEFAULT_HERO_SLIDES);
           setFormData({
             ...parsed,
+            name: cleanEmojis(parsed.name),
             heroSlides: slides,
           });
         }
       } catch (e) {}
     } else if (settings) {
       const slides = Array.isArray(settings.heroSlides) && settings.heroSlides.length > 0
-        ? settings.heroSlides
+        ? sanitizeHeroSlides(settings.heroSlides)
         : DEFAULT_HERO_SLIDES;
       setFormData({
-        name: settings.name || "",
+        name: cleanEmojis(settings.name || ""),
         address: settings.address || "",
         logoUrl: settings.logoUrl || "",
         coverUrl: settings.coverUrl || "",

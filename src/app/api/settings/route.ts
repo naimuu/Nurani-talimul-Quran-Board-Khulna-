@@ -9,19 +9,36 @@ const FLAGS_SLUG = 'cover-display-flags';
 
 export interface HeroSlide {
   id: string;
+  imageUrl: string;
   title?: string;
   subtitle?: string;
   description?: string;
-  imageUrl: string;
   buttonText?: string;
   buttonLink?: string;
+}
+
+function cleanEmojis(str?: string): string {
+  if (!str) return "";
+  return str
+    .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\uFE00-\uFE0F]/g, "")
+    .trim();
+}
+
+function sanitizeHeroSlides(slides?: HeroSlide[]): HeroSlide[] {
+  if (!Array.isArray(slides)) return [];
+  return slides.map((s) => ({
+    ...s,
+    title: cleanEmojis(s.title),
+    subtitle: cleanEmojis(s.subtitle),
+    description: cleanEmojis(s.description),
+  }));
 }
 
 const DEFAULT_HERO_SLIDES: HeroSlide[] = [
   {
     id: "slide-default-1",
     imageUrl: "/images/hero/slide1.jpg",
-    title: "খুলনা নূরানী বোর্ডে স্বাগতম",
+    title: "নূরানী বোর্ড খুলনায় স্বাগতম",
     subtitle: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
     description: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
     buttonText: "মাদরাসা নিবন্ধন করুন",
@@ -88,10 +105,10 @@ async function getCoverFlags(): Promise<{
       showCoverInPageHeader: parsed.showCoverInPageHeader ?? false,
       scrollingNotice:       parsed.scrollingNotice ?? "",
       showScrollingNotice:   parsed.showScrollingNotice ?? false,
-      heroSlides:            slides,
+      heroSlides:            sanitizeHeroSlides(slides),
     };
   } catch {
-    return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: DEFAULT_HERO_SLIDES };
+    return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: sanitizeHeroSlides(DEFAULT_HERO_SLIDES) };
   }
 }
 
@@ -108,7 +125,7 @@ async function setCoverFlags(flags: {
     showCoverInPageHeader: flags.showCoverInPageHeader ?? current.showCoverInPageHeader,
     scrollingNotice:       flags.scrollingNotice ?? current.scrollingNotice,
     showScrollingNotice:   flags.showScrollingNotice ?? current.showScrollingNotice,
-    heroSlides:            flags.heroSlides !== undefined ? flags.heroSlides : current.heroSlides,
+    heroSlides:            flags.heroSlides !== undefined ? sanitizeHeroSlides(flags.heroSlides) : current.heroSlides,
   };
   await prisma.pageContent.upsert({
     where:  { slug: FLAGS_SLUG },

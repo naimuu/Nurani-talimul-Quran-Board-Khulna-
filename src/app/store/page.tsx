@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
   SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck, Truck
@@ -68,9 +68,6 @@ function ListProductRow({
       <td className="p-3 text-center text-sm font-bold text-slate-700 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
       <td className="p-3">
         <h3 className="font-bold text-slate-800 text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2" onClick={() => setDetailProduct(product)}>{product.name}</h3>
-      </td>
-      <td className="p-3 text-center text-xs sm:text-sm font-bold text-slate-600">
-        {product.className ? `${product.className}${product.subject ? ` - ${product.subject}` : ''}` : '-'}
       </td>
       <td className="p-3 text-center text-xs sm:text-sm font-bold text-slate-600 hidden sm:table-cell">
         {product.category}
@@ -366,6 +363,13 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
     fullAddress: ""
   });
   const [missingFieldsNotice, setMissingFieldsNotice] = useState<string>("");
+  const [autoFilledFields, setAutoFilledFields] = useState<{
+    ownerName?: boolean;
+    instituteName?: boolean;
+    contactNo?: boolean;
+    customerEmail?: boolean;
+    address?: boolean;
+  }>(initialState?.autoFilledFields || {});
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -385,6 +389,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   const [remainingProvider, setRemainingProvider] = useState<'bKash' | 'Nagad' | 'Rocket' | 'Bank'>('bKash');
   const [remainingTrxId, setRemainingTrxId] = useState("");
   const [remainingCopied, setRemainingCopied] = useState(false);
+  const [promiseDate, setPromiseDate] = useState(initialState?.promiseDate || "");
+  const modalBodyRef = useRef<HTMLDivElement>(null);
 
   const handleCopy = () => {
     const number = paymentProvider === 'Bank' ? '123456789' : '01700000000';
@@ -421,13 +427,36 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
     setIsLoading(true);
     setSearchStatus("idle");
     setMissingFieldsNotice("");
+    setAutoFilledFields({});
     try {
       const res = await fetch(`/api/madrasa/by-code?code=${encodeURIComponent(ilhak)}`);
       if (res.ok) {
         const data = await res.json();
-        setInstituteName(data.name || "");
-        setOwnerName(data.ownerName || "");
-        setContactNo(data.contactNo || "");
+        const autoFilled: {
+          ownerName?: boolean;
+          instituteName?: boolean;
+          contactNo?: boolean;
+          customerEmail?: boolean;
+          address?: boolean;
+        } = {};
+
+        if (data.name?.trim()) {
+          setInstituteName(data.name.trim());
+          autoFilled.instituteName = true;
+        }
+        if (data.ownerName?.trim()) {
+          setOwnerName(data.ownerName.trim());
+          autoFilled.ownerName = true;
+        }
+        if (data.contactNo?.trim()) {
+          setContactNo(data.contactNo.trim());
+          autoFilled.contactNo = true;
+        }
+        if (data.email?.trim()) {
+          setCustomerEmail(data.email.trim());
+          autoFilled.customerEmail = true;
+        }
+
         const rawAddr = data.address || "";
         const populatedGeo: GeoAddressData = {
           division: data.division || "",
@@ -439,6 +468,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
         };
         setGeoAddress(populatedGeo);
         setAddress(rawAddr);
+
+        setAutoFilledFields(autoFilled);
         setSearchStatus("found");
 
         // Check for missing data fields
@@ -456,11 +487,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
         }
       } else if (res.status === 404) {
         setSearchStatus("not_found");
+        setAutoFilledFields({});
       } else {
         setSearchStatus("error");
+        setAutoFilledFields({});
       }
     } catch (e) {
       setSearchStatus("error");
+      setAutoFilledFields({});
     } finally {
       setIsLoading(false);
     }
@@ -468,16 +502,54 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
 
   const validateAndProceed = () => {
     setErrorMsg("");
-    const effectiveAddress = geoAddress.fullAddress || address;
-    if (!ownerName.trim() || !instituteName.trim() || !contactNo.trim() || !effectiveAddress.trim()) {
-      setErrorMsg("অনুগ্রহ করে মুহতামিম/আবেদনকারী, মাদরাসার নাম, মোবাইল নম্বর এবং সম্পূর্ণ ঠিকানা প্রদান করুন।");
+
+    const mainParts = [
+      geoAddress.village,
+      geoAddress.union,
+      geoAddress.upazila,
+      geoAddress.district,
+      geoAddress.division,
+    ].filter(Boolean);
+    const calculatedMain = mainParts.join(", ");
+    const effectiveMainAddress = geoAddress.fullAddress?.trim() || calculatedMain || address.trim();
+
+    const delParts = [
+      deliveryAddress.village,
+      deliveryAddress.union,
+      deliveryAddress.upazila,
+      deliveryAddress.district,
+      deliveryAddress.division,
+    ].filter(Boolean);
+    const calculatedDel = delParts.join(", ");
+    const effectiveDeliveryAddress = deliveryAddress.fullAddress?.trim() || calculatedDel;
+
+    if (!ownerName.trim()) {
+      setErrorMsg("অনুগ্রহ করে মুহতামিম / আবেদনকারীর নাম লিখুন।");
+      modalBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (hasSeparateDelivery && !deliveryAddress.fullAddress.trim()) {
-      setErrorMsg("অনুগ্রহ করে ডেলিভারি ঠিকানা নির্বাচন বা লিখে পূরণ করুন।");
+    if (!instituteName.trim()) {
+      setErrorMsg("অনুগ্রহ করে মাদরাসা বা প্রতিষ্ঠানের নাম লিখুন।");
+      modalBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (!contactNo.trim()) {
+      setErrorMsg("অনুগ্রহ করে যোগাযোগ নম্বর (মোবাইল) লিখুন।");
+      modalBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!effectiveMainAddress && !effectiveDeliveryAddress) {
+      setErrorMsg("অনুগ্রহ করে মাদরাসা বা ডেলিভারির সম্পূর্ণ ঠিকানা প্রদান করুন।");
+      modalBodyRef.current?.scrollTo({ top: 150, behavior: 'smooth' });
+      return;
+    }
+    if (hasSeparateDelivery && !effectiveDeliveryAddress) {
+      setErrorMsg("অনুগ্রহ করে ডেলিভারি ঠিকানা (জেলা, উপজেলা বা কুরিয়ার পয়েন্ট) পূরণ করুন।");
+      return;
+    }
+
     setPaymentStep(true);
+    modalBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const submitOrder = async () => {
@@ -519,6 +591,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       // Determine what to actually send:
       // If 'skip_receipt' chosen (user ignores verified receipt), treat as pay_later
       const effectivePaymentOption = (paymentOption === 'money_receipt' && remainingOption === 'skip_receipt') ? 'pay_later' : paymentOption;
+
+      if (effectivePaymentOption === 'pay_later' && !promiseDate) {
+        throw new Error("অনুগ্রহ করে প্রতিশ্রুত পরিশোধের তারিখ (Promise Date) নির্বাচন করুন");
+      }
+      if (paymentOption === 'money_receipt' && isPartialReceipt && remainingOption === 'pay_later' && !promiseDate) {
+        throw new Error("অনুগ্রহ করে বাকি টাকার প্রতিশ্রুত পরিশোধের তারিখ নির্বাচন করুন");
+      }
+
       const res = await fetch("/api/store/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -538,6 +618,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           remainingOption: isPartialReceipt && remainingOption !== 'skip_receipt' ? remainingOption : undefined,
           remainingProvider: isPartialReceipt && remainingOption === 'pay_now' ? remainingProvider : undefined,
           remainingTrxId: isPartialReceipt && remainingOption === 'pay_now' ? remainingTrxId : undefined,
+          promiseDate: (effectivePaymentOption === 'pay_later' || (isPartialReceipt && remainingOption === 'pay_later')) ? promiseDate : undefined,
         })
       });
       const data = await res.json();
@@ -559,14 +640,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
             <h2 className="font-bold text-slate-800 text-lg">অর্ডার নিশ্চিত করুন</h2>
             <p className="text-xs text-slate-500">মাদরাসা ও ডেলিভারির সঠিক তথ্য প্রদান করুন</p>
           </div>
-          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep, autoFilledFields })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1">
+        <div ref={modalBodyRef} className="p-6 overflow-y-auto flex-1">
           {!paymentStep ? (
             <>
-              {errorMsg && <p className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{errorMsg}</p>}
+              {errorMsg && <p className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100 font-bold">{errorMsg}</p>}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">ইলহাক বা মোবাইল নম্বর (পুরাতন তথ্যের জন্য)</label>
@@ -576,7 +657,10 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       value={ilhak}
                       onChange={(e) => {
                         setIlhak(e.target.value);
-                        if (searchStatus !== "idle") setSearchStatus("idle");
+                        if (searchStatus !== "idle") {
+                          setSearchStatus("idle");
+                          setAutoFilledFields({});
+                        }
                         if (missingFieldsNotice) setMissingFieldsNotice("");
                       }}
                       placeholder="যেমন: 1234 বা 01XXXXXXXXX"
@@ -592,7 +676,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   </div>
                   {searchStatus === "found" && (
                     <div className="space-y-1 mt-1.5">
-                      <p className="text-xs text-emerald-600 font-medium">✓ {ilhak.trim().length === 11 && ilhak.trim().startsWith("01") ? "মোবাইল নম্বর" : "ইলহাক"} অনুযায়ী পূর্বের তথ্য অটো-ফিল করা হয়েছে!</p>
+                      <p className="text-xs text-emerald-600 font-medium">✓ {ilhak.trim().length === 11 && ilhak.trim().startsWith("01") ? "মোবাইল নম্বর" : "ইলহাক"} অনুযায়ী পূর্বের তথ্য অটো-ফিল ও সুরক্ষিত (লক) করা হয়েছে!</p>
                       {missingFieldsNotice && (
                         <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
                           ⚠️ {missingFieldsNotice}
@@ -605,48 +689,84 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
 
                 <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">মুহতামিম / আবেদনকারীর নাম <span className="text-red-500">*</span></label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-slate-700">মুহতামিম / আবেদনকারীর নাম <span className="text-red-500">*</span></label>
+                      {autoFilledFields.ownerName && <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">নিবন্ধিত (লক)</span>}
+                    </div>
                     <input
                       type="text"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
+                      readOnly={!!autoFilledFields.ownerName}
+                      disabled={!!autoFilledFields.ownerName}
                       placeholder="যেমন: মাওলানা মো: আবদুল্লাহ"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${
+                        autoFilledFields.ownerName
+                          ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none font-medium'
+                          : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                      }`}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        মাদরাসা বা প্রতিষ্ঠানের নাম <span className="text-red-500">*</span>
+                      </label>
+                      {autoFilledFields.instituteName && <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">নিবন্ধিত (লক)</span>}
+                    </div>
                     <input
                       type="text"
                       value={instituteName}
                       onChange={(e) => setInstituteName(e.target.value)}
+                      readOnly={!!autoFilledFields.instituteName}
+                      disabled={!!autoFilledFields.instituteName}
                       placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm font-semibold"
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm font-semibold ${
+                        autoFilledFields.instituteName
+                          ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none'
+                          : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                      }`}
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">মোবাইল নম্বর <span className="text-red-500">*</span></label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-slate-700">মোবাইল নম্বর <span className="text-red-500">*</span></label>
+                      {autoFilledFields.contactNo && <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">নিবন্ধিত (লক)</span>}
+                    </div>
                     <input
                       type="tel"
                       value={contactNo}
                       onChange={(e) => setContactNo(e.target.value)}
+                      readOnly={!!autoFilledFields.contactNo}
+                      disabled={!!autoFilledFields.contactNo}
                       placeholder="01XXXXXXXXX"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${
+                        autoFilledFields.contactNo
+                          ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none font-medium'
+                          : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                      }`}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">ইমেইল <span className="text-slate-400 font-normal">(ঐচ্ছিক)</span></label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-slate-700">ইমেইল <span className="text-slate-400 font-normal">(ঐচ্ছিক)</span></label>
+                      {autoFilledFields.customerEmail && <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">নিবন্ধিত (লক)</span>}
+                    </div>
                     <input
                       type="email"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
+                      readOnly={!!autoFilledFields.customerEmail}
+                      disabled={!!autoFilledFields.customerEmail}
                       placeholder="user@example.com"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-slate-50 focus:bg-white text-sm"
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${
+                        autoFilledFields.customerEmail
+                          ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none'
+                          : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                      }`}
                     />
                   </div>
                 </div>
@@ -670,7 +790,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   </p>
                 </div>
 
-                {/* Geo Cascade Address Selector with Separate Delivery Option */}
+                {/* Geo Cascade Address Selector with Separate Delivery Option (Always Editable) */}
                 <div className="pt-2 border-t border-slate-100">
                   <GeoAddressSelector
                     label="মাদরাসার পূর্ণাঙ্গ ঠিকানা *"
@@ -720,18 +840,28 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 )}
               </div>
 
+              {errorMsg && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs sm:text-sm font-bold flex items-center gap-2 animate-in fade-in">
+                  <span className="shrink-0 text-base">⚠️</span>
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               <div className="flex gap-3 mt-4">
                 <button
+                  type="button"
                   onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep })}
                   className="w-1/2 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all border border-slate-200"
                 >
                   আরও পণ্য যোগ করুন
                 </button>
                 <button
+                  type="button"
                   onClick={validateAndProceed}
-                  className="w-1/2 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/25 active:scale-[0.98]"
+                  className="w-1/2 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-emerald-700/25 active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  পেমেন্ট অপশন
+                  <span>পেমেন্ট অপশন</span>
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </>
@@ -905,6 +1035,21 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                             <span className="font-bold">বাকি পরে দেব (বাকি বাকি থাকবে)</span>
                           </label>
 
+                          {remainingOption === 'pay_later' && (
+                            <div className="pl-6 space-y-1.5 animate-in fade-in">
+                              <label className="block text-xs font-bold text-slate-700">
+                                বাকি টাকা পরিশোধের প্রতিশ্রুত তারিখ (Promise Date) <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="date"
+                                value={promiseDate}
+                                min={new Date().toISOString().split("T")[0]}
+                                onChange={(e) => setPromiseDate(e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:border-primary cursor-pointer"
+                              />
+                            </div>
+                          )}
+
                           {/* Skip — don't use receipt */}
                           <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm ${remainingOption === 'skip_receipt' ? 'border-amber-400 bg-amber-50' : 'border-slate-200'}`}>
                             <input type="radio" checked={remainingOption === 'skip_receipt'} onChange={() => setRemainingOption('skip_receipt')} className="w-4 h-4 text-amber-500" />
@@ -920,6 +1065,24 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   <input type="radio" name="payment_opt" checked={paymentOption === 'pay_later'} onChange={() => setPaymentOption('pay_later')} className="w-5 h-5 text-primary" />
                   <span className="font-bold text-slate-700">পরে পেমেন্ট করব</span>
                 </label>
+
+                {paymentOption === 'pay_later' && (
+                  <div className="pl-12 pr-4 pb-2 animate-in fade-in space-y-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      কবে পরিশোধ করতে চান? (প্রতিশ্রুত তারিখ / Promise Date) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={promiseDate}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setPromiseDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer shadow-xs"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      💡 আপনি যে তারিখে বকেয়া টাকা পরিশোধ করতে পারবেন সেই নির্দিষ্ট তারিখটি নির্বাচন করুন।
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">
@@ -1037,8 +1200,26 @@ export default function StorePage() {
               <p><strong>তারিখ:</strong> ${new Date(orderToPrint.createdAt).toLocaleDateString('bn-BD')}</p>
             </div>
             <table>
-              <tr><th>পণ্যের নাম</th><th class="text-center">পরিমাণ</th><th class="text-right">একক মূল্য</th><th class="text-right">মোট মূল্য</th></tr>
-              ${orderToPrint.items.map((i: any) => `<tr><td>${i.product.name}</td><td class="text-center">${i.quantity}</td><td class="text-right">${i.unitPrice} ৳</td><td class="text-right">${(i.quantity * i.unitPrice).toFixed(2)} ৳</td></tr>`).join('')}
+              <thead>
+                <tr>
+                  <th class="text-center" style="width: 45px;">ক্র.নং</th>
+                  <th>পণ্যের নাম</th>
+                  <th class="text-center" style="width: 75px;">পরিমাণ</th>
+                  <th class="text-right" style="width: 95px;">একক মূল্য</th>
+                  <th class="text-right" style="width: 105px;">মোট মূল্য</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${orderToPrint.items.map((i: any, idx: number) => `
+                  <tr>
+                    <td class="text-center" style="font-weight: bold; color: #475569;">${String(idx + 1).padStart(2, '0')}</td>
+                    <td>${i.product.name}</td>
+                    <td class="text-center">${i.quantity}</td>
+                    <td class="text-right">${Number(i.unitPrice).toFixed(2)} ৳</td>
+                    <td class="text-right">${(i.quantity * i.unitPrice).toFixed(2)} ৳</td>
+                  </tr>
+                `).join('')}
+              </tbody>
             </table>
             <div class="totals">
               <div><span>পণ্যের মোট মূল্য:</span><span>${(orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0)).toFixed(2)} ৳</span></div>
@@ -1084,15 +1265,34 @@ export default function StorePage() {
   const [ratingFilter, setRatingFilter] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Current authenticated user
+  const [currentUser, setCurrentUser] = useState<{ id?: string; role?: string; email?: string; name?: string; madrasaId?: string } | null>(null);
+
   // Delivery policy alert modal & banner states
   const [isDeliveryAlertOpen, setIsDeliveryAlertOpen] = useState(false);
-  const [deliveryAlertMode, setDeliveryAlertMode] = useState<"first_visit" | "before_order" | "manual">("first_visit");
+  const [deliveryAlertMode, setDeliveryAlertMode] = useState<"first_visit" | "before_order" | "manual">("before_order");
   const [isDeliveryBannerDismissed, setIsDeliveryBannerDismissed] = useState(false);
   const [cartToast, setCartToast] = useState<{
     show: boolean;
     productName: string;
     price: number;
   } | null>(null);
+
+  // Fetch logged in session
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && !data.error) setCurrentUser(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const isCenterOrMadrasa = useMemo(() => {
+    if (!currentUser) return false;
+    const r = (currentUser.role || "").toUpperCase();
+    return r === "MADRASA" || r === "CENTER" || r === "AGENT" || r === "ADMIN" || !!currentUser.madrasaId;
+  }, [currentUser]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -1127,19 +1327,6 @@ export default function StorePage() {
       if (Array.isArray(savedCart) && savedCart.length > 0) {
         const cleanCart = savedCart.filter((i: any) => !isQuestionProduct(i?.product || {}));
         setCart(cleanCart);
-      }
-    } catch { }
-
-    // First visit delivery policy alert popup
-    try {
-      const seen = sessionStorage.getItem("store_first_visit_delivery_alert");
-      if (!seen) {
-        const timer = setTimeout(() => {
-          setDeliveryAlertMode("first_visit");
-          setIsDeliveryAlertOpen(true);
-          sessionStorage.setItem("store_first_visit_delivery_alert", "true");
-        }, 500);
-        return () => clearTimeout(timer);
       }
     } catch { }
 
@@ -1201,8 +1388,13 @@ export default function StorePage() {
   };
 
   const handleOpenOrder = () => {
-    setDeliveryAlertMode("before_order");
-    setIsDeliveryAlertOpen(true);
+    // Only show center/delivery rules modal if Center, Madrasa, Agent, or Admin is logged in
+    if (isCenterOrMadrasa) {
+      setDeliveryAlertMode("before_order");
+      setIsDeliveryAlertOpen(true);
+    } else {
+      setIsOrderModalOpen(true);
+    }
   };
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
@@ -1243,8 +1435,35 @@ export default function StorePage() {
     });
   };
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<string>("calc(100dvh - 96px)");
+
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        const top = containerRef.current.getBoundingClientRect().top;
+        if (top >= 0) {
+          setContentHeight(`calc(100dvh - ${top}px)`);
+        }
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("scroll", updateHeight);
+    const timer = setTimeout(updateHeight, 300);
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("scroll", updateHeight);
+      clearTimeout(timer);
+    };
+  }, []);
+
   return (
-    <div className="h-[calc(100vh-200px)] flex flex-col bg-slate-50 overflow-hidden">
+    <div
+      ref={containerRef}
+      style={{ height: contentHeight, maxHeight: contentHeight }}
+      className="w-full flex flex-col bg-slate-50 overflow-hidden"
+    >
       {/* Top Header */}
       <div className="bg-white border-b border-slate-200 z-30 shadow-sm flex-shrink-0">
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 flex items-center justify-between gap-3">
@@ -1295,10 +1514,10 @@ export default function StorePage() {
         </div>
       </div>
 
-      <div className="w-full flex flex-col lg:flex-row flex-1 overflow-hidden relative bg-slate-50">
+      <div className="w-full flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden relative bg-slate-50">
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0 h-full flex flex-col px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+        <div className="flex-1 min-w-0 h-full min-h-0 flex flex-col px-4 sm:px-6 lg:px-8 py-3 lg:py-4 overflow-hidden">
           {/* Horizontal Category Tabs (Mobile & Desktop) */}
           <div className="w-full overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-shrink-0">
             <div className="flex items-center gap-2 w-max">
@@ -1329,8 +1548,8 @@ export default function StorePage() {
             </div>
           </div>
 
-          {/* Delivery Policy Announcement Banner */}
-          {!isDeliveryBannerDismissed && (
+          {/* Delivery Policy Announcement Banner (Only for logged-in Center/Madrasa) */}
+          {isCenterOrMadrasa && !isDeliveryBannerDismissed && (
             <div className="mb-3.5 p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/70 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm flex-shrink-0 animate-in fade-in">
               <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
@@ -1470,10 +1689,26 @@ export default function StorePage() {
 
             {/* LIST VIEW */}
             {viewMode === "list" && (
-              <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden flex-1 mb-4 flex flex-col">
-                <div className="bg-[#e8f3ec] text-[#2f8c5b] py-3 text-center font-black text-xl border-b border-slate-200">
-                  বই ও স্টেশনারী আইটেম অনলাইন-এ অর্ডার করুন
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 mb-2 flex flex-col min-h-0">
+                {/* Compact Top Header & Action Bar */}
+                <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200/80 px-3.5 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+                  <div className="flex items-center gap-2 text-center sm:text-left flex-wrap">
+                    <span className="font-black text-emerald-800 text-sm sm:text-base whitespace-nowrap">বই ও স্টেশনারি তালিকা</span>
+                    <span className="hidden md:inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <p className="text-red-600 font-bold text-xs sm:text-[13px]">
+                      অর্ডারকৃত পণ্যের পরিমাণ সঠিকভাবে বসানোর পর "বিলে যুক্ত করুন" বাটনে ক্লিক করুন
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenOrder}
+                    className="px-4 py-1.5 bg-[#2d3282] hover:bg-[#232766] text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>বিলে যুক্ত করুন</span>
+                  </button>
                 </div>
+
                 <div className="flex-1 overflow-auto">
                   <table className="w-full text-left border-collapse min-w-full sm:min-w-[800px]">
                     <thead className="sticky top-0 z-10">
@@ -1482,9 +1717,8 @@ export default function StorePage() {
                         <th className="p-3 font-bold text-center border-r border-white/20 w-16 sm:w-20 hidden sm:table-cell">ছবি</th>
                         <th className="p-3 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell">কোড</th>
                         <th className="p-3 font-bold text-center border-r border-white/20">পণ্যের নাম</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-24">শ্রেণী</th>
                         <th className="p-3 font-bold text-center border-r border-white/20 w-28 hidden sm:table-cell">ক্যাটাগরি</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 sm:w-32">মূল্য(৳)</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 sm:w-32">দর (৳)</th>
                         <th className="p-3 font-bold text-center border-r border-white/20 w-28 sm:w-48">পরিমাণ</th>
                         <th className="p-3 font-bold text-right pr-6 w-36 hidden sm:table-cell">পরিমাণ*মূল্য(৳)</th>
                       </tr>
@@ -1518,17 +1752,11 @@ export default function StorePage() {
                     </tbody>
                     <tfoot className="sticky bottom-0 z-10 bg-white">
                       <tr className="bg-slate-50 font-bold border-t border-slate-200 hidden sm:table-row">
-                        <td colSpan={8} className="p-4 text-right text-slate-800">সর্বমোট অর্ডারকৃত পণ্যের মূল্য(৳) =</td>
-                        <td className="p-4 text-right pr-6 text-lg text-slate-900">{cartTotal.toFixed(2)}</td>
+                        <td colSpan={7} className="p-3 text-right text-slate-800">সর্বমোট অর্ডারকৃত পণ্যের মূল্য(৳) =</td>
+                        <td className="p-3 text-right pr-6 text-lg text-slate-900">{cartTotal.toFixed(2)}</td>
                       </tr>
                     </tfoot>
                   </table>
-                </div>
-                <div className="bg-white border-t border-slate-200 p-6 hidden sm:flex flex-col items-center">
-                  <p className="text-red-500 font-bold text-lg mb-4 text-center">অর্ডারকৃত পণ্যের পরিমাণ সঠিকভাবে বসানোর পর নিচের "বিলে যুক্ত করুন" বাটনে ক্লিক করুন</p>
-                  <button onClick={() => setIsOrderModalOpen(true)} className="px-8 py-3 bg-[#2d3282] hover:bg-[#2d3282]/90 text-white rounded font-bold transition-colors shadow-md">
-                    বিলে যুক্ত করুন
-                  </button>
                 </div>
               </div>
             )}
@@ -1537,49 +1765,93 @@ export default function StorePage() {
 
         {/* Right Sidebar - Cart */}
         <aside className={`
-          hidden xl:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out h-full overflow-hidden bg-white
-          ${rightSidebarOpen ? "w-96 border-l border-slate-200 opacity-100" : "w-0 border-l-0 opacity-0"}
+          hidden xl:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out h-full min-h-0 overflow-hidden bg-white
+          ${rightSidebarOpen ? "w-80 2xl:w-[330px] border-l border-slate-200 opacity-100" : "w-0 border-l-0 opacity-0"}
         `}>
-          <div className="flex flex-col h-full w-96 flex-shrink-0">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-black text-slate-800 text-base flex items-center gap-2"><ShoppingBag className="w-5 h-5 text-primary" /> আমার কার্ট</h3>
+          <div className="flex flex-col h-full w-80 2xl:w-[330px] flex-shrink-0 min-h-0 overflow-hidden">
+            {/* Header */}
+            <div className="flex-shrink-0 px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <h3 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-emerald-700" />
+                <span>আমার কার্ট</span>
+              </h3>
+              {cart.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono">
+                    {cart.reduce((a, c) => a + c.qty, 0)} টি
+                  </span>
+                  <button
+                    onClick={() => setCart([])}
+                    title="কার্ট খালি করুন"
+                    className="text-[10.5px] text-slate-400 hover:text-red-500 transition-colors"
+                  >
+                    খালি করুন
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="flex-1 overflow-y-auto p-5 flex flex-col">
+
+            {/* Cart Items List */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col space-y-1.5">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-slate-400">
-                  <ShoppingBag className="w-12 h-12 mb-3 text-slate-200" />
-                  <p className="font-medium text-sm">কার্ট খালি আছে</p>
+                <div className="flex flex-col items-center justify-center h-full min-h-[140px] text-slate-400">
+                  <ShoppingBag className="w-8 h-8 mb-1.5 text-slate-200" />
+                  <p className="font-medium text-xs">কার্ট খালি আছে</p>
                 </div>
               ) : (
-                <div className="flex flex-col mb-4">
+                <div className="space-y-1.5">
                   {cart.map((item, i) => (
-                    <div key={i} className="flex gap-4 p-3 relative group bg-white border border-slate-100 rounded-2xl shadow-sm mb-3 hover:shadow-md transition-all">
-                      <div className="w-20 h-20 bg-slate-50 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                    <div
+                      key={i}
+                      className="flex gap-2 p-1.5 sm:p-2 bg-white border border-slate-200/70 hover:border-emerald-300 rounded-xl shadow-2xs transition-all items-center"
+                    >
+                      {/* Thumbnail */}
+                      <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
                         {item.product.imageUrl ? (
-                          <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-contain p-2" />
+                          <img
+                            src={item.product.imageUrl}
+                            alt={item.product.name}
+                            className="w-full h-full object-contain p-0.5"
+                          />
                         ) : (
-                          <Package className="w-8 h-8 text-slate-300" />
+                          <Package className="w-4 h-4 text-slate-300" />
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <div className="flex justify-between items-start">
-                          <p className="font-bold text-slate-900 text-base line-clamp-1 pr-2">{item.product.name}</p>
-                          <button onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))} className="text-slate-300 hover:text-red-500 transition-colors mt-0.5 bg-slate-50 hover:bg-red-50 rounded-full p-1">
-                            <X className="w-3.5 h-3.5" />
+
+                      {/* Info & Controls */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-1">
+                          <p className="font-bold text-slate-900 text-xs truncate leading-tight">
+                            {item.product.name}
+                          </p>
+                          <button
+                            onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))}
+                            className="text-slate-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50 shrink-0"
+                            title="মুছে ফেলুন"
+                          >
+                            <X className="w-3 h-3" />
                           </button>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
+
+                        <p className="text-[9.5px] text-slate-400 truncate -mt-0.5 mb-1">
                           {item.product.category}
                           {item.product.className && <span className="ml-1 text-slate-500 font-medium">({item.product.className})</span>}
                         </p>
-                        <div className="flex items-center justify-between mt-3">
-                          <span className="font-bold text-slate-900 text-base">৳{(item.product.price * item.qty).toFixed(2)}</span>
-                          <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-1.5 py-1.5 border border-slate-200">
-                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
-                              className="w-7 h-7 bg-white rounded-md shadow-sm text-slate-600 text-lg font-medium flex items-center justify-center hover:bg-slate-100 transition-colors">−</button>
-                            <span className="w-5 text-center text-sm font-bold text-slate-800">{item.qty}</span>
-                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
-                              className="w-7 h-7 bg-primary rounded-md shadow-sm text-white text-lg font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
+
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-emerald-800 font-mono">
+                            ৳{(item.product.price * item.qty).toFixed(2)}
+                          </span>
+                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-md p-0.5 border border-slate-200/60">
+                            <button
+                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
+                              className="w-4.5 h-4.5 bg-white rounded text-slate-600 text-xs font-bold flex items-center justify-center hover:bg-slate-200 transition-colors shadow-2xs active:scale-95"
+                            >−</button>
+                            <span className="w-4 text-center text-[11px] font-bold text-slate-800 font-mono">{item.qty}</span>
+                            <button
+                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
+                              className="w-4.5 h-4.5 bg-emerald-700 rounded text-white text-xs font-bold flex items-center justify-center hover:bg-emerald-800 transition-colors shadow-2xs active:scale-95"
+                            >+</button>
                           </div>
                         </div>
                       </div>
@@ -1588,43 +1860,49 @@ export default function StorePage() {
                 </div>
               )}
             </div>
+
+            {/* Bottom Summary & Checkout */}
             {cart.length > 0 && (
-              <div className="p-4 border-t border-slate-100 bg-white z-10 relative space-y-3">
-                <div className="space-y-1.5 text-xs sm:text-sm text-slate-600 border-b border-slate-100 pb-2.5">
+              <div className="flex-shrink-0 p-2.5 border-t border-slate-100 bg-slate-50/95 z-10 relative space-y-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+                <div className="space-y-1 text-[11.5px] text-slate-600 border-b border-slate-200/70 pb-1.5">
                   <div className="flex justify-between">
-                    <span>পণ্যের মূল্য (সাবটোটাল):</span>
-                    <span className="font-bold text-slate-800">৳{cartTotal.toFixed(2)}</span>
+                    <span className="text-slate-500">পণ্যের মূল্য (সাবটোটাল):</span>
+                    <span className="font-bold text-slate-800 font-mono">৳{cartTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 text-slate-500">
                       <span>কুরিয়ার ({deliveryInfo.courierName}):</span>
-                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
+                      <span className="text-[9.5px] px-1 py-0.2 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
                         {deliveryInfo.totalWeightKg} কেজি
                       </span>
                     </span>
                     {deliveryInfo.isFreeDelivery ? (
-                      <span className="font-bold text-emerald-600 text-xs bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">ফ্রি ডেলিভারি 🎉</span>
+                      <span className="font-bold text-emerald-700 text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">ফ্রি ডেলিভারি</span>
                     ) : (
-                      <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                      <span className="font-bold text-slate-800 font-mono">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex justify-between text-slate-800 items-end">
+                <div className="flex justify-between text-slate-800 items-baseline pt-0.5">
                   <div>
-                    <span className="font-bold text-sm block">সর্বমোট বিল</span>
-                    <span className="text-[10px] text-slate-400">ডেলিভারি সহ</span>
+                    <span className="font-bold text-xs block text-slate-700">সর্বমোট বিল</span>
+                    <span className="text-[9.5px] text-slate-400">ডেলিভারি সহ</span>
                   </div>
-                  <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
+                  <span className="text-base font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
                 </div>
 
-                <button onClick={handleOpenOrder} className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
-                  অর্ডার করুন
+                <button
+                  onClick={handleOpenOrder}
+                  className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-700/20 active:scale-[0.98] flex items-center justify-center gap-1.5"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>অর্ডার করুন</span>
                 </button>
 
-                <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex items-start gap-1 leading-tight">
+                <p className="text-[9.5px] text-slate-500 bg-white p-1 rounded-md border border-slate-200/70 flex items-start gap-1 leading-tight">
                   <span className="shrink-0 text-xs">🚚</span>
-                  <span>{deliveryInfo.ruleNotice}</span>
+                  <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
                 </p>
               </div>
             )}
@@ -1661,48 +1939,71 @@ export default function StorePage() {
       {/* Cart Drawer */}
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
-          <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><ShoppingBag className="w-5 h-5 text-primary" /> আমার কার্ট</h2>
-              <button onClick={() => setCartOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setCartOpen(false)} />
+          <div className="relative w-full max-w-xs sm:max-w-sm bg-white h-full shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-emerald-700" />
+                <span>আমার কার্ট</span>
+              </h2>
+              <button onClick={() => setCartOpen(false)} className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 flex flex-col">
+            <div className="flex-1 overflow-y-auto p-2.5 flex flex-col">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-slate-400">
-                  <ShoppingBag className="w-12 h-12 mb-3 text-slate-200" />
-                  <p className="font-medium">কার্ট খালি আছে</p>
+                <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-slate-400">
+                  <ShoppingBag className="w-9 h-9 mb-1.5 text-slate-200" />
+                  <p className="font-medium text-xs">কার্ট খালি আছে</p>
                 </div>
               ) : (
-                <div className="flex flex-col mb-4">
+                <div className="space-y-1.5">
                   {cart.map((item, i) => (
-                    <div key={i} className="flex gap-4 p-3 relative group bg-white border border-slate-100 rounded-2xl shadow-sm mb-3 hover:shadow-md transition-all">
-                      <div className="w-20 h-20 bg-slate-50 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                    <div
+                      key={i}
+                      className="flex gap-2 p-2 bg-white border border-slate-200/70 rounded-xl shadow-xs transition-all items-center"
+                    >
+                      <div className="w-11 h-11 bg-slate-50 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
                         {item.product.imageUrl ? (
-                          <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-contain p-2" />
+                          <img
+                            src={item.product.imageUrl}
+                            alt={item.product.name}
+                            className="w-full h-full object-contain p-1"
+                          />
                         ) : (
-                          <Package className="w-8 h-8 text-slate-300" />
+                          <Package className="w-5 h-5 text-slate-300" />
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <div className="flex justify-between items-start">
-                          <p className="font-bold text-slate-900 text-base line-clamp-1 pr-2">{item.product.name}</p>
-                          <button onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))} className="text-slate-300 hover:text-red-500 transition-colors mt-0.5 bg-slate-50 hover:bg-red-50 rounded-full p-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-1">
+                          <p className="font-bold text-slate-900 text-xs truncate leading-tight">
+                            {item.product.name}
+                          </p>
+                          <button
+                            onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))}
+                            className="text-slate-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50 shrink-0"
+                          >
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <p className="text-sm text-slate-400 mt-0.5">
+                        <p className="text-[10px] text-slate-400 truncate -mt-0.5 mb-1">
                           {item.product.category}
                           {item.product.className && <span className="ml-1 text-slate-500 font-medium">({item.product.className})</span>}
                         </p>
-                        <div className="flex items-center justify-between mt-3">
-                          <span className="font-bold text-slate-900 text-lg">৳{(item.product.price * item.qty).toFixed(2)}</span>
-                          <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-1.5 py-1.5 border border-slate-200">
-                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
-                              className="w-7 h-7 bg-white rounded-md shadow-sm text-slate-600 text-lg font-medium flex items-center justify-center hover:bg-slate-100 transition-colors">−</button>
-                            <span className="w-5 text-center text-sm font-bold text-slate-800">{item.qty}</span>
-                            <button onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
-                              className="w-7 h-7 bg-primary rounded-md shadow-sm text-white text-lg font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-emerald-800 font-mono">
+                            ৳{(item.product.price * item.qty).toFixed(2)}
+                          </span>
+                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-md p-0.5 border border-slate-200/60">
+                            <button
+                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
+                              className="w-5 h-5 bg-white rounded text-slate-600 text-xs font-bold flex items-center justify-center hover:bg-slate-200 transition-colors shadow-2xs active:scale-95"
+                            >−</button>
+                            <span className="w-4 text-center text-xs font-bold text-slate-800 font-mono">{item.qty}</span>
+                            <button
+                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
+                              className="w-5 h-5 bg-emerald-700 rounded text-white text-xs font-bold flex items-center justify-center hover:bg-emerald-800 transition-colors shadow-2xs active:scale-95"
+                            >+</button>
                           </div>
                         </div>
                       </div>
@@ -1712,42 +2013,46 @@ export default function StorePage() {
               )}
             </div>
             {cart.length > 0 && (
-              <div className="p-4 border-t border-slate-100 bg-white z-10 relative space-y-3">
-                <div className="space-y-1.5 text-xs sm:text-sm text-slate-600 border-b border-slate-100 pb-2.5">
+              <div className="p-3 border-t border-slate-100 bg-slate-50/90 z-10 relative space-y-2">
+                <div className="space-y-1 text-xs text-slate-600 border-b border-slate-200/70 pb-2">
                   <div className="flex justify-between">
-                    <span>পণ্যের মূল্য:</span>
-                    <span className="font-bold text-slate-800">৳{cartTotal.toFixed(2)}</span>
+                    <span className="text-slate-500">পণ্যের মূল্য:</span>
+                    <span className="font-bold text-slate-800 font-mono">৳{cartTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 text-slate-500">
                       <span>কুরিয়ার ({deliveryInfo.courierName}):</span>
-                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
+                      <span className="text-[10px] px-1 py-0.2 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
                         {deliveryInfo.totalWeightKg} কেজি
                       </span>
                     </span>
                     {deliveryInfo.isFreeDelivery ? (
-                      <span className="font-bold text-emerald-600 text-xs bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">ফ্রি ডেলিভারি 🎉</span>
+                      <span className="font-bold text-emerald-700 text-[10.5px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">ফ্রি ডেলিভারি</span>
                     ) : (
-                      <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                      <span className="font-bold text-slate-800 font-mono">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex justify-between text-slate-800 items-end">
+                <div className="flex justify-between text-slate-800 items-baseline pt-0.5">
                   <div>
-                    <span className="font-bold text-sm block">সর্বমোট বিল</span>
+                    <span className="font-bold text-xs block text-slate-700">সর্বমোট বিল</span>
                     <span className="text-[10px] text-slate-400">ডেলিভারি সহ</span>
                   </div>
-                  <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
+                  <span className="text-base sm:text-lg font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
                 </div>
 
-                <button onClick={handleOpenOrder} className="w-full py-3.5 bg-primary text-white rounded-xl font-black text-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 active:scale-[0.98]">
-                  অর্ডার করুন
+                <button
+                  onClick={handleOpenOrder}
+                  className="w-full py-2.5 bg-emerald-700 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-emerald-800 transition-all shadow-md shadow-emerald-700/20 active:scale-[0.98] flex items-center justify-center gap-1.5"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>অর্ডার করুন</span>
                 </button>
 
-                <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex items-start gap-1 leading-tight">
+                <p className="text-[10px] text-slate-500 bg-white p-1.5 rounded-lg border border-slate-200/70 flex items-start gap-1 leading-snug">
                   <span className="shrink-0 text-xs">🚚</span>
-                  <span>{deliveryInfo.ruleNotice}</span>
+                  <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
                 </p>
               </div>
             )}
