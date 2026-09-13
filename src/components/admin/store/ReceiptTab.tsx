@@ -5,7 +5,13 @@ import { Plus, X, Search, FileText, ChevronDown, ChevronUp, Clock, Receipt } fro
 type ReceiptUsage = { id: string; invoiceId: string; usedAmount: number; createdAt: string };
 type Receipt = { id: string; receiptNumber: string; amount: number; usedAmount: number; status: string; createdBy: string; createdAt: string; usages: ReceiptUsage[]; customerPhone?: string };
 
-export default function ReceiptTab() {
+export default function ReceiptTab({
+  storeCategory = 'all',
+  onCategoryChange,
+}: {
+  storeCategory?: 'all' | 'stationary' | 'question';
+  onCategoryChange?: (cat: 'all' | 'stationary' | 'question') => void;
+}) {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);

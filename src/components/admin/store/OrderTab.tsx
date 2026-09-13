@@ -3,14 +3,60 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, FileText, CheckCircle, Trash2, Edit, X, Package, Truck, 
   Clock, CheckCircle2, AlertCircle, Copy, Printer, ArrowRight, 
-  RefreshCw, Send, ChevronRight, Eye, ShieldCheck, UserCheck, Phone, Plus
+  RefreshCw, Send, ChevronRight, Eye, ShieldCheck, UserCheck, Phone, Plus,
+  User, Calendar, ThumbsUp, BookOpen, Layers, ClipboardList
 } from 'lucide-react';
 import { toBanglaDigits } from './BanglaDatePicker';
+import { formatBanglaDateTime, TimelineEvent, cleanAddressNotes } from '@/lib/orderTimeline';
+import { printOrderInvoice } from '@/lib/orderPrint';
 
 const toEnglishDigits = (str: string) => {
   const bnToEn: Record<string, string> = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
   return String(str || '').replace(/[০-৯]/g, match => bnToEn[match]);
 };
+
+const cleanNumberInput = (str: string) => {
+  const en = toEnglishDigits(str).trim();
+  if (!en) return '';
+  // If user starts typing e.g. "05" or "00", strip leading zeros unless it's "0." or "0"
+  if (en.length > 1 && en.startsWith('0') && en[1] !== '.') {
+    return en.replace(/^0+/, '') || '0';
+  }
+  return en;
+};
+
+export type OrderCategory = 'all' | 'stationary' | 'question';
+
+export function isQuestionOrder(sale: Sale | any): boolean {
+  if (!sale) return false;
+  if (sale.orderType === 'QUESTION' || sale.orderType === 'EXAM_QUESTION') return true;
+  
+  const notes = String(sale.notes || '');
+  if (
+    notes.includes('[প্রশ্নের অর্ডার]') ||
+    notes.includes('প্রশ্নপত্র') ||
+    notes.includes('প্রশ্ন অর্ডার') ||
+    notes.includes('প্রশ্নপত্র সেট')
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(sale.items) && sale.items.length > 0) {
+    const hasQuestion = sale.items.some((item: any) => {
+      const pName = String(item.product?.name || item.name || '').toLowerCase();
+      const pCat = String(item.product?.category || item.category || '').toLowerCase();
+      return (
+        pName.includes('প্রশ্ন') ||
+        pName.includes('প্রশ্নপত্র') ||
+        pCat.includes('question') ||
+        pCat.includes('প্রশ্ন')
+      );
+    });
+    if (hasQuestion) return true;
+  }
+
+  return false;
+}
 
 export type OrderStep = 'pending' | 'confirmed' | 'packaging' | 'shipped' | 'delivered' | 'cancelled';
 
@@ -117,13 +163,39 @@ type Sale = {
   courierName?: string; 
   totalWeight?: number; 
   notes?: string;
+  timeline?: TimelineEvent[];
+  confirmedByCustomer?: boolean;
+  receivedAt?: string;
+  receivedBy?: string;
+  deliveredAt?: string;
+  deliveredBy?: string;
 };
 
-export default function OrderTab() {
+export default function OrderTab({
+  initialCategory = 'all',
+  onCategoryChange,
+}: {
+  initialCategory?: OrderCategory;
+  onCategoryChange?: (cat: OrderCategory) => void;
+}) {
   const [orders, setOrders] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [currentTab, setCurrentTab] = useState<'all' | OrderStep>('pending');
+  const [orderCategory, setOrderCategory] = useState<OrderCategory>(initialCategory);
+
+  useEffect(() => {
+    if (initialCategory) {
+      setOrderCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
+  const handleCategorySwitch = (cat: OrderCategory) => {
+    setOrderCategory(cat);
+    if (onCategoryChange) {
+      onCategoryChange(cat);
+    }
+  };
   
   // Modals
   const [selectedOrder, setSelectedOrder] = useState<Sale | null>(null);
@@ -136,7 +208,11 @@ export default function OrderTab() {
   const [partialPaidAmount, setPartialPaidAmount] = useState('');
   const [promiseDate, setPromiseDate] = useState('');
   const [orderDeliveryCharge, setOrderDeliveryCharge] = useState<string>('0');
+  const [includeDeliveryCharge, setIncludeDeliveryCharge] = useState<boolean>(true);
+  const [savedDeliveryCharge, setSavedDeliveryCharge] = useState<string>('0');
   const [orderDiscount, setOrderDiscount] = useState<string>('0');
+  const [orderDiscountPercent, setOrderDiscountPercent] = useState<string>('0');
+  const [orderPaidAmount, setOrderPaidAmount] = useState<string>('0');
 
   useEffect(() => {
     fetch('/api/store/products')
@@ -179,10 +255,39 @@ export default function OrderTab() {
     fetchOrders();
   }, []);
 
-  // Counts per step
+  // Category-wise total counts
+  const categoryCounts = useMemo(() => {
+    let stationary = 0;
+    let question = 0;
+    orders.forEach(o => {
+      if (isQuestionOrder(o)) {
+        question++;
+      } else {
+        stationary++;
+      }
+    });
+    return {
+      all: orders.length,
+      stationary,
+      question,
+    };
+  }, [orders]);
+
+  // Orders filtered by category
+  const categoryFilteredOrders = useMemo(() => {
+    if (orderCategory === 'question') {
+      return orders.filter(o => isQuestionOrder(o));
+    }
+    if (orderCategory === 'stationary') {
+      return orders.filter(o => !isQuestionOrder(o));
+    }
+    return orders;
+  }, [orders, orderCategory]);
+
+  // Counts per step based on current category
   const counts = useMemo(() => {
     const c: Record<'all' | OrderStep, number> = {
-      all: orders.length,
+      all: categoryFilteredOrders.length,
       pending: 0,
       confirmed: 0,
       packaging: 0,
@@ -190,18 +295,18 @@ export default function OrderTab() {
       delivered: 0,
       cancelled: 0,
     };
-    orders.forEach(o => {
+    categoryFilteredOrders.forEach(o => {
       const step = getOrderStep(o.status);
       if (c[step] !== undefined) {
         c[step]++;
       }
     });
     return c;
-  }, [orders]);
+  }, [categoryFilteredOrders]);
 
   // Filtered orders (sorted by confirm/updated date and time descending)
   const filtered = useMemo(() => {
-    return orders
+    return categoryFilteredOrders
       .filter(o => {
         const step = getOrderStep(o.status);
         if (currentTab !== 'all' && step !== currentTab) return false;
@@ -210,11 +315,12 @@ export default function OrderTab() {
         return (
           o.invoiceId.toLowerCase().includes(q) ||
           o.customerName.toLowerCase().includes(q) ||
-          (o.customerPhone && o.customerPhone.includes(q))
+          (o.customerPhone && o.customerPhone.includes(q)) ||
+          (o.instituteId && o.instituteId.toLowerCase().includes(q))
         );
       })
       .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
-  }, [orders, currentTab, search]);
+  }, [categoryFilteredOrders, currentTab, search]);
 
   // Advance to Packaging or Confirmed directly from Review
   const handleAccept = async (
@@ -364,14 +470,63 @@ export default function OrderTab() {
   const openOrderReviewModal = (order: Sale) => {
     setSelectedOrder(order);
     setEditedItems(order.items.map(i => ({ productId: i.productId, quantity: i.quantity })));
-    setOrderDeliveryCharge((order.deliveryCharge ?? 0).toString());
-    setOrderDiscount((order.discount ?? 0).toString());
+    const initDelivery = (order.deliveryCharge ?? 0).toString();
+    setOrderDeliveryCharge(initDelivery);
+    setSavedDeliveryCharge(parseFloat(initDelivery) > 0 ? initDelivery : '180');
+    setIncludeDeliveryCharge(parseFloat(initDelivery) > 0);
+    const disc = order.discount ?? 0;
+    setOrderDiscount(disc.toString());
+    const subtotal = order.items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0);
+    if (subtotal > 0 && disc > 0) {
+      const pct = (disc / subtotal) * 100;
+      setOrderDiscountPercent(Number(pct.toFixed(2)).toString());
+    } else {
+      setOrderDiscountPercent('0');
+    }
+    setOrderPaidAmount((order.paidAmount ?? 0).toString());
     setConfirmMode('none');
     setPartialPaidAmount('');
     setPromiseDate('');
     setEditMode(false);
     setShowAddProduct(false);
     setProductSearchQuery('');
+  };
+
+  const handleDiscountFixedChange = (valStr: string, subtotal: number) => {
+    const cleaned = cleanNumberInput(valStr);
+    setOrderDiscount(cleaned);
+    const num = parseFloat(cleaned) || 0;
+    if (subtotal > 0) {
+      const pct = (num / subtotal) * 100;
+      setOrderDiscountPercent(num > 0 ? Number(pct.toFixed(2)).toString() : '0');
+    } else {
+      setOrderDiscountPercent('0');
+    }
+  };
+
+  const handleDiscountPercentChange = (pctStr: string, subtotal: number) => {
+    const cleaned = cleanNumberInput(pctStr);
+    setOrderDiscountPercent(cleaned);
+    const pct = parseFloat(cleaned) || 0;
+    const calcDisc = (subtotal * pct) / 100;
+    setOrderDiscount(pct > 0 ? Number(calcDisc.toFixed(2)).toString() : '0');
+  };
+
+  const applyDiscountPreset = (pct: number, subtotal: number) => {
+    setOrderDiscountPercent(pct.toString());
+    const calcDisc = (subtotal * pct) / 100;
+    setOrderDiscount(pct > 0 ? Number(calcDisc.toFixed(2)).toString() : '0');
+  };
+
+  const handleClearDueAsDiscount = (dueToClear: number, subtotal: number) => {
+    if (dueToClear <= 0) return;
+    const currentDisc = parseFloat(toEnglishDigits(orderDiscount)) || 0;
+    const newDisc = currentDisc + dueToClear;
+    setOrderDiscount(Number(newDisc.toFixed(2)).toString());
+    if (subtotal > 0) {
+      const pct = (newDisc / subtotal) * 100;
+      setOrderDiscountPercent(Number(pct.toFixed(2)).toString());
+    }
   };
 
   const openCourierModal = (order: Sale) => {
@@ -386,122 +541,46 @@ export default function OrderTab() {
   };
 
   // Print Invoice
-  const printInvoice = (order: Sale) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      const tracking = parseTrackingInfo(order.notes, order.courierName);
-      doc.write(`
-        <html>
-          <head>
-            <title>Invoice ${order.invoiceId}</title>
-            <style>
-              body { font-family: 'SolaimanLipi', sans-serif; padding: 20px; color: #1e293b; }
-              .header { text-align: center; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 15px; }
-              .info { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 13px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-              th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
-              th { background: #059669; color: white; }
-              .text-right { text-align: right; }
-              .text-center { text-align: center; }
-              .totals { margin-top: 15px; float: right; width: 280px; font-size: 13px; }
-              .totals div { display: flex; justify-content: space-between; padding: 3px 0; }
-              .grand { font-weight: bold; font-size: 15px; border-top: 2px solid #059669; padding-top: 6px; }
-              .badge { display: inline-block; padding: 4px 8px; background: #e0f2fe; color: #0369a1; border-radius: 4px; font-size: 12px; font-weight: bold; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h2 style="margin:0; color:#059669;">নূরানী তালীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h2>
-              <p style="margin:4px 0 0; font-size:12px; color:#64748b;">বই ও স্টেশনারি বিক্রয় চালান / ইনভয়েস</p>
-            </div>
-            <div class="info">
-              <div>
-                <strong>ইনভয়েস:</strong> ${order.invoiceId}<br/>
-                <strong>তারিখ:</strong> ${new Date(order.createdAt).toLocaleDateString('bn-BD')}<br/>
-                <strong>কুরিয়ার:</strong> ${tracking.courier} ${tracking.trackingId ? `(ট্র্যাকিং: ${tracking.trackingId})` : ''}
-              </div>
-              <div style="text-align:right;">
-                <strong>ক্রেতার নাম:</strong> ${order.customerName}<br/>
-                <strong>মোবাইল:</strong> ${order.customerPhone || 'N/A'}<br/>
-                ${order.instituteId ? `<strong>প্রতিষ্ঠান:</strong> ${order.instituteId}<br/>` : ''}
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:35px;" class="text-center">#</th>
-                  <th>পণ্যের নাম</th>
-                  <th class="text-center" style="width:70px;">পরিমাণ</th>
-                  <th class="text-right" style="width:90px;">দর</th>
-                  <th class="text-right" style="width:100px;">মোট</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${order.items.map((i, idx) => `
-                  <tr>
-                    <td class="text-center">${idx + 1}</td>
-                    <td>${i.product?.name || 'আইটেম'}</td>
-                    <td class="text-center">${i.quantity}</td>
-                    <td class="text-right">${i.unitPrice.toFixed(2)} ৳</td>
-                    <td class="text-right">${(i.quantity * i.unitPrice).toFixed(2)} ৳</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-            <div class="totals">
-              <div><span>পণ্যের মোট:</span><span>${order.items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0).toFixed(2)} ৳</span></div>
-              <div><span>ডেলিভারি চার্জ:</span><span>${(order.deliveryCharge || 0).toFixed(2)} ৳</span></div>
-              ${order.discount ? `<div><span>ছাড় (ডিসকাউন্ট):</span><span>-${order.discount.toFixed(2)} ৳</span></div>` : ''}
-              <div class="grand"><span>সর্বমোট প্রদেয়:</span><span>${order.totalAmount.toFixed(2)} ৳</span></div>
-              <div><span>পরিশোধিত:</span><span>${order.paidAmount.toFixed(2)} ৳</span></div>
-              <div><span>বকেয়া:</span><span>${Math.max(0, order.totalAmount - order.paidAmount).toFixed(2)} ৳</span></div>
-            </div>
-          </body>
-        </html>
-      `);
-      doc.close();
-      setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => document.body.removeChild(iframe), 1000);
-      }, 500);
+  const printInvoice = async (order: Sale) => {
+    try {
+      await printOrderInvoice(order);
+    } catch (e) {
+      console.error("Failed to print with printOrderInvoice:", e);
     }
   };
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Top Header & Search */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      {/* Top Header with Order Type Switcher & Search */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h3 className="font-extrabold text-lg text-slate-800 flex items-center gap-2">
-            <span>স্টোর অর্ডার ও ডেলিভারি পরিচালনা</span>
-            <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
-              মোট {counts.all} টি
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-extrabold text-base sm:text-lg text-slate-800 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-emerald-600" />
+              <span>অর্ডার ও ডেলিভারি ব্যবস্থাপনা</span>
+            </h3>
+            <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+              {categoryFilteredOrders.length} টি
             </span>
-          </h3>
+          </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            অর্ডার পর্যালোচনা, প্যাকেজিং প্রস্তুতি, কুরিয়ার হ্যান্ডওভার এবং ডেলিভারি ট্র্যাকিং ধাপসমূহ।
+            {orderCategory === 'question' 
+              ? 'পরীক্ষার প্রশ্নপত্র অর্ডারসমূহ পর্যালোচনা ও কুরিয়ার ট্র্যাকিং ধাপসমূহ।'
+              : orderCategory === 'stationary'
+              ? 'বই ও স্টেশনারি আইটেম অর্ডারসমূহ পর্যালোচনা ও কুরিয়ার ট্র্যাকিং।'
+              : 'বই-স্টেশনারি ও পরীক্ষার প্রশ্নপত্রের অর্ডার তালিকা ও ডেলিভারি ব্যবস্থাপনা।'}
           </p>
         </div>
 
-        <div className="relative w-full sm:w-72">
+        {/* Search Box */}
+        <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="ইনভয়েস বা নাম/মোবাইল দিয়ে খুঁজুন..."
+            placeholder="ইনভয়েস বা নাম/মোবাইল..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary/30 focus:bg-white focus:outline-none transition-all"
+            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/30 focus:bg-white focus:outline-none transition-all"
           />
         </div>
       </div>
@@ -510,11 +589,11 @@ export default function OrderTab() {
       <div className="bg-white p-1 rounded-full border border-slate-200/80 shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex items-center gap-1 w-max sm:w-full">
           {[
-            { id: 'all' as const, label: 'সকল অর্ডার', count: counts.all, icon: null, activeBg: 'bg-slate-900 text-white shadow-xs' },
-            { id: 'pending' as const, label: 'নতুন / অপেক্ষমাণ', count: counts.pending, icon: Clock, activeBg: 'bg-amber-600 text-white shadow-xs' },
+            { id: 'all' as const, label: 'সকল', count: counts.all, icon: null, activeBg: 'bg-slate-900 text-white shadow-xs' },
+            { id: 'pending' as const, label: 'নতুন', count: counts.pending, icon: Clock, activeBg: 'bg-amber-600 text-white shadow-xs' },
             { id: 'confirmed' as const, label: 'অনুমোদিত', count: counts.confirmed, icon: CheckCircle, activeBg: 'bg-blue-600 text-white shadow-xs' },
             { id: 'packaging' as const, label: 'প্যাকেজিং', count: counts.packaging, icon: Package, activeBg: 'bg-purple-600 text-white shadow-xs' },
-            { id: 'shipped' as const, label: 'কুরিয়ারে প্রেরিত', count: counts.shipped, icon: Truck, activeBg: 'bg-cyan-700 text-white shadow-xs' },
+            { id: 'shipped' as const, label: 'কুরিয়ার', count: counts.shipped, icon: Truck, activeBg: 'bg-cyan-700 text-white shadow-xs' },
             { id: 'delivered' as const, label: 'ডেলিভার্ড', count: counts.delivered, icon: CheckCircle2, activeBg: 'bg-emerald-600 text-white shadow-xs' },
             { id: 'cancelled' as const, label: 'বাতিল', count: counts.cancelled, icon: Trash2, activeBg: 'bg-red-600 text-white shadow-xs' },
           ].map((tab) => {
@@ -533,8 +612,8 @@ export default function OrderTab() {
                 {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
                 <span>{tab.label}</span>
                 <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
-                    isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-none ${
+                    isActive ? 'bg-white/30 text-white' : 'bg-slate-200 text-slate-700'
                   }`}
                 >
                   {tab.count}
@@ -553,7 +632,7 @@ export default function OrderTab() {
               <tr className="bg-slate-50/95 backdrop-blur-xs text-slate-600 text-xs uppercase tracking-wider font-bold">
                 <th className="p-4">ইনভয়েস ও সময়</th>
                 <th className="p-4">ক্রেতার তথ্য</th>
-                <th className="p-4 text-center">আইটেম ও ওজন</th>
+                <th className="p-4 text-center">আইটেম ও ধরণ</th>
                 <th className="p-4">কুরিয়ার ও ট্র্যাকিং</th>
                 <th className="p-4 text-right">বিল ও পেমেন্ট</th>
                 <th className="p-4 text-center">বর্তমান ধাপ</th>
@@ -584,13 +663,25 @@ export default function OrderTab() {
                   const totalItems = order.items.reduce((s, i) => s + i.quantity, 0);
                   const isPaid = order.paidAmount >= order.totalAmount;
                   const isPartial = order.paidAmount > 0 && !isPaid;
+                  const isQuestion = isQuestionOrder(order);
 
                   return (
                     <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
                       {/* Invoice & Date */}
                       <td className="p-4">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-mono font-black text-primary text-sm">{order.invoiceId}</span>
+                          {isQuestion ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full">
+                              <FileText className="w-2.5 h-2.5" />
+                              <span>প্রশ্নপত্র</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full">
+                              <Package className="w-2.5 h-2.5" />
+                              <span>স্টেশনারি</span>
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs font-bold text-slate-800 mt-0.5">
                           {new Date(order.updatedAt || order.createdAt).toLocaleDateString('bn-BD', { year: 'numeric', month: 'short', day: 'numeric' })}
@@ -614,16 +705,11 @@ export default function OrderTab() {
                         )}
                       </td>
 
-                      {/* Items & Weight */}
+                      {/* Items */}
                       <td className="p-4 text-center">
                         <span className="inline-block bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg font-bold text-xs">
                           {totalItems} টি আইটেম
                         </span>
-                        {order.totalWeight ? (
-                          <p className="text-[11px] text-amber-700 font-medium mt-1">
-                            {order.totalWeight} কেজি
-                          </p>
-                        ) : null}
                       </td>
 
                       {/* Courier & Tracking */}
@@ -674,12 +760,37 @@ export default function OrderTab() {
                         </div>
                       </td>
 
-                      {/* Current Step Badge */}
+                      {/* Current Step Badge & Details */}
                       <td className="p-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold border ${config.badgeClass}`}>
-                          <config.icon className="w-3.5 h-3.5" />
-                          {config.shortLabel}
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold border ${config.badgeClass}`}>
+                            <config.icon className="w-3.5 h-3.5" />
+                            {config.shortLabel}
+                          </span>
+                          {step === 'delivered' && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 mt-0.5 ${
+                              order.confirmedByCustomer 
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300' 
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>{order.confirmedByCustomer ? 'ক্রেতা নিজে রিসিভড' : 'অ্যাডমিন ডেলিভার্ড'}</span>
+                            </span>
+                          )}
+                          {(() => {
+                            const lastEvt = order.timeline && order.timeline.length > 0 
+                              ? order.timeline[order.timeline.length - 1] 
+                              : null;
+                            if (lastEvt && lastEvt.actorName && step !== 'pending') {
+                              return (
+                                <span className="text-[10px] text-slate-500 font-medium">
+                                  {lastEvt.actorRole === 'CUSTOMER' ? 'ক্রেতা:' : 'অ্যাডমিন:'} <strong className="text-slate-700">{lastEvt.actorName}</strong>
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       </td>
 
                       {/* Contextual Actions */}
@@ -855,6 +966,17 @@ export default function OrderTab() {
                 <div className="flex items-center justify-between text-xs gap-2">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-mono font-black text-primary text-sm">{order.invoiceId}</span>
+                    {isQuestionOrder(order) ? (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full">
+                        <FileText className="w-2.5 h-2.5" />
+                        <span>প্রশ্নপত্র</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full">
+                        <Package className="w-2.5 h-2.5" />
+                        <span>স্টেশনারি</span>
+                      </span>
+                    )}
                     <span className="text-slate-300 text-[10px]">•</span>
                     <span className="text-slate-500 font-mono text-[11px]">
                       {new Date(order.updatedAt || order.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
@@ -866,10 +988,21 @@ export default function OrderTab() {
                     )}
                   </div>
 
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border shrink-0 ${config.badgeClass}`}>
-                    <config.icon className="w-3 h-3" />
-                    <span>{config.shortLabel}</span>
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border shrink-0 ${config.badgeClass}`}>
+                      <config.icon className="w-3 h-3" />
+                      <span>{config.shortLabel}</span>
+                    </span>
+                    {step === 'delivered' && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border flex items-center gap-1 ${
+                        order.confirmedByCustomer 
+                          ? 'bg-emerald-100 text-emerald-900 border-emerald-300' 
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
+                      }`}>
+                        <span>{order.confirmedByCustomer ? 'ক্রেতা রিসিভড' : 'অ্যাডমিন'}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Row 2: Customer Name, Phone & Direct Madrasa */}
@@ -928,11 +1061,6 @@ export default function OrderTab() {
                     <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold text-[11px]">
                       {totalItems} টি আইটেম
                     </span>
-                    {order.totalWeight ? (
-                      <span className="text-amber-700 font-medium text-[11px]">
-                        {order.totalWeight}কেজি
-                      </span>
-                    ) : null}
                   </div>
                 </div>
 
@@ -1079,8 +1207,8 @@ export default function OrderTab() {
 
       {/* Review & Confirm Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
             {/* Modal Header */}
             <div className="flex items-start justify-between p-5 border-b border-slate-100 bg-slate-50/80">
               <div>
@@ -1095,8 +1223,8 @@ export default function OrderTab() {
                     {selectedOrder.customerName} {selectedOrder.customerPhone && `• ${selectedOrder.customerPhone}`}
                   </span>
                   {selectedOrder.notes && (
-                    <span className="text-slate-500 bg-white/80 p-2 rounded-lg border border-slate-200/80 mt-1">
-                      <strong>ঠিকানা / নোট:</strong> {selectedOrder.notes}
+                    <span className="text-slate-600 bg-white/90 p-2.5 rounded-xl border border-slate-200/80 mt-1.5 leading-relaxed">
+                      <strong>ঠিকানা / নোট:</strong> {cleanAddressNotes(selectedOrder.notes) || selectedOrder.notes}
                     </span>
                   )}
                 </div>
@@ -1209,11 +1337,18 @@ export default function OrderTab() {
                       const product = availableProducts.find(p => p.id === item.productId)
                         || selectedOrder.items.find(i => i.productId === item.productId)?.product;
                       if (!product) return null;
+                      const unitPrice = ('unitPrice' in item && typeof (item as any).unitPrice === 'number') 
+                        ? (item as any).unitPrice 
+                        : (product.price || 0);
+                      const lineTotal = unitPrice * item.quantity;
                       return (
-                        <tr key={idx}>
+                        <tr key={idx} className="hover:bg-slate-50/50">
                           <td className="py-2.5 font-medium text-slate-800">
-                            {product.name}
-                            {product.className && <span className="text-[11px] text-slate-400 ml-1">({product.className})</span>}
+                            <div>
+                              <span className="font-bold">{product.name}</span>
+                              {product.className && <span className="text-[11px] text-slate-500 ml-1">({product.className})</span>}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">দর: {unitPrice.toFixed(2)} ৳</div>
                           </td>
                           <td className="py-2.5 text-center text-xs text-slate-500 font-mono">{product.stock}</td>
                           <td className="py-2.5 text-center">
@@ -1222,6 +1357,8 @@ export default function OrderTab() {
                                 type="number" 
                                 min={1}
                                 value={item.quantity} 
+                                onFocus={(e) => e.target.select()}
+                                onClick={(e) => e.currentTarget.select()}
                                 onChange={e => {
                                   const newQty = Math.max(1, parseInt(e.target.value) || 1);
                                   setEditedItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: newQty } : it));
@@ -1229,11 +1366,11 @@ export default function OrderTab() {
                                 className="w-16 border border-slate-300 rounded-lg text-center py-1 font-bold text-sm outline-none focus:border-primary"
                               />
                             ) : (
-                              <span className="font-bold text-slate-700">{item.quantity} টি</span>
+                              <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">{item.quantity} টি</span>
                             )}
                           </td>
-                          <td className="py-2.5 text-right font-bold text-slate-800">
-                            {(product.price * item.quantity).toFixed(2)} ৳
+                          <td className="py-2.5 text-right font-bold text-slate-800 font-mono">
+                            {lineTotal.toFixed(2)} ৳
                           </td>
                           {editMode && (
                             <td className="py-2.5 text-right pl-2">
@@ -1291,79 +1428,288 @@ export default function OrderTab() {
                   </div>
                 )}
 
-                {/* Bill Summary */}
+                {/* Full Width Calculation & Payment Area */}
                 {!editMode && (() => {
                   const itemsSubtotal = selectedOrder.items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0);
                   const deliveryChargeVal = parseFloat(toEnglishDigits(orderDeliveryCharge)) || 0;
                   const discountVal = parseFloat(toEnglishDigits(orderDiscount)) || 0;
                   const currentBill = Math.max(0, itemsSubtotal - discountVal) + deliveryChargeVal;
-                  const totalPayable = currentBill + (selectedOrder.previousDue || 0);
+                  const previousDueVal = selectedOrder.previousDue || 0;
+                  const totalPayable = currentBill + previousDueVal;
+                  const paidVal = parseFloat(toEnglishDigits(orderPaidAmount)) || 0;
+                  const remainingDue = Math.max(0, totalPayable - paidVal);
 
                   return (
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col items-end gap-2 text-xs sm:text-sm">
-                      <div className="flex justify-between w-72">
-                        <span className="text-slate-500 font-bold">পণ্যের মূল্য (সাবটোটাল):</span>
-                        <span className="font-bold text-slate-800">{itemsSubtotal.toFixed(2)} ৳</span>
-                      </div>
+                    <div className="mt-5 pt-4 border-t border-slate-200/90 w-full">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                        {/* Left Column: Delivery, Discount & Paid Controls */}
+                        <div className="flex flex-col gap-3">
+                          {/* 1. Courier Delivery Control */}
+                          <div className="bg-slate-50/90 p-3.5 rounded-2xl border border-slate-200 flex items-center justify-between gap-2 shadow-2xs">
+                            <label className="flex items-center gap-2 text-slate-700 font-bold text-xs cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={includeDeliveryCharge && deliveryChargeVal > 0}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setIncludeDeliveryCharge(checked);
+                                  if (!checked) {
+                                    setOrderDeliveryCharge('0');
+                                  } else {
+                                    const restoreVal = savedDeliveryCharge && parseFloat(savedDeliveryCharge) > 0 ? savedDeliveryCharge : '180';
+                                    setOrderDeliveryCharge(restoreVal);
+                                  }
+                                }}
+                                className="w-4 h-4 text-emerald-700 rounded focus:ring-emerald-600 cursor-pointer"
+                              />
+                              <span className="text-sm">🚚</span>
+                              <span>কুরিয়ার চার্জ ({selectedOrder.courierName || 'পাঠাও কুরিয়ার'}):</span>
+                            </label>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={orderDeliveryCharge}
+                                onFocus={(e) => e.target.select()}
+                                onClick={(e) => e.currentTarget.select()}
+                                onChange={e => {
+                                  const val = cleanNumberInput(e.target.value);
+                                  setOrderDeliveryCharge(val);
+                                  const num = parseFloat(val) || 0;
+                                  if (num > 0) {
+                                    setIncludeDeliveryCharge(true);
+                                    setSavedDeliveryCharge(val);
+                                  } else {
+                                    setIncludeDeliveryCharge(false);
+                                  }
+                                }}
+                                className="w-20 px-2 py-1 text-right font-bold text-xs border border-slate-300 rounded-lg bg-white font-mono focus:ring-1 focus:ring-emerald-500 outline-none"
+                              />
+                              <span className="text-xs font-bold text-slate-600">৳</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIncludeDeliveryCharge(false);
+                                  setOrderDeliveryCharge('0');
+                                }}
+                                title="ফ্রি ডেলিভারি / চার্জ বাদ দিন"
+                                className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg font-bold hover:bg-emerald-200 transition-colors"
+                              >
+                                ফ্রি
+                              </button>
+                            </div>
+                          </div>
 
-                      {/* Delivery Charge */}
-                      <div className="flex justify-between items-center w-72 bg-slate-50 p-2 rounded-xl border border-slate-200/80">
-                        <div className="flex flex-col">
-                          <span className="text-slate-700 font-bold text-xs flex items-center gap-1">
-                            <span>🚚 {selectedOrder.courierName || 'পাঠাও কুরিয়ার'}:</span>
-                          </span>
-                          <span className="text-[10px] text-amber-700 font-medium">
-                            ওজন: {selectedOrder.totalWeight || 0} কেজি
-                          </span>
+                          {/* 2. Discount Box (Fixed ৳ and Percentage %) */}
+                          <div className="bg-emerald-50/50 p-3.5 rounded-2xl border border-emerald-200 space-y-2 shadow-2xs">
+                            <div className="flex justify-between items-center">
+                              <span className="text-emerald-950 font-bold text-xs flex items-center gap-1">
+                                <span>🏷️ ছাড় (ডিসকাউন্ট):</span>
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {[0, 5, 10, 15, 20].map(pct => (
+                                  <button
+                                    key={pct}
+                                    type="button"
+                                    onClick={() => applyDiscountPreset(pct, itemsSubtotal)}
+                                    className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-colors ${
+                                      orderDiscountPercent === pct.toString()
+                                        ? 'bg-emerald-700 text-white'
+                                        : 'bg-emerald-100/70 hover:bg-emerald-200 text-emerald-800'
+                                    }`}
+                                  >
+                                    {pct === 0 ? '০%' : `${pct}%`}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-emerald-200">
+                                <span className="text-[11px] font-bold text-slate-500 shrink-0">টাকা:</span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={orderDiscount}
+                                  onFocus={(e) => e.target.select()}
+                                  onClick={(e) => e.currentTarget.select()}
+                                  onChange={e => handleDiscountFixedChange(e.target.value, itemsSubtotal)}
+                                  placeholder="0.00"
+                                  className="w-full text-right font-bold text-xs text-emerald-700 outline-none bg-transparent font-mono"
+                                />
+                                <span className="text-xs font-bold text-emerald-700">৳</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-emerald-200">
+                                <span className="text-[11px] font-bold text-slate-500 shrink-0">শতকরা:</span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={orderDiscountPercent}
+                                  onFocus={(e) => e.target.select()}
+                                  onClick={(e) => e.currentTarget.select()}
+                                  onChange={e => handleDiscountPercentChange(e.target.value, itemsSubtotal)}
+                                  placeholder="0"
+                                  className="w-full text-right font-bold text-xs text-emerald-700 outline-none bg-transparent font-mono"
+                                />
+                                <span className="text-xs font-bold text-emerald-700">%</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3. Paid Amount Input */}
+                          <div className="bg-blue-50/60 p-3.5 rounded-2xl border border-blue-200 space-y-2 shadow-2xs">
+                            <div className="flex justify-between items-center">
+                              <span className="text-blue-950 font-bold text-xs flex items-center gap-1">
+                                <span>💳 পরিশোধিত / পেইড (Paid Amount):</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setOrderPaidAmount(totalPayable.toFixed(2))}
+                                className="text-[10px] bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-0.5 rounded-md font-bold transition-colors shadow-2xs"
+                              >
+                                সম্পূর্ণ পরিশোধ (Full)
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-blue-200">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={orderPaidAmount}
+                                onFocus={(e) => e.target.select()}
+                                onClick={(e) => e.currentTarget.select()}
+                                onChange={e => setOrderPaidAmount(cleanNumberInput(e.target.value))}
+                                placeholder="0.00"
+                                className="w-full text-right font-black text-sm text-blue-900 outline-none bg-transparent font-mono"
+                              />
+                              <span className="text-xs font-bold text-blue-900">৳</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={orderDeliveryCharge}
-                            onChange={e => setOrderDeliveryCharge(e.target.value)}
-                            className="w-16 px-1.5 py-0.5 text-right font-bold text-xs border border-slate-300 rounded bg-white"
-                          />
-                          <span className="text-xs font-bold">৳</span>
-                          <button
-                            type="button"
-                            onClick={() => setOrderDeliveryCharge('0')}
-                            title="ফ্রি ডেলিভারি"
-                            className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold hover:bg-emerald-200 transition-colors"
-                          >
-                            ফ্রি
-                          </button>
+
+                        {/* Right Column: Live Calculated Bill Summary & Due Card */}
+                        <div className="bg-slate-50/90 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-2xs">
+                          <div className="space-y-2 text-xs sm:text-sm">
+                            <div className="flex justify-between items-center text-slate-600 font-bold">
+                              <span>পণ্যের মোট মূল্য (সাবটোটাল):</span>
+                              <span className="font-mono text-slate-800">{itemsSubtotal.toFixed(2)} ৳</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-slate-600 font-bold">
+                              <span>কুরিয়ার চার্জ:</span>
+                              <span className={`font-mono ${deliveryChargeVal > 0 ? 'text-slate-800' : 'text-emerald-700'}`}>
+                                {deliveryChargeVal > 0 ? `+ ${deliveryChargeVal.toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি)'}
+                              </span>
+                            </div>
+
+                            {discountVal > 0 && (
+                              <div className="flex justify-between items-center text-emerald-700 font-bold">
+                                <span>ছাড় (ডিসকাউন্ট {orderDiscountPercent ? `· ${orderDiscountPercent}%` : ''}):</span>
+                                <span className="font-mono">- {discountVal.toFixed(2)} ৳</span>
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-slate-700 font-bold">
+                              <span>বর্তমান বিল:</span>
+                              <span className="font-black text-slate-900 font-mono">{currentBill.toFixed(2)} ৳</span>
+                            </div>
+
+                            {previousDueVal > 0 && (
+                              <div className="flex justify-between items-center text-amber-700 font-bold text-xs">
+                                <span>পূর্বের বকেয়া:</span>
+                                <span className="font-black font-mono">+ {previousDueVal.toFixed(2)} ৳</span>
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center pt-2 border-t-2 border-primary/20">
+                              <span className="text-slate-900 font-extrabold text-sm">সর্বমোট প্রদেয়:</span>
+                              <span className="font-black text-primary text-base font-mono">{totalPayable.toFixed(2)} ৳</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-blue-800 font-bold text-xs">
+                              <span>পরিশোধের পরিমাণ:</span>
+                              <span className="font-black font-mono">{paidVal.toFixed(2)} ৳</span>
+                            </div>
+                          </div>
+
+                          {/* Real-time Due & Clear Due Action */}
+                          <div className={`mt-3 p-3 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                            remainingDue > 0 ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-300'
+                          }`}>
+                            <div>
+                              <span className="block text-[11px] font-bold text-slate-600">অবশিষ্ট বকেয়া (Due):</span>
+                              <span className={`font-black text-base font-mono ${remainingDue > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                {remainingDue.toFixed(2)} ৳
+                              </span>
+                            </div>
+                            {remainingDue > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => handleClearDueAsDiscount(remainingDue, itemsSubtotal)}
+                                title="বকেয়া সম্পূর্ণ মওকুফ করে ডিসকাউন্টে রূপান্তর করুন"
+                                className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-lg text-xs font-bold shadow-xs transition-all active:scale-95 flex items-center gap-1"
+                              >
+                                <span>বকেয়া মওকুফ (ডিসকাউন্ট)</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs font-extrabold text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                                বকেয়া মুক্ত ✓
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-
-                      {/* Discount */}
-                      <div className="flex justify-between items-center w-72 bg-slate-50 p-2 rounded-xl border border-slate-200/80">
-                        <span className="text-slate-700 font-bold text-xs">ছাড় (ডিসকাউন্ট):</span>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={orderDiscount}
-                            onChange={e => setOrderDiscount(e.target.value)}
-                            className="w-16 px-1.5 py-0.5 text-right font-bold text-xs border border-slate-300 rounded bg-white text-emerald-600"
-                          />
-                          <span className="text-xs font-bold text-emerald-600">৳</span>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between w-72 pt-1 border-t border-slate-200">
-                        <span className="text-slate-700 font-bold">বর্তমান বিল:</span>
-                        <span className="font-black text-slate-900">{currentBill.toFixed(2)} ৳</span>
-                      </div>
-
-                      <div className="flex justify-between w-72 pt-2 mt-1 border-t-2 border-primary/20">
-                        <span className="text-slate-800 font-extrabold">সর্বমোট প্রদেয়:</span>
-                        <span className="font-black text-primary text-base">{totalPayable.toFixed(2)} ৳</span>
                       </div>
                     </div>
                   );
                 })()}
               </div>
+
+              {/* Order Timeline & Audit Trail */}
+              {!editMode && selectedOrder.timeline && selectedOrder.timeline.length > 0 && (
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
+                  <h4 className="font-bold text-slate-800 text-sm mb-3 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span>অর্ডার টাইমলাইন ও হিস্ট্রি (Audit Trail)</span>
+                  </h4>
+                  <div className="flex flex-col gap-2">
+                    {selectedOrder.timeline.map((evt, idx) => {
+                      const isDeliv = evt.step === 'delivered';
+                      const isShip = evt.step === 'shipped';
+                      const isPkg = evt.step === 'packaging';
+                      const isConf = evt.step === 'confirmed';
+
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs ${
+                            isDeliv ? 'bg-emerald-50/70 border-emerald-200' :
+                            isShip ? 'bg-cyan-50/60 border-cyan-200' :
+                            isPkg ? 'bg-purple-50/60 border-purple-200' :
+                            isConf ? 'bg-blue-50/60 border-blue-200' : 'bg-slate-50 border-slate-200/80'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-white border text-center font-bold text-[10px] leading-5 text-slate-700 shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div>
+                              <p className="font-bold text-slate-800 leading-tight">{evt.title}</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                <span className="font-semibold text-slate-700">{evt.actorRole === 'CUSTOMER' ? 'ক্রেতা:' : 'অ্যাডমিন:'} {evt.actorName}</span>
+                                {evt.courierName ? ` • ${evt.courierName}` : ''}
+                                {evt.trackingId ? ` (${evt.trackingId})` : ''}
+                                {evt.notes ? ` • ${evt.notes}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="font-mono text-[10px] text-slate-500 shrink-0 self-end sm:self-center bg-white px-2 py-0.5 rounded border border-slate-200/70">
+                            {formatBanglaDateTime(evt.timestamp)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Order Confirmation Step Actions */}
               {!editMode && (() => {
@@ -1371,6 +1717,8 @@ export default function OrderTab() {
                 const deliveryChargeVal = parseFloat(toEnglishDigits(orderDeliveryCharge)) || 0;
                 const discountVal = parseFloat(toEnglishDigits(orderDiscount)) || 0;
                 const currentBill = Math.max(0, itemsSubtotal - discountVal) + deliveryChargeVal;
+                const totalPayable = currentBill + (selectedOrder.previousDue || 0);
+                const paidVal = parseFloat(toEnglishDigits(orderPaidAmount)) || 0;
 
                 return (
                   <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
@@ -1383,11 +1731,12 @@ export default function OrderTab() {
                         <div>
                           <label className="block text-xs font-bold text-blue-900 mb-1">প্রদানকৃত পরিমাণ (৳)</label>
                           <input 
-                            type="number" 
-                            value={partialPaidAmount}
-                            onChange={e => setPartialPaidAmount(e.target.value)}
+                            type="text" 
+                            inputMode="decimal"
+                            value={orderPaidAmount}
+                            onChange={e => setOrderPaidAmount(e.target.value)}
                             placeholder="0.00"
-                            className="w-full border border-blue-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-400 outline-none bg-white text-sm font-bold"
+                            className="w-full border border-blue-200 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-400 outline-none bg-white text-sm font-bold font-mono"
                           />
                         </div>
                         <div>
@@ -1408,7 +1757,7 @@ export default function OrderTab() {
                           </button>
                           <button 
                             onClick={() => { 
-                              handleAccept(selectedOrder.id, Number(partialPaidAmount), 'Packaging', 'Cash', promiseDate);
+                              handleAccept(selectedOrder.id, paidVal, 'Packaging', 'Cash', promiseDate);
                               setSelectedOrder(null); 
                               setConfirmMode('none'); 
                             }} 
@@ -1425,7 +1774,7 @@ export default function OrderTab() {
                           {/* Option A: Direct to Packaging */}
                           <button 
                             onClick={() => { 
-                              handleAccept(selectedOrder.id, currentBill, 'Packaging', 'Cash'); 
+                              handleAccept(selectedOrder.id, paidVal, 'Packaging', 'Cash', promiseDate); 
                               setSelectedOrder(null); 
                             }} 
                             className="flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-sm transition-all active:scale-98 shadow-xs"
@@ -1437,7 +1786,7 @@ export default function OrderTab() {
                           {/* Option B: Just Confirmed */}
                           <button 
                             onClick={() => { 
-                              handleAccept(selectedOrder.id, 0, 'Confirmed', 'Cash'); 
+                              handleAccept(selectedOrder.id, paidVal, 'Confirmed', 'Cash', promiseDate); 
                               setSelectedOrder(null); 
                             }} 
                             className="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold rounded-xl text-sm transition-all active:scale-98"
@@ -1449,17 +1798,19 @@ export default function OrderTab() {
 
                         {/* Quick payment options */}
                         <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                          <span className="text-slate-500 font-medium">পেমেন্ট স্ট্যাটাস রেকর্ড করতে চান?</span>
+                          <span className="text-slate-500 font-medium">
+                            পেমেন্ট: <strong className="text-blue-900 font-mono">{paidVal.toFixed(2)} ৳</strong> 
+                            {totalPayable - paidVal > 0 ? ` (বকেয়া: ${(totalPayable - paidVal).toFixed(2)} ৳)` : ' (পরিশোধিত)'}
+                          </span>
                           <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => {
                                 setConfirmMode('partial');
-                                setPartialPaidAmount(currentBill.toFixed(2));
                               }}
                               className="px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg font-semibold transition-colors"
                             >
-                              পেমেন্ট যোগ করুন
+                              পেমেন্ট তারিখ / বিস্তারিত
                             </button>
                           </div>
                         </div>

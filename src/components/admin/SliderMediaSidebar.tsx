@@ -46,16 +46,16 @@ const PRESET_GALLERY = [
     title: "নূরানী বোর্ড খুলনা ব্যানার ১",
     imageUrl: "/images/hero/slide1.jpg",
     description: "আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা।",
-    buttonText: "মাদরাসা নিবন্ধন করুন",
-    buttonLink: "/register",
+    buttonText: "আরও জানুন",
+    buttonLink: "/about",
     tag: "ডিফল্ট ব্যানার ১"
   },
   {
     title: "ইসলামি শিক্ষায় শ্রেষ্ঠত্ব ব্যানার ২",
     imageUrl: "/images/hero/slide2.jpg",
     description: "আজই আমাদের মাদরাসার বিশাল নেটওয়ার্কে যুক্ত হোন এবং জ্ঞান অর্জনে নিবেদিত একটি ক্রমবর্ধমান সম্প্রদায়ের অংশ হন।",
-    buttonText: "আরও জানুন",
-    buttonLink: "/about",
+    buttonText: "মাদরাসা নিবন্ধন করুন",
+    buttonLink: "/register",
     tag: "ডিফল্ট ব্যানার ২"
   },
   {

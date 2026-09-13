@@ -5,6 +5,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { CoverTopBar, PageCoverHeader } from "@/components/layout/CoverBanner";
 import { getUserSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { DialogProvider } from "@/components/ui/DialogProvider";
 import PwaInstallPrompt from "@/components/common/PwaInstallPrompt";
 
@@ -37,6 +38,20 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const user = await getUserSession();
+  
+  let initialSettings = null;
+  try {
+    const dbSettings = await prisma.boardSettings.findFirst();
+    if (dbSettings) {
+      initialSettings = {
+        name: dbSettings.name || undefined,
+        address: dbSettings.address || undefined,
+        logoUrl: dbSettings.logoUrl || undefined,
+      };
+    }
+  } catch (e) {
+    console.error("Error fetching initial settings:", e);
+  }
 
   return (
     <html lang="en">
@@ -48,7 +63,7 @@ export default async function RootLayout({
 
             {/* Navbar (sticky) */}
             <div className="sticky top-0 z-50">
-              <Navbar user={user} />
+              <Navbar user={user} initialSettings={initialSettings} />
             </div>
 
             {/* Main Content */}

@@ -21,10 +21,13 @@ async function verifyAdmin() {
 
 import connectDB from "@/lib/mongodb";
 import Madrasa from "@/lib/models/Madrasa";
+import { getEnrichedTimeline } from "@/lib/orderTimeline";
+import { repairQuestionOrderSaleIfNeeded } from "@/lib/orderRepair";
+import mongoose from "mongoose";
 
 export async function GET() {
   try {
-    const sales = await (prisma as any).storeSale.findMany({
+    let sales = await (prisma as any).storeSale.findMany({
       orderBy: { updatedAt: "desc" },
       include: {
         items: { include: { product: true } },
@@ -42,7 +45,12 @@ export async function GET() {
         if (m.name) madrasaMap.set(String(m.name).trim().toLowerCase(), m);
       }
 
-      const enrichedSales = sales.map((sale: any) => {
+      const repairedSales = await Promise.all(sales.map(async (sale: any) => {
+        const repaired = await repairQuestionOrderSaleIfNeeded(sale, prisma);
+        return repaired;
+      }));
+
+      const enrichedSales = repairedSales.map((sale: any) => {
         let geo: any = null;
         let phone = sale.customerPhone || "";
         if (sale.instituteId) {
@@ -61,12 +69,14 @@ export async function GET() {
             }
           }
         }
-        return { ...sale, customerPhone: phone, geoAddress: geo };
+        const timeline = getEnrichedTimeline(sale);
+        return { ...sale, customerPhone: phone, geoAddress: geo, timeline };
       });
       return NextResponse.json(enrichedSales);
     } catch (mErr) {
       console.warn("Could not enrich sales with madrasa geo:", mErr);
-      return NextResponse.json(sales);
+      const enriched = sales.map((s: any) => ({ ...s, timeline: getEnrichedTimeline(s) }));
+      return NextResponse.json(enriched);
     }
   } catch (error) {
     console.error("Failed to fetch sales:", error);

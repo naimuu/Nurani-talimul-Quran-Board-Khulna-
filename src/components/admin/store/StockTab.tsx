@@ -647,8 +647,33 @@ function ActionDropdown({ product, onUpdate }: { product: Product; onUpdate: () 
   );
 }
 
-export default function StockTab() {
-  const [products, setProducts] = useState<Product[]>([]);
+export const isQuestionProduct = (p: { name?: string; category?: string } | any): boolean => {
+  if (!p) return false;
+  const cat = String(p.category || '').toLowerCase();
+  const name = String(p.name || '').toLowerCase();
+  return (
+    cat.includes('প্রশ্নপত্র') ||
+    cat.includes('প্রশ্ন') ||
+    cat.includes('question') ||
+    name.includes('প্রশ্নপত্র') ||
+    name.includes('প্রশ্ন') ||
+    name.includes('সাময়িক পরীক্ষা') ||
+    name.includes('বার্ষিক পরীক্ষা') ||
+    name.includes('পরীক্ষা –') ||
+    name.includes('পরীক্ষা -') ||
+    name.includes('প্রশ্নপত্র সেট')
+  );
+};
+
+export default function StockTab({
+  storeCategory = 'all',
+  onCategoryChange,
+}: {
+  storeCategory?: 'all' | 'stationary' | 'question';
+  onCategoryChange?: (cat: 'all' | 'stationary' | 'question') => void;
+}) {
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allCategories, setAllCategories] = useState<{id:string, name:string, isClassWise?:boolean}[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -656,7 +681,6 @@ export default function StockTab() {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [categories, setCategories] = useState<{id:string, name:string, isClassWise?:boolean}[]>([]);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product, direction: 'asc' | 'desc' } | null>(null);
 
   const handleSort = (key: keyof Product) => {
@@ -669,8 +693,8 @@ export default function StockTab() {
     try {
       const res = await fetch('/api/store/categories');
       const data = await res.json();
-      setCategories(Array.isArray(data) ? data : []);
-    } catch { setCategories([]); }
+      setAllCategories(Array.isArray(data) ? data : []);
+    } catch { setAllCategories([]); }
   };
 
   const fetchProducts = async () => {
@@ -678,21 +702,50 @@ export default function StockTab() {
     try {
       const res = await fetch('/api/store/products');
       const data = await res.json();
-      setProducts(Array.isArray(data) ? data : []);
-    } catch { setProducts([]); }
+      setAllProducts(Array.isArray(data) ? data : []);
+    } catch { setAllProducts([]); }
     setLoading(false);
   };
 
   useEffect(() => { fetchProducts(); fetchCategories(); }, []);
 
-  const filtered = products.filter(p =>
+  // Filter categories based on storeCategory
+  const categories = useMemo(() => {
+    if (storeCategory === 'question') {
+      const qCats = allCategories.filter(c => {
+        const cName = String(c.name || '').toLowerCase();
+        return cName.includes('প্রশ্ন') || cName.includes('question');
+      });
+      return qCats.length > 0 ? qCats : allCategories;
+    }
+    if (storeCategory === 'stationary') {
+      return allCategories.filter(c => {
+        const cName = String(c.name || '').toLowerCase();
+        return !cName.includes('প্রশ্ন') && !cName.includes('question');
+      });
+    }
+    return allCategories;
+  }, [allCategories, storeCategory]);
+
+  // Products filtered by storeCategory
+  const categoryProducts = useMemo(() => {
+    if (storeCategory === 'question') {
+      return allProducts.filter(p => isQuestionProduct(p));
+    }
+    if (storeCategory === 'stationary') {
+      return allProducts.filter(p => !isQuestionProduct(p));
+    }
+    return allProducts;
+  }, [allProducts, storeCategory]);
+
+  const filtered = categoryProducts.filter(p =>
     (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.id.includes(searchTerm)) &&
     (filterCategory === '' || p.category.includes(filterCategory)) &&
     (filterClass === '' || p.className === filterClass)
   );
 
-  const currentCategoryProducts = filterCategory ? products.filter(p => p.category.includes(filterCategory) && p.className) : [];
-  const uniqueClasses = Array.from(new Set(currentCategoryProducts.map(p => p.className).filter(Boolean)));
+  const currentCategoryProducts = filterCategory ? categoryProducts.filter((p: Product) => p.category.includes(filterCategory) && p.className) : [];
+  const uniqueClasses: string[] = Array.from(new Set(currentCategoryProducts.map((p: Product) => p.className).filter((c): c is string => Boolean(c))));
 
   const stockStatus = (stock: number) => {
     if (stock === 0) return { label: 'মজুদ শেষ', class: 'bg-red-100 text-red-700' };

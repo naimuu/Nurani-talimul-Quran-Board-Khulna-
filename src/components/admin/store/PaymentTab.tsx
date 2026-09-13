@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Download, FileText, CheckCircle, MoreVertical, Trash2, Share2, X, Plus, Calendar, Filter, DollarSign, Wallet, Percent, AlertCircle, Phone } from 'lucide-react';
+import { isQuestionOrder } from './OrderTab';
 
 type Payment = { id: string; payer: string; purpose: string; amount: number; method: string; status: string; createdAt: string; sale?: { invoiceId: string; totalAmount: number; paidAmount: number } | null };
 
@@ -203,7 +204,13 @@ function DateFilterModal({ onClose, onApply }: { onClose: () => void; onApply: (
   );
 }
 
-export default function PaymentTab() {
+export default function PaymentTab({
+  storeCategory = 'all',
+  onCategoryChange,
+}: {
+  storeCategory?: 'all' | 'stationary' | 'question';
+  onCategoryChange?: (cat: 'all' | 'stationary' | 'question') => void;
+}) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [dueSales, setDueSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -250,6 +257,12 @@ export default function PaymentTab() {
 
   useEffect(() => { fetchPayments(); }, [dateRange]);
 
+  const filteredDueSales = useMemo(() => {
+    if (storeCategory === 'question') return dueSales.filter(s => isQuestionOrder(s));
+    if (storeCategory === 'stationary') return dueSales.filter(s => !isQuestionOrder(s));
+    return dueSales;
+  }, [dueSales, storeCategory]);
+
   const filtered = payments.filter(p => {
     const matchSearch = p.payer.toLowerCase().includes(searchTerm.toLowerCase()) || p.purpose.toLowerCase().includes(searchTerm.toLowerCase());
     const isPartialSale = p.sale && (p.sale.totalAmount > p.sale.paidAmount);
@@ -263,8 +276,14 @@ export default function PaymentTab() {
       const pDate = new Date(p.createdAt);
       matchDate = pDate >= dateRange.start && pDate <= dateRange.end;
     }
+
+    let matchCategory = true;
+    if (storeCategory !== 'all') {
+      const isQ = p.sale ? isQuestionOrder(p.sale) : (p.purpose.includes('প্রশ্ন') || p.purpose.toLowerCase().includes('question'));
+      matchCategory = storeCategory === 'question' ? isQ : !isQ;
+    }
     
-    return matchSearch && matchTab && matchDate;
+    return matchSearch && matchTab && matchDate && matchCategory;
   });
 
   const totalAmount = filtered.reduce((s, p) => s + p.amount, 0);
@@ -306,7 +325,7 @@ export default function PaymentTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-50 text-sm">
-                {dueSales.map(sale => {
+                {filteredDueSales.map(sale => {
                   const hasPromiseDate = !!sale.promiseDate;
                   const isOverdue = hasPromiseDate && new Date(sale.promiseDate).getTime() < new Date().getTime();
                   return (
@@ -341,9 +360,9 @@ export default function PaymentTab() {
 
           {/* Mobile Cards */}
           <div className="md:hidden flex flex-col gap-3 mt-3">
-            {dueSales.length === 0 ? (
+            {filteredDueSales.length === 0 ? (
                <div className="text-center p-4 text-sm text-red-400">কোনো বকেয়া নেই</div>
-            ) : dueSales.map(sale => {
+            ) : filteredDueSales.map(sale => {
               const hasPromiseDate = !!sale.promiseDate;
               const isOverdue = hasPromiseDate && new Date(sale.promiseDate).getTime() < new Date().getTime();
               return (

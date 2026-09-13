@@ -13,7 +13,7 @@ type Location = {
   parentId: string | null;
 };
 
-export default function RegisterMadrasaPage() {
+export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [teachers, setTeachers] = useState([{ name: "", phone: "", designation: "প্রধান-শিক্ষক" }, { name: "", phone: "", designation: "সহকারী-শিক্ষক" }]);
   
   // Location states
@@ -196,14 +196,24 @@ export default function RegisterMadrasaPage() {
     }
   };
 
+  if (!isOpen) return null;
+
   if (submitStatus === 'success') {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 print:bg-white print:p-0">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-3xl p-10 max-w-4xl w-full mx-auto shadow-2xl border border-emerald-100 print:shadow-none print:border-none print:p-0 print:max-w-full"
-        >
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[99999] flex p-4 sm:p-6 print:p-0 print:static print:z-auto bg-slate-50 print:bg-white">
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm print:hidden" 
+            onClick={onClose} 
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="w-full max-w-4xl mx-auto bg-white rounded-3xl p-10 shadow-2xl relative z-10 max-h-[95vh] overflow-y-auto border border-emerald-100 print:max-h-none print:shadow-none print:bg-transparent print:border-none print:p-0 print:max-w-full"
+          >
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors print:hidden z-50">
+               <X className="w-5 h-5" />
+            </button>
           {/* Success Modal (Hidden on Print) */}
           <AnimatePresence>
             {showSuccessModal && (
@@ -447,15 +457,31 @@ export default function RegisterMadrasaPage() {
               নতুন আবেদন
             </motion.button>
           </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      </AnimatePresence>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 print:bg-white print:py-0">
-      
-      <div className="max-w-5xl mx-auto">
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[99999] flex p-4 sm:p-6 print:p-0 print:static print:z-auto">
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm print:hidden" 
+          onClick={onClose} 
+        />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="w-full max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[95vh] print:max-h-none print:shadow-none print:bg-transparent print:h-auto"
+        >
+          <div className="flex justify-between items-center p-4 border-b border-slate-100 print:hidden bg-slate-50 sticky top-0 z-20 rounded-t-3xl">
+            <h2 className="text-xl font-bold text-slate-800">মাদরাসা নিবন্ধন</h2>
+            <button onClick={onClose} className="p-2 bg-slate-200 hover:bg-slate-300 rounded-full text-slate-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="overflow-y-auto flex-1 p-4 sm:p-6 md:p-8 bg-slate-50 print:bg-white print:p-0">
         
         {/* Header Section */}
         <div className="text-center mb-10 print:mb-6">
@@ -742,7 +768,9 @@ export default function RegisterMadrasaPage() {
 
           </div>
         </form>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </AnimatePresence>
   );
 }

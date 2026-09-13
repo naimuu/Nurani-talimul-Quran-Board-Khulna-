@@ -33,6 +33,10 @@ import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
 import { generateClassId } from "@/lib/classUtils";
+import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
+import { printOrderInvoice } from "@/lib/orderPrint";
+import { generateQRCodeDataUrl, generateBarcodeSVG } from "@/lib/qrHelper";
+import { cleanAddressNotes, parseQuestionItemsFromNotes } from "@/lib/orderTimeline";
 
 type QuestionItem = {
   id: string;
@@ -51,6 +55,7 @@ type QuestionItem = {
   attachmentName?: string;
   subjects?: string[];
   instructions?: string;
+  weightKg?: number;
 };
 
 export default function QuestionOrderPage() {
@@ -294,6 +299,8 @@ export default function QuestionOrderPage() {
     });
 
     dbProducts.forEach((p) => {
+      // Exclude auto-created sales bookkeeping products
+      if (p.visibility === "academic" || p.visibility === "archived") return;
       const cId = p.classId ? String(p.classId) : generateClassId(p.className || "অন্যান্য");
       list.push({
         id: `db_${p.id}`,
@@ -613,27 +620,18 @@ export default function QuestionOrderPage() {
     try {
       const orderItems = [];
       for (const entry of Object.values(cart)) {
-        let pId = entry.item.dbProductId;
-        if (!pId) {
-          const pMatch = dbProducts.find((p) => p.name === entry.item.name);
-          if (pMatch) {
-            pId = pMatch.id;
-          } else {
-            const resProd = await fetch("/api/store/products");
-            const allP = await resProd.json();
-            if (Array.isArray(allP) && allP.length > 0) {
-              const exact = allP.find((p) => p.name === entry.item.name);
-              pId = exact ? exact.id : allP[0].id;
-            }
-          }
-        }
-        if (pId) {
-          orderItems.push({
-            productId: pId,
-            quantity: entry.qty,
-            unitPrice: entry.item.pricePerSet
-          });
-        }
+        const sName = getSessionDisplayNameById(entry.item.sessionId, entry.item.sessionName);
+        const sLabel = sName ? ` (${sName})` : "";
+        const itemFullName = `${entry.item.name}${sLabel}`;
+        
+        orderItems.push({
+          productId: entry.item.dbProductId || undefined,
+          name: itemFullName,
+          className: entry.item.className || undefined,
+          quantity: entry.qty,
+          unitPrice: Number(entry.item.pricePerSet) || 0,
+          weight: Number(entry.item.weightKg) || 0.25,
+        });
       }
 
       const ilhakNote = ilhak.trim() ? ` (ইলহাক: ${ilhak.trim()})` : "";
@@ -684,92 +682,9 @@ export default function QuestionOrderPage() {
     }
   };
 
-  const printInvoice = (order = orderSuccessData) => {
+  const printInvoice = async (order = orderSuccessData) => {
     if (!order) return;
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(`
-        <html>
-          <head>
-            <title>Question Order Invoice ${order.invoiceId}</title>
-            <style>
-              body { font-family: sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #0f172a; line-height: 1.6; }
-              .header { border-bottom: 2px solid #052e23; padding-bottom: 12px; margin-bottom: 20px; text-align: center; }
-              h1 { color: #052e23; margin: 0 0 4px 0; font-size: 20px; }
-              .subtitle { color: #047857; font-weight: bold; margin: 0 0 8px 0; font-size: 13px; }
-              .badge { display: inline-block; background: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 9999px; font-weight: bold; font-size: 11px; }
-              .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid #e2e8f0; font-size: 12px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
-              th { background: #052e23; color: white; padding: 8px; text-align: left; }
-              td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
-              .text-right { text-align: right; }
-              .text-center { text-align: center; }
-              .totals { width: 300px; margin-left: auto; margin-top: 16px; font-size: 13px; }
-              .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
-              .grand-total { font-size: 16px; font-weight: bold; border-top: 2px solid #052e23; color: #052e23; padding-top: 6px !important; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
-              <p class="subtitle">কেন্দ্রীয় পরীক্ষা শাখা — প্রশ্নপত্র অর্ডার রশিদ</p>
-              <span class="badge">ইনভয়েস নং: ${order.invoiceId}</span>
-            </div>
-            <div class="info-grid">
-              <div><strong>মাদরাসা:</strong> ${order.instituteId || "N/A"}</div>
-              <div><strong>মোবাইল:</strong> ${order.customerPhone || "N/A"}</div>
-              <div><strong>মুহতামিম/দায়িত্বশীল:</strong> ${order.customerName}</div>
-              <div><strong>তারিখ:</strong> ${new Date(order.createdAt).toLocaleDateString("bn-BD")}</div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>ক্রম</th>
-                  <th>প্রশ্নপত্র সেটের বিবরণ</th>
-                  <th class="text-center">পরিমাণ</th>
-                  <th class="text-right">একক মূল্য</th>
-                  <th class="text-right">মোট টাকা</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${order.items.map((i: any, idx: number) => `
-                  <tr>
-                    <td class="text-center">${idx + 1}</td>
-                    <td><strong>${i.product.name}</strong></td>
-                    <td class="text-center font-bold">${i.quantity}</td>
-                    <td class="text-right">৳${i.unitPrice}</td>
-                    <td class="text-right font-bold">৳${(i.quantity * i.unitPrice).toFixed(2)}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-            <div class="totals">
-              <div><span>মোট প্রশ্ন ফি:</span><span>৳${order.totalAmount.toFixed(2)}</span></div>
-              <div class="grand-total"><span>সর্বমোট প্রদেয়:</span><span>৳${order.totalAmount.toFixed(2)}</span></div>
-              <div><span>অবস্থা:</span><span style="font-weight:bold; color:#047857;">${order.status}</span></div>
-            </div>
-          </body>
-        </html>
-      `);
-      doc.close();
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          setTimeout(() => document.body.removeChild(iframe), 2000);
-        }, 500);
-      };
-    }
+    await printOrderInvoice(order);
   };
 
   return (
@@ -973,8 +888,6 @@ export default function QuestionOrderPage() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredItems.map((item, idx) => {
                     const currentQty = cart[item.id]?.qty || 0;
-                    const matchingExam = getExamInfo(item.examTerm);
-                    const examStatus = matchingExam ? getExamStatusByDate(matchingExam.startDate, matchingExam.endDate, matchingExam.status) : null;
                     return (
                       <tr
                         key={item.id}
@@ -991,23 +904,10 @@ export default function QuestionOrderPage() {
                         >
                           <div className="flex items-start justify-between gap-1">
                             <div>
-                              <h4 className="text-xs sm:text-sm flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs sm:text-sm flex items-center gap-1.5">
                                 <span className="text-[#095738] font-black">{item.className}</span>
                                 <span className="text-slate-300 font-normal">—</span>
                                 <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
-                                {(() => {
-                                  const sName = getSessionDisplayNameById(item.sessionId, item.sessionName);
-                                  return sName ? (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                                      {sName}
-                                    </span>
-                                  ) : null;
-                                })()}
-                                {examStatus && (
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${examStatus.colorClass}`}>
-                                    {examStatus.badgeText}
-                                  </span>
-                                )}
                               </h4>
                               <p className="text-[10.5px] text-slate-500 font-normal leading-tight mt-0.5">{item.description}</p>
                             </div>
@@ -1984,21 +1884,28 @@ export default function QuestionOrderPage() {
       {/* ─── SUCCESS INVOICE MODAL ─────────────────────────────────── */}
       {orderSuccessData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-3 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 text-center border border-slate-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 text-center border border-slate-200 animate-scale-in">
             <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto mb-2.5">
-              <CheckCircle className="w-6 h-6" />
+              <CheckCircle className="w-6 h-6 text-emerald-700" />
             </div>
             <h3 className="text-base font-bold text-slate-800">প্রশ্নের অর্ডার সম্পন্ন হয়েছে!</h3>
-            <p className="text-xs text-slate-500 mb-3">ইনভয়েস: <strong className="text-emerald-800 font-bold">{orderSuccessData.invoiceId}</strong></p>
+            <p className="text-xs text-slate-500 mb-3">
+              ইনভয়েস: <strong className="text-emerald-800 font-bold">{orderSuccessData.invoiceId}</strong>
+            </p>
             <div className="flex flex-col gap-2">
               <button
+                type="button"
                 onClick={() => printInvoice(orderSuccessData)}
-                className="w-full py-2 bg-[#095738] hover:bg-[#07472d] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
+                className="w-full py-2.5 bg-[#095738] hover:bg-[#07472d] text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 cursor-pointer transition-all"
               >
-                <Printer className="w-3.5 h-3.5" />
+                <Printer className="w-4 h-4" />
                 <span>ইনভয়েস প্রিন্ট করুন</span>
               </button>
-              <button onClick={() => setOrderSuccessData(null)} className="w-full py-1.5 bg-slate-100 text-slate-700 rounded-lg font-bold text-xs">
+              <button
+                type="button"
+                onClick={() => setOrderSuccessData(null)}
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs sm:text-sm cursor-pointer transition-colors"
+              >
                 ঠিক আছে
               </button>
             </div>

@@ -7,6 +7,7 @@ import {
 import Link from "next/link";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
 import { calculateDeliveryCost, DELIVERY_CONSTANTS } from "@/lib/deliveryCost";
+import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
 
 type Product = {
   id: string; name: string; category: string; price: number;
@@ -2132,105 +2133,22 @@ export default function StorePage() {
             setOrderFormState(null); // clear state after success so the next order starts fresh
             setIsOrderModalOpen(false);
             setCartOpen(false);
-            setTimeout(() => printInvoice(data), 500);
           }} />
       )}
 
-      {/* Success Modal */}
+      {/* Success Invoice & Tracking Modal */}
       {successOrder && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 flex flex-col items-center text-center max-h-[90vh] overflow-y-auto">
-            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3 flex-shrink-0">
-              <CheckCircle className="w-7 h-7" />
-            </div>
-            <h3 className="font-black text-2xl text-slate-800 mb-1">অর্ডার সফল হয়েছে!</h3>
-            <p className="text-slate-500 text-sm mb-4">আপনার অর্ডারটি আমাদের সিস্টেমে গ্রহণ করা হয়েছে। আপনার ইনভয়েস আইডি:</p>
-            
-            <div className="w-full bg-slate-100 text-slate-800 font-black text-lg px-4 py-2.5 rounded-xl mb-4 border border-slate-200 shadow-inner flex items-center justify-between gap-4">
-              <span className="tracking-wider">{successOrder.invoiceId}</span>
-              <button
-                onClick={() => navigator.clipboard.writeText(successOrder.invoiceId)}
-                title="কপি করুন"
-                className="p-1.5 hover:bg-slate-200 rounded-md text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* User Account Info Banner */}
-            {successOrder.userAccount && (
-              <div className="w-full mb-4 text-left bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5">
-                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs mb-2">
-                  <UserCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <span>{successOrder.userAccount.isNew ? "🎉 নতুন ইউজার অ্যাকাউন্ট তৈরি হয়েছে!" : "✓ বিদ্যমান অ্যাকাউন্টে অর্ডার সংরক্ষিত হয়েছে"}</span>
-                </div>
-                <div className="space-y-1 text-xs text-slate-700">
-                  <p><strong className="text-slate-500">নাম:</strong> {successOrder.userAccount.name}</p>
-                  <p><strong className="text-slate-500">লগইন আইডি / ফোন:</strong> {successOrder.userAccount.phone || successOrder.userAccount.email}</p>
-                  {successOrder.userAccount.email && (
-                    <p><strong className="text-slate-500">ইমেইল:</strong> {successOrder.userAccount.email}</p>
-                  )}
-                  
-                  {successOrder.userAccount.isNew && (
-                    <div className="mt-2 pt-2 border-t border-emerald-200/80">
-                      <div className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-emerald-300/80 mb-2">
-                        <span className="text-[11px] text-slate-600 font-medium">লগইন পাসওয়ার্ড:</span>
-                        <span className="font-mono font-bold text-emerald-700 text-xs">{successOrder.userAccount.initialPassword || "আপনার সেট করা পাসওয়ার্ড"}</span>
-                      </div>
-                      
-                      {/* Interactive password customize option */}
-                      <div className="mt-2">
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          পাসওয়ার্ড পরিবর্তন/সেট করতে চান?
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="password"
-                            placeholder="নতুন পাসওয়ার্ড লিখুন..."
-                            value={customPasswordInput}
-                            onChange={(e) => {
-                              setCustomPasswordInput(e.target.value);
-                              setPasswordSaveStatus(null);
-                            }}
-                            className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 bg-white"
-                          />
-                          <button
-                            onClick={handleSetPassword}
-                            disabled={passwordSaving || !customPasswordInput.trim()}
-                            className="px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 disabled:opacity-50 transition-colors flex-shrink-0"
-                          >
-                            {passwordSaving ? "..." : "সংরক্ষণ"}
-                          </button>
-                        </div>
-                        {passwordSaveStatus && (
-                          <p className={`text-[11px] mt-1 font-medium ${passwordSaveStatus.startsWith("success") ? "text-emerald-700" : "text-red-600"}`}>
-                            {passwordSaveStatus.replace(/^(success|error):/, "")}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2.5 w-full">
-              <button onClick={() => printInvoice(successOrder)} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 text-sm">
-                ইনভয়েস প্রিন্ট করুন
-              </button>
-              <button
-                onClick={() => {
-                  setSuccessOrder(null);
-                  setCustomPasswordInput("");
-                  setPasswordSaveStatus(null);
-                }}
-                className="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors text-sm"
-              >
-                বন্ধ করুন
-              </button>
-            </div>
-          </div>
-        </div>
+        <TrackOrderModal
+          isOpen={Boolean(successOrder)}
+          onClose={() => {
+            setSuccessOrder(null);
+            setCustomPasswordInput("");
+            setPasswordSaveStatus(null);
+          }}
+          initialInvoiceId={successOrder.invoiceId}
+          initialOrder={successOrder}
+          isNewOrder={true}
+        />
       )}
     </div>
   );

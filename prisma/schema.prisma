@@ -180,6 +180,12 @@ model StoreSale {
   status       String         @default("Pending") // Paid | Pending | Partial
   promiseDate  DateTime?
   notes        String?
+  timeline     Json?
+  receivedAt   DateTime?
+  receivedBy   String?
+  deliveredAt  DateTime?
+  deliveredBy  String?
+  confirmedByCustomer Boolean? @default(false)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   items        StoreSaleItem[]

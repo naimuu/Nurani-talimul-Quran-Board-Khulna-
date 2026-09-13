@@ -126,13 +126,13 @@ function IslamicLogoIcon({ className = "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11"
   );
 }
 
-export default function Navbar({ user }: { user?: UserPayload }) {
+export default function Navbar({ user, initialSettings }: { user?: UserPayload, initialSettings?: BoardSettings | null }) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"admin" | "user">("admin");
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
-  const [settings, setSettings] = useState<BoardSettings | null>(null);
+  const [settings, setSettings] = useState<BoardSettings | null>(initialSettings || null);
   const [logoError, setLogoError] = useState(false);
 
   // Mobile Quick Dropdown Bottom-Sheet state

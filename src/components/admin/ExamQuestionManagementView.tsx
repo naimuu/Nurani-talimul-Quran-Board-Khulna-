@@ -770,11 +770,71 @@ export default function ExamQuestionManagementView() {
   };
 
   // Print Question Catalog
-  const handlePrintQuestionCatalog = () => {
+  const handlePrintQuestionCatalog = async () => {
     if (!activeExam || filteredQuestionSets.length === 0) {
       alert({ title: "সতর্কতা", message: "প্রিন্ট করার জন্য কোনো প্রশ্ন সেট নেই", type: "warning" });
       return;
     }
+
+    let boardSettings: any = null;
+    try {
+      const sRes = await fetch("/api/settings");
+      if (sRes.ok) {
+        boardSettings = await sRes.json();
+      }
+    } catch (e) {
+      console.warn("Failed to fetch settings for catalog:", e);
+    }
+
+    const toBn = (n: number | string | undefined | null) => {
+      if (n === undefined || n === null) return "";
+      const bnDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+      return String(n).replace(/[0-9]/g, (d) => bnDigits[parseInt(d, 10)] || d);
+    };
+
+    const boardName = boardSettings?.boardName || "নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ";
+    const boardAddress = boardSettings?.boardAddress || "হেড অফিস: খুলনা, বাংলাদেশ";
+    const contactPhone = boardSettings?.contactPhone || boardSettings?.contactPhone1 || "০১৭০০-০০০০০০";
+    const contactEmail = boardSettings?.contactEmail || "info@nooraniboardkhulna.com";
+
+    const totalRegular = filteredQuestionSets.reduce((sum, q) => sum + (q.pricePerSet || 0), 0);
+    const totalCenter = filteredQuestionSets.reduce((sum, q) => {
+      const price = q.pricePerSet || 0;
+      const discount = q.centerDiscountPercent || 0;
+      const cp = q.effectiveCenterPrice !== undefined ? q.effectiveCenterPrice : (discount > 0 ? price - (price * discount) / 100 : price);
+      return sum + cp;
+    }, 0);
+    const totalSavings = Math.max(0, totalRegular - totalCenter);
+
+    const rowsHtml = filteredQuestionSets
+      .map((q, idx) => {
+        const price = q.pricePerSet || 0;
+        const discountPercent = q.centerDiscountPercent || 0;
+        const discountAmount = q.centerDiscountAmount || 0;
+        const centerPrice = q.effectiveCenterPrice !== undefined ? q.effectiveCenterPrice : (discountPercent > 0 ? price - (price * discountPercent) / 100 : price);
+        const subjectsStr = (q.subjects || []).length > 0 ? (q.subjects || []).join(", ") : "-";
+
+        let discountDisplay = "-";
+        if (discountPercent > 0) {
+          discountDisplay = `${toBn(discountPercent)}%`;
+        } else if (discountAmount > 0) {
+          discountDisplay = `${toBn(discountAmount.toFixed(2))} ৳`;
+        }
+
+        return `
+          <tr>
+            <td style="text-align: center; font-weight: bold; width: 32px;">${toBn(idx + 1)}</td>
+            <td style="font-weight: 700; width: 85px;">${q.className}</td>
+            <td style="font-weight: 600; width: 130px;">${q.setName}</td>
+            <td style="font-size: 9.5px; line-height: 1.35; color: #000000;">${subjectsStr}</td>
+            <td style="text-align: right; font-weight: 700; width: 80px;">${toBn(price.toFixed(2))} ৳</td>
+            <td style="text-align: center; font-weight: 700; width: 65px;">${discountDisplay}</td>
+            <td style="text-align: right; font-weight: 800; width: 85px;">${toBn(centerPrice.toFixed(2))} ৳</td>
+            <td style="text-align: center; width: 75px; font-size: 9.5px; font-weight: 600;">${q.attachmentUrl ? "PDF সংলগ্ন" : "মুদ্রিত কপি"}</td>
+          </tr>
+        `;
+      })
+      .join("");
 
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
@@ -788,91 +848,275 @@ export default function ExamQuestionManagementView() {
     const doc = iframe.contentWindow?.document;
     if (!doc) return;
 
-    const rowsHtml = filteredQuestionSets
-      .map(
-        (q, idx) => `
-      <tr>
-        <td style="text-align: center; font-weight: bold; width: 30px;">${idx + 1}</td>
-        <td style="font-weight: bold; color: #0f172a; width: 100px;">${q.className}</td>
-        <td style="font-weight: 600;">${q.setName}</td>
-        <td style="font-size: 9.5px; color: #475569;">${(q.subjects || []).join(", ") || "-"}</td>
-        <td style="text-align: right; font-weight: bold; width: 85px;">${q.pricePerSet.toFixed(2)} ৳</td>
-        <td style="text-align: center; font-weight: bold; color: #16a34a; width: 80px;">${q.centerDiscountPercent ? q.centerDiscountPercent + "%" : (q.centerDiscountAmount ? "৳ " + q.centerDiscountAmount : "-")}</td>
-        <td style="text-align: right; font-weight: bold; color: #15803d; width: 95px;">${(q.effectiveCenterPrice || q.pricePerSet).toFixed(2)} ৳</td>
-        <td style="text-align: center; width: 70px; font-size: 9.5px;">${q.attachmentUrl ? "PDF সংযুক্ত" : "মুদ্রিত কপি"}</td>
-      </tr>
-    `
-      )
-      .join("");
-
     doc.open();
     doc.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="bn">
         <head>
-          <title>প্রশ্নপত্র তালিকা - ${activeExam.name}</title>
+          <meta charset="utf-8" />
+          <title>প্রশ্নপত্র ক্যাটালগ — ${activeExam.name}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet">
+          <link href="https://cdn.jsdelivr.net/gh/maateen/solaiman-lipi@master/font.css" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
           <style>
-            @page { size: A4 portrait; margin: 8mm 7mm 8mm 7mm; }
-            * { box-sizing: border-box; }
+            @page {
+              size: A4 portrait;
+              margin: 7mm 8mm 7mm 8mm;
+            }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              font-family: 'SolaimanLipi', 'Solaiman Lipi', 'Hind Siliguri', 'Kalpurush', 'Segoe UI', Tahoma, sans-serif !important;
+              color: #000000 !important;
+            }
             body {
-              font-family: var(--font-solaiman-lipi, 'SolaimanLipi'), sans-serif, system-ui;
-              margin: 0; padding: 0; color: #1e293b; font-size: 10.5px; line-height: 1.3; background: #fff;
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              color: #000000 !important;
+              background: #ffffff !important;
+              font-size: 10px;
+              line-height: 1.35;
             }
-            .header { text-align: center; border-bottom: 2px solid #16a34a; padding-bottom: 5px; margin-bottom: 8px; }
-            .header h1 { font-size: 16px; font-weight: 800; color: #15803d; margin: 0 0 2px 0; }
-            .header h2 { font-size: 12px; font-weight: 700; color: #334155; margin: 0 0 2px 0; }
-            .header-meta {
-              display: flex; justify-content: space-between; font-size: 9.5px; color: #64748b; margin-top: 3px;
-              border-top: 1px dashed #cbd5e1; padding-top: 3px;
+            .catalog-wrapper {
+              width: 100%;
+              max-width: 100%;
+              margin: 0 auto;
             }
-            table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+            .bismillah {
+              font-family: 'Amiri', 'Traditional Arabic', serif !important;
+              font-size: 13px;
+              font-weight: 700;
+              color: #000000 !important;
+              margin: 0 0 1px 0;
+              text-align: center;
+              letter-spacing: 0.6px;
+            }
+            .header-container {
+              text-align: center;
+              border-bottom: 2px solid #000000;
+              padding-bottom: 4px;
+              margin-bottom: 5px;
+              position: relative;
+            }
+            .board-title {
+              color: #000000 !important;
+              margin: 1px 0;
+              font-size: 18px;
+              font-weight: 800;
+              letter-spacing: -0.2px;
+              line-height: 1.2;
+            }
+            .sub-title {
+              color: #000000 !important;
+              font-size: 11px;
+              font-weight: 700;
+              margin: 1px 0;
+            }
+            .board-address {
+              color: #000000 !important;
+              font-size: 9px;
+              margin: 1px 0 3px 0;
+              font-weight: 500;
+            }
+            .catalog-pill {
+              display: inline-block;
+              background: #ffffff !important;
+              color: #000000 !important;
+              border: 1.5px solid #000000;
+              padding: 1.5px 14px;
+              border-radius: 9999px;
+              font-weight: 800;
+              font-size: 10.5px;
+              margin-top: 1px;
+              letter-spacing: 0.2px;
+            }
+            .meta-grid {
+              display: flex;
+              gap: 6px;
+              margin-bottom: 6px;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            .meta-box {
+              flex: 1;
+              background: #ffffff !important;
+              border: 1.5px solid #000000;
+              border-radius: 4px;
+              padding: 4px 7px;
+              font-size: 9.5px;
+              line-height: 1.4;
+            }
+            .meta-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 1.5px;
+            }
+            .meta-row:last-child {
+              margin-bottom: 0;
+            }
+            .meta-lbl {
+              font-weight: 700;
+            }
+            .meta-val {
+              font-weight: 600;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 4px;
+              margin-bottom: 6px;
+            }
             th {
-              background-color: #15803d; color: #ffffff; font-size: 10px; font-weight: 700;
-              padding: 4px 5px; border: 1px solid #15803d; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+              background-color: #ffffff !important;
+              color: #000000 !important;
+              font-size: 9.5px;
+              font-weight: 800;
+              padding: 4px 5px;
+              border: 1.5px solid #000000;
+              text-align: left;
             }
-            td { padding: 3px 5px; border: 1px solid #cbd5e1; font-size: 10px; vertical-align: middle; }
-            tr:nth-child(even) td { background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .footer { margin-top: 20px; display: flex; justify-content: space-between; font-size: 9.5px; color: #64748b; padding-top: 10px; }
-            .sign-box { text-align: center; border-top: 1px dotted #94a3b8; width: 140px; padding-top: 3px; }
-            .notice-box { margin-top: 12px; padding: 6px 10px; background-color: #f0fdf4; border: 1px dashed #86efac; font-size: 9.5px; border-radius: 4px; color: #166534; }
+            td {
+              padding: 3.5px 5px;
+              border: 1px solid #000000;
+              font-size: 9.5px;
+              vertical-align: middle;
+              background: #ffffff !important;
+              color: #000000 !important;
+            }
+            tfoot tr td {
+              border: 1.5px solid #000000;
+              font-size: 9.5px;
+              padding: 4px 5px;
+              font-weight: 800;
+            }
+            .notice-box {
+              border: 1.5px solid #000000;
+              border-radius: 4px;
+              padding: 5px 8px;
+              margin-top: 5px;
+              font-size: 9px;
+              line-height: 1.4;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            .notice-title {
+              font-weight: 800;
+              font-size: 9.5px;
+              margin-bottom: 2px;
+            }
+            .notice-list {
+              margin: 0;
+              padding-left: 15px;
+            }
+            .notice-list li {
+              margin-bottom: 1px;
+            }
+            .footer-sign {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 24px;
+              padding-top: 4px;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            .sign-col {
+              text-align: center;
+              width: 150px;
+            }
+            .sign-line {
+              border-top: 1px dotted #000000;
+              margin-bottom: 3px;
+            }
+            .sign-title {
+              font-size: 9.5px;
+              font-weight: 700;
+            }
+            .sign-sub {
+              font-size: 8.5px;
+            }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>নূরানী তালীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
-            <h2>${activeSession?.title?.trim() || activeSession?.sessionYear} — ${activeExam.name}</h2>
-            <div class="header-meta">
-              <div><strong>টার্ম:</strong> ${activeExam.examTerm || "সকল"} | <strong>কোড:</strong> ${activeExam.code || "-"}</div>
-              <div><strong>মোট সেট:</strong> ${filteredQuestionSets.length} টি | <strong>তারিখ:</strong> ${new Date().toLocaleDateString("bn-BD")}</div>
+          <div class="catalog-wrapper">
+            <div class="header-container">
+              <div class="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+              <div class="board-title">${boardName}</div>
+              <div class="sub-title">কেন্দ্রীয় পরীক্ষা নিয়ন্ত্রণ বিভাগ — অফিশিয়াল প্রশ্নপত্র ক্যাটালগ ও মূল্যতালিকা</div>
+              <div class="board-address">${boardAddress} | হেল্পলাইন: ${contactPhone} | ইমেইল: ${contactEmail}</div>
+              <div><span class="catalog-pill">প্রশ্নপত্র তালিকা ও রেট চার্ট</span></div>
             </div>
-          </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>ক্র.</th>
-                <th>শ্রেণি</th>
-                <th>প্রশ্ন সেট</th>
-                <th>বিষয়</th>
-                <th style="text-align: right;">সাধারণ মূল্য</th>
-                <th style="text-align: center;">কেন্দ্র ছাড়</th>
-                <th style="text-align: right;">কেন্দ্রীয় মূল্য</th>
-                <th style="text-align: center;">সংযুক্তি</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
+            <div class="meta-grid">
+              <div class="meta-box">
+                <div class="meta-row"><span class="meta-lbl">পরীক্ষার নাম:</span><span class="meta-val">${activeExam.name}</span></div>
+                <div class="meta-row"><span class="meta-lbl">টার্ম / অধিবেশন:</span><span class="meta-val">${activeExam.examTerm || "সকল টার্ম"}</span></div>
+                <div class="meta-row"><span class="meta-lbl">পরীক্ষার কোড:</span><span class="meta-val">${activeExam.code || ("SEM-" + (activeExam._id ? activeExam._id.slice(-4).toUpperCase() : "8707"))}</span></div>
+              </div>
+              <div class="meta-box">
+                <div class="meta-row"><span class="meta-lbl">শিক্ষাবর্ষ / সেশন:</span><span class="meta-val">${activeSession?.title?.trim() || activeSession?.sessionYear || "চলতি সেশন"}</span></div>
+                <div class="meta-row"><span class="meta-lbl">মোট প্রশ্ন সেট:</span><span class="meta-val">${toBn(filteredQuestionSets.length)} টি শ্রেণি/সেট</span></div>
+                <div class="meta-row"><span class="meta-lbl">প্রকাশের তারিখ:</span><span class="meta-val">${new Date().toLocaleDateString("bn-BD")}</span></div>
+              </div>
+            </div>
 
-          <div class="notice-box">
-            📌 <strong>কেন্দ্র নির্দেশনা:</strong> নিবন্ধিত পরীক্ষা কেন্দ্রগুলো ছাড়কৃত মূল্যে প্রশ্ন সংগ্রহ করতে পারবেন।
-          </div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align: center; width: 32px;">ক্র.</th>
+                  <th style="width: 85px;">শ্রেণি</th>
+                  <th style="width: 130px;">প্রশ্নপত্রের সেট</th>
+                  <th>অন্তর্ভুক্ত বিষয় (বইসমূহ)</th>
+                  <th style="text-align: right; width: 80px;">সাধারণ মূল্য</th>
+                  <th style="text-align: center; width: 65px;">কেন্দ্র ছাড়</th>
+                  <th style="text-align: right; width: 85px;">কেন্দ্রীয় মূল্য</th>
+                  <th style="text-align: center; width: 75px;">মাধ্যম</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" style="text-align: right; font-weight: 800; padding-right: 8px;">সর্বমোট প্রতি ১ সেট (সকল শ্রেণি একত্রে):</td>
+                  <td style="text-align: right; font-weight: 800;">${toBn(totalRegular.toFixed(2))} ৳</td>
+                  <td style="text-align: center; font-weight: 700; font-size: 9px;">—</td>
+                  <td style="text-align: right; font-weight: 800;">${toBn(totalCenter.toFixed(2))} ৳</td>
+                  <td style="text-align: center; font-size: 8.5px; font-weight: 700;">সাশ্রয়: ${toBn(totalSavings.toFixed(2))} ৳</td>
+                </tr>
+              </tfoot>
+            </table>
 
-          <div class="footer">
-            <div class="sign-box">অ্যাডমিন</div>
-            <div class="sign-box">পরীক্ষা নিয়ন্ত্রক</div>
-            <div class="sign-box">মহাসচিব</div>
+            <div class="notice-box">
+              <div class="notice-title">📌 কেন্দ্র ও মাদরাসা কর্তৃপক্ষের জন্য নির্দেশনাবলী:</div>
+              <ol class="notice-list">
+                <li>নূরানী তা'লীমুল কুরআন বোর্ডের নিবন্ধিত ও অনুমোদিত কেন্দ্রসমূহ নির্ধারিত কেন্দ্র ছাড়কৃত মূল্যে প্রশ্নপত্র সংগ্রহ করতে পারবেন।</li>
+                <li>অনিবন্ধিত প্রতিষ্ঠান বা মাদরাসার ক্ষেত্রে নির্ধারিত সাধারণ মূল্য প্রযোজ্য হবে।</li>
+                <li>পরীক্ষার গোপনীয়তা ও মান বজায় রাখতে বোর্ড কর্তৃক নির্ধারিত সময়সূচি ও নিয়ম অনুযায়ী প্রশ্নপত্র খোলা ও পরীক্ষা গ্রহণ করতে হবে।</li>
+                <li>প্রশ্নপত্র সংক্রান্ত যেকোনো অনুসন্ধান বা তথ্যের জন্য কেন্দ্রীয় পরীক্ষা নিয়ন্ত্রণ শাখায় সরাসরি যোগাযোগ করার অনুরোধ করা হলো।</li>
+              </ol>
+            </div>
+
+            <div class="footer-sign">
+              <div class="sign-col">
+                <div class="sign-line"></div>
+                <div class="sign-title">শাখা দায়িত্বশীল / প্রস্তুতকারী</div>
+                <div class="sign-sub">নূরানী তা'লীমুল কুরআন বোর্ড</div>
+              </div>
+              <div class="sign-col">
+                <div class="sign-line"></div>
+                <div class="sign-title">পরীক্ষা নিয়ন্ত্রক</div>
+                <div class="sign-sub">কেন্দ্রীয় পরীক্ষা নিয়ন্ত্রণ বিভাগ</div>
+              </div>
+              <div class="sign-col">
+                <div class="sign-line"></div>
+                <div class="sign-title">মহাসচিব</div>
+                <div class="sign-sub">নূরানী তা'লীমুল কুরআন বোর্ড খুলনা</div>
+              </div>
+            </div>
           </div>
         </body>
       </html>

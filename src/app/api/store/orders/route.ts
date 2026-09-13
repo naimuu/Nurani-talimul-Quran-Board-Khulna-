@@ -110,11 +110,42 @@ export async function POST(request: Request) {
     const itemsForDeliveryCalc: any[] = [];
     let subtotal = 0;
     for (const item of items) {
-      const product = await (prisma as any).storeProduct.findUnique({ where: { id: item.productId } });
-      if (!product) return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 404 });
-      itemsToCreate.push({ productId: product.id, quantity: item.quantity, unitPrice: product.price });
-      itemsForDeliveryCalc.push({ product, quantity: item.quantity });
-      subtotal += product.price * item.quantity;
+      let product: any = null;
+      if (item.productId) {
+        product = await (prisma as any).storeProduct.findUnique({ where: { id: item.productId } });
+      }
+      if (!product && item.name) {
+        product = await (prisma as any).storeProduct.findFirst({ where: { name: item.name } });
+      }
+      if (!product && item.name) {
+        product = await (prisma as any).storeProduct.create({
+          data: {
+            name: item.name,
+            category: "প্রশ্নপত্র",
+            price: Number(item.unitPrice) || 0,
+            stock: 9999,
+            weight: Number(item.weight) || 0.25,
+            className: item.className || null,
+            visibility: "academic",
+          }
+        });
+      }
+      if (!product) {
+        product = await (prisma as any).storeProduct.create({
+          data: {
+            name: item.name || "অর্ডারকৃত পণ্য",
+            category: "অন্যান্য",
+            price: Number(item.unitPrice) || 0,
+            stock: 9999,
+            weight: Number(item.weight) || 0.25,
+            visibility: "stationary",
+          }
+        });
+      }
+      const finalUnitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : product.price;
+      itemsToCreate.push({ productId: product.id, quantity: item.quantity, unitPrice: finalUnitPrice });
+      itemsForDeliveryCalc.push({ product: { ...product, price: finalUnitPrice, weight: Number(item.weight) || product.weight || 0.25 }, quantity: item.quantity });
+      subtotal += finalUnitPrice * item.quantity;
     }
 
     // Calculate delivery charge according to rules
@@ -161,6 +192,19 @@ export async function POST(request: Request) {
     const promiseDateSummary = promiseDate ? ` | প্রতিশ্রুত পরিশোধের তারিখ: ${new Date(promiseDate).toLocaleDateString('bn-BD')}` : '';
     const finalNotes = (notes || "Online Order") + deliveryNoteSummary + promiseDateSummary;
 
+    const initialTimeline = [
+      {
+        step: "pending",
+        status: "Pending Order",
+        title: "নতুন অনলাইন অর্ডার গৃহীত",
+        actorName: `${customerName.trim()} (ক্রেতা)`,
+        actorRole: "CUSTOMER",
+        actorPhone: customerPhone || null,
+        timestamp: new Date().toISOString(),
+        notes: "অর্ডারটি সফলভাবে সিস্টেমে গ্রহণ করা হয়েছে",
+      }
+    ];
+
     // Create a StoreSale with status 'Pending Order' (does NOT deduct stock)
     let sale;
     try {
@@ -181,6 +225,7 @@ export async function POST(request: Request) {
           promiseDate: promiseDate ? new Date(promiseDate) : null,
           status: "Pending Order",
           notes: finalNotes,
+          timeline: initialTimeline,
           items: {
             create: itemsToCreate,
           },
@@ -203,6 +248,7 @@ export async function POST(request: Request) {
           promiseDate: promiseDate ? new Date(promiseDate) : null,
           status: "Pending Order",
           notes: finalNotes,
+          timeline: initialTimeline,
           items: {
             create: itemsToCreate,
           },

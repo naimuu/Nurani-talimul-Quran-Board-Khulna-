@@ -9,6 +9,8 @@ import {
 import BanglaDatePicker, { toBanglaDigits } from './BanglaDatePicker';
 import { generateQRCodeDataUrl, generateBarcodeSVG } from '@/lib/qrHelper';
 import { calculateDeliveryCost } from '@/lib/deliveryCost';
+import { isQuestionOrder } from './OrderTab';
+import { isQuestionProduct } from './StockTab';
 
 function formatPromiseDate(dateStr?: string | null) {
   if (!dateStr) return null;
@@ -183,8 +185,9 @@ function CartItemCard({
   );
 }
 
-function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [products, setProducts] = useState<Product[]>([]);
+function NewSaleModal({ onClose, onSaved, storeCategory = 'all' }: { onClose: () => void; onSaved: () => void; storeCategory?: 'all' | 'stationary' | 'question' }) {
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [modalCatFilter, setModalCatFilter] = useState<'all' | 'stationary' | 'question'>(storeCategory);
   const [pastSales, setPastSales] = useState<Sale[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -211,7 +214,31 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
 
-  useEffect(() => { fetch('/api/store/products').then(r => r.json()).then(setProducts); }, []);
+  useEffect(() => {
+    setModalCatFilter(storeCategory);
+  }, [storeCategory]);
+
+  useEffect(() => { 
+    fetch('/api/store/products')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAllProducts(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const products = useMemo(() => {
+    if (modalCatFilter === 'question') {
+      return allProducts.filter(p => isQuestionProduct(p));
+    }
+    if (modalCatFilter === 'stationary') {
+      return allProducts.filter(p => !isQuestionProduct(p));
+    }
+    return allProducts;
+  }, [allProducts, modalCatFilter]);
+
   useEffect(() => {
     fetch('/api/store/sales').then(r => r.json()).then((data: Sale[]) => {
       if (Array.isArray(data)) {
@@ -259,12 +286,17 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   const [deliveryCharge, setDeliveryCharge] = useState<string>('0');
   const [courierName, setCourierName] = useState<string>('পাঠাও কুরিয়ার');
   const [isCustomDelivery, setIsCustomDelivery] = useState<boolean>(false);
+  const [isDeliveryEnabled, setIsDeliveryEnabled] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isCustomDelivery) {
-      setDeliveryCharge(autoDelivery.deliveryCharge.toString());
+      if (isDeliveryEnabled) {
+        setDeliveryCharge(autoDelivery.deliveryCharge.toString());
+      } else {
+        setDeliveryCharge('0');
+      }
     }
-  }, [autoDelivery.deliveryCharge, isCustomDelivery]);
+  }, [autoDelivery.deliveryCharge, isCustomDelivery, isDeliveryEnabled]);
 
   const subtotal = items.reduce((sum, item) => {
     const product = products.find(p => p.id === item.productId);
@@ -336,8 +368,39 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
         <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 overflow-hidden">
           {/* ═══ LEFT SIDEBAR: Product Browser ═══ */}
           <div className="w-72 flex-shrink-0 border-r border-slate-100 flex flex-col bg-slate-50">
-            <div className="p-4 border-b border-slate-100">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">পণ্য তালিকা</p>
+            <div className="p-3 border-b border-slate-100 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">পণ্য তালিকা</p>
+                <div className="inline-flex gap-1 p-0.5 bg-slate-200/80 rounded-lg text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setModalCatFilter('all')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                      modalCatFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    সকল
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalCatFilter('stationary')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                      modalCatFilter === 'stationary' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    বই/স্টেশনারি
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalCatFilter('question')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                      modalCatFilter === 'question' ? 'bg-purple-700 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    প্রশ্নপত্র
+                  </button>
+                </div>
+              </div>
               <div className="flex gap-1">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -498,52 +561,55 @@ function NewSaleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               
               {/* Row 0: Courier Delivery Charge & Info */}
               <div className="flex items-center gap-2 bg-white rounded-lg p-2 border border-slate-200 text-xs flex-wrap sm:flex-nowrap">
-                <div className="flex items-center gap-1.5 shrink-0 text-slate-700 font-bold">
+                <label className="flex items-center gap-1.5 shrink-0 text-slate-700 font-bold cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isDeliveryEnabled && parsedDelivery > 0}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsDeliveryEnabled(checked);
+                      if (!checked) {
+                        setIsCustomDelivery(true);
+                        setDeliveryCharge('0');
+                      } else {
+                        setIsCustomDelivery(false);
+                        setDeliveryCharge(autoDelivery.deliveryCharge.toString());
+                      }
+                    }}
+                    className="w-4 h-4 text-emerald-700 rounded focus:ring-emerald-600 cursor-pointer"
+                  />
                   <span className="text-sm">🚚</span>
-                  <span>কুরিয়ার ({courierName}):</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
-                    {autoDelivery.totalWeightKg} কেজি
-                  </span>
-                  {autoDelivery.isFreeDelivery ? (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded border border-emerald-200">
-                      ফ্রি নীতি (≥৫,০০০ ৳)
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-slate-500">
-                      (১৮০৳ + ২৫৳/কেজি)
-                    </span>
-                  )}
-                </div>
+                  <span>কুরিয়ার চার্জ ({courierName}):</span>
+                </label>
                 <div className="flex items-center gap-1 ml-auto shrink-0">
-                  <span className="text-[11px] font-bold text-slate-500">চার্জ:</span>
                   <div className="relative w-24">
                     <input
                       type="text"
                       inputMode="decimal"
                       value={deliveryCharge}
                       onChange={e => {
+                        const val = e.target.value;
                         setIsCustomDelivery(true);
-                        setDeliveryCharge(e.target.value);
+                        setDeliveryCharge(val);
+                        setIsDeliveryEnabled((parseFloat(toEnglishDigits(val)) || 0) > 0);
                       }}
-                      className="w-full text-right font-bold text-xs px-2 py-1 bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full text-right font-bold text-xs px-2 py-1 bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary font-mono"
                       placeholder="0.00"
                     />
                   </div>
                   <span className="text-xs font-bold text-slate-500">৳</span>
-                  {isCustomDelivery && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomDelivery(false);
-                        setDeliveryCharge(autoDelivery.deliveryCharge.toString());
-                      }}
-                      className="text-[10px] text-blue-600 hover:underline px-1 py-0.5 ml-1"
-                    >
-                      অটো রিসেট
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDeliveryEnabled(false);
+                      setIsCustomDelivery(true);
+                      setDeliveryCharge('0');
+                    }}
+                    title="ফ্রি ডেলিভারি / চার্জ বাদ দিন"
+                    className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold hover:bg-emerald-200 transition-colors ml-1"
+                  >
+                    ফ্রি
+                  </button>
                 </div>
               </div>
 
@@ -682,11 +748,9 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
       </head>
       <body>
         <div class="header">
-          ${coverUrl ? `<img src="${coverUrl}" alt="Board Cover" style="width: 100%; display: block; margin: 0; max-height: 120px; object-fit: cover;" />` 
-          : `
-          <h1>নূরানী তালিমুল কুরআন বোর্ড খুলনা</h1>
-          <p>প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
-          `}
+          <div style="font-family: 'Amiri', 'Traditional Arabic', serif; font-size: 13px; color: #334155; margin-bottom: 2px; text-align: center;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+          <h1 style="color: #095738; margin: 1px 0; font-size: 18px; font-weight: 800;">নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
+          <p style="color: #64748b; font-size: 9.5px; margin: 1px 0 3px 0;">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
           <div class="invoice-badge">ইনভয়েস</div>
         </div>
         
@@ -1401,7 +1465,13 @@ const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = {
   action: true,
 };
 
-export default function SaleTab() {
+export default function SaleTab({
+  storeCategory = 'all',
+  onCategoryChange,
+}: {
+  storeCategory?: 'all' | 'stationary' | 'question';
+  onCategoryChange?: (cat: 'all' | 'stationary' | 'question') => void;
+}) {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1495,6 +1565,17 @@ export default function SaleTab() {
 
   useEffect(() => { fetchSales(); }, []);
 
+  // Filter sales by storeCategory
+  const categorySales = useMemo(() => {
+    if (storeCategory === 'question') {
+      return sales.filter(s => isQuestionOrder(s));
+    }
+    if (storeCategory === 'stationary') {
+      return sales.filter(s => !isQuestionOrder(s));
+    }
+    return sales;
+  }, [sales, storeCategory]);
+
   // When switching to promise date sub-tab, automatically switch sorting to 'promise-near'
   const handleSubTabChange = (newTab: 'all' | 'due' | 'paid' | 'partial' | 'promise') => {
     setSubTab(newTab);
@@ -1517,7 +1598,7 @@ export default function SaleTab() {
   // Unique Customer & Madrasa list for dropdown filter
   const entityList = useMemo(() => {
     const map = new Map<string, { key: string; name: string; institute: string }>();
-    sales.forEach(s => {
+    categorySales.forEach(s => {
       const name = (s.customerName || '').trim();
       const institute = (s.instituteId || '').trim();
       const key = `${name}|||${institute}`;
@@ -1526,7 +1607,7 @@ export default function SaleTab() {
       }
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [sales]);
+  }, [categorySales]);
 
   // Sub-tab counts
   const subTabCounts = useMemo(() => {
@@ -1535,7 +1616,7 @@ export default function SaleTab() {
     let partialCount = 0;
     let promiseCount = 0;
 
-    sales.forEach(s => {
+    categorySales.forEach(s => {
       if (s.status === 'Rejected') return;
       const due = s.totalAmount - s.paidAmount;
       if (due > 0) dueCount++;
@@ -1545,17 +1626,17 @@ export default function SaleTab() {
     });
 
     return {
-      all: sales.length,
+      all: categorySales.length,
       due: dueCount,
       paid: paidCount,
       partial: partialCount,
       promise: promiseCount,
     };
-  }, [sales]);
+  }, [categorySales]);
 
   // Filtered and sorted sales list
   const filtered = useMemo(() => {
-    return sales
+    return categorySales
       .filter(s => {
         // Search filter
         if (searchTerm.trim()) {
@@ -1674,7 +1755,7 @@ export default function SaleTab() {
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-      {showModal && <NewSaleModal onClose={() => setShowModal(false)} onSaved={fetchSales} />}
+      {showModal && <NewSaleModal onClose={() => setShowModal(false)} onSaved={fetchSales} storeCategory={storeCategory} />}
       {selectedSale && <SaleDetailsModal sale={selectedSale} allSales={sales} onClose={() => setSelectedSale(null)} />}
 
       {/* Top Search, Actions & Export */}
@@ -1718,14 +1799,14 @@ export default function SaleTab() {
         </div>
       </div>
 
-      {/* Sub Tabs Bar (সব, বকেয়া, পরিশোধিত, আংশিক, ওয়াদার তারিখ) */}
+      {/* Sub Tabs Bar (সব, বকেয়া, পরিশোধিত, আংশিক, ওয়াদা) */}
       <div className="flex items-center gap-1 overflow-x-auto scroll-smooth bg-white p-1 rounded-full border border-slate-200/80 shadow-xs [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {[
-          { id: 'all' as const, label: 'সব বিক্রয়', count: subTabCounts.all, icon: null, activeBg: 'bg-slate-900 text-white shadow-xs' },
-          { id: 'due' as const, label: 'বকেয়া (Due)', count: subTabCounts.due, icon: Clock, activeBg: 'bg-amber-600 text-white shadow-xs' },
-          { id: 'paid' as const, label: 'পরিশোধিত (Paid Full)', count: subTabCounts.paid, icon: CheckCircle, activeBg: 'bg-emerald-600 text-white shadow-xs' },
-          { id: 'partial' as const, label: 'আংশিক (Partial)', count: subTabCounts.partial, icon: null, activeBg: 'bg-blue-600 text-white shadow-xs' },
-          { id: 'promise' as const, label: 'ওয়াদার তারিখ (Promise Date)', count: subTabCounts.promise, icon: Calendar, activeBg: 'bg-purple-600 text-white shadow-xs' },
+          { id: 'all' as const, label: 'সকল', count: subTabCounts.all, icon: null, activeBg: 'bg-slate-900 text-white shadow-xs' },
+          { id: 'due' as const, label: 'বকেয়া', count: subTabCounts.due, icon: Clock, activeBg: 'bg-amber-600 text-white shadow-xs' },
+          { id: 'paid' as const, label: 'পরিশোধিত', count: subTabCounts.paid, icon: CheckCircle, activeBg: 'bg-emerald-600 text-white shadow-xs' },
+          { id: 'partial' as const, label: 'আংশিক', count: subTabCounts.partial, icon: null, activeBg: 'bg-blue-600 text-white shadow-xs' },
+          { id: 'promise' as const, label: 'ওয়াদা', count: subTabCounts.promise, icon: Calendar, activeBg: 'bg-purple-600 text-white shadow-xs' },
         ].map((tab) => {
           const isActive = subTab === tab.id;
           const Icon = tab.icon;
@@ -1742,8 +1823,8 @@ export default function SaleTab() {
               {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
               <span>{tab.label}</span>
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
-                  isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-none ${
+                  isActive ? 'bg-white/30 text-white' : 'bg-slate-200 text-slate-700'
                 }`}
               >
                 {tab.count}
