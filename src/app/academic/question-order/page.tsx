@@ -207,46 +207,74 @@ export default function QuestionOrderPage() {
   const [examSessions, setExamSessions] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const isFirstFetch = React.useRef(true);
 
-  useEffect(() => {
-    setIsLoading(true);
-    const p1 = fetch("/api/store/products")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const questionProds = data.filter((p: any) => {
-            const cat = (p.category || "").toLowerCase();
-            const name = (p.name || "").toLowerCase();
-            return cat.includes("প্রশ্ন") || cat.includes("question") || name.includes("প্রশ্ন");
+  // Shared fetch function — silent background refresh after first load
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    try {
+      const [productsRes, examsRes] = await Promise.allSettled([
+        fetch("/api/store/products").then((r) => r.json()),
+        fetch("/api/exams").then((r) => r.json()),
+      ]);
+
+      if (productsRes.status === "fulfilled" && Array.isArray(productsRes.value)) {
+        const questionProds = productsRes.value.filter((p: any) => {
+          const cat = (p.category || "").toLowerCase();
+          const name = (p.name || "").toLowerCase();
+          return cat.includes("প্রশ্ন") || cat.includes("question") || name.includes("প্রশ্ন");
+        });
+        setDbProducts(questionProds);
+      }
+
+      if (examsRes.status === "fulfilled" && Array.isArray(examsRes.value?.sessions)) {
+        const sessions = examsRes.value.sessions;
+        setExamSessions(sessions);
+        if (sessions.length > 0) {
+          setSelectedSessionId((prev) => {
+            // Preserve previously selected session if it still exists
+            if (prev !== "all" && sessions.some((s: any) => String(s._id) === String(prev))) {
+              return prev;
+            }
+            const def = sessions.find((s: any) => s.isDefault) || sessions[0];
+            return def ? String(def._id) : "all";
           });
-          setDbProducts(questionProds);
         }
-      })
-      .catch(() => {});
+      }
 
-    const p2 = fetch("/api/exams")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data.sessions)) {
-          setExamSessions(data.sessions);
-          if (data.sessions.length > 0) {
-            setSelectedSessionId((prev) => {
-              // If previously selected session still exists by ID, preserve it
-              if (prev !== "all" && data.sessions.some((s: any) => String(s._id) === String(prev))) {
-                return prev;
-              }
-              const def = data.sessions.find((s: any) => s.isDefault) || data.sessions[0];
-              return def ? String(def._id) : "all";
-            });
-          }
-        }
-      })
-      .catch(() => {});
-
-    Promise.allSettled([p1, p2]).finally(() => {
-      setIsLoading(false);
-    });
+      setLastSynced(new Date());
+    } catch (e) {
+      console.error("Failed to sync exam data", e);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
   }, []);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchData(false);
+    isFirstFetch.current = false;
+  }, [fetchData]);
+
+  // Poll every 30 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData(true); // silent background refresh
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // Refresh when user returns to this tab (visibility change)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchData(true); // silent refresh on tab focus
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [fetchData]);
 
   // Helper to dynamically resolve session name by ID so that name edits never mismatch
   const getSessionDisplayNameById = useCallback(
@@ -691,8 +719,8 @@ export default function QuestionOrderPage() {
     <div className="min-h-screen bg-slate-50/70 py-4 sm:py-6 pb-28 sm:pb-16 font-sans">
       <div className="max-w-[1540px] mx-auto px-3.5 sm:px-6 md:px-8">
 
-        {/* ─── BACK BUTTON ────────────────────────────── */}
-        <div className="mb-2.5 sm:mb-3 flex items-center justify-between">
+        {/* ─── BACK BUTTON + SYNC STATUS ────────────────────────────── */}
+        <div className="mb-2.5 sm:mb-3 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => {
@@ -707,6 +735,35 @@ export default function QuestionOrderPage() {
             <ArrowLeft className="w-4 h-4 text-emerald-700 group-hover:-translate-x-0.5 transition-transform" />
             <span>পেছনে যান</span>
           </button>
+
+          {/* Realtime sync indicator */}
+          <div className="flex items-center gap-2">
+            {lastSynced && !isLoading && (
+              <span className="hidden sm:inline text-[10px] text-slate-400 font-medium">
+                সর্বশেষ আপডেট:{" "}
+                {lastSynced.toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </span>
+            )}
+            <button
+              type="button"
+              title="ডেটা রিফ্রেশ করুন"
+              onClick={() => fetchData(false)}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-60 cursor-pointer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`w-3.5 h-3.5 transition-transform ${isLoading ? "animate-spin" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="hidden sm:inline">{isLoading ? "লোড হচ্ছে..." : "রিফ্রেশ"}</span>
+            </button>
+          </div>
         </div>
 
         {/* ─── 2. FILTER CONTROL BAR ─────────────────────────────────── */}

@@ -180,55 +180,87 @@ export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean 
           {/* Action Buttons */}
           <div className="flex justify-center items-center gap-2.5 sm:gap-4 flex-wrap z-10">
             {(() => {
-              const titleLower = (activeSlide.title || "").toLowerCase();
-              const isWelcomeSlide = titleLower.includes("স্বাগতম") || titleLower.includes("welcome");
-              const isRegisterAction =
-                !isWelcomeSlide &&
-                (titleLower.includes("নিবন্ধন") ||
-                  titleLower.includes("রেজিস্ট্রেশন") ||
-                  (activeSlide.buttonText && activeSlide.buttonText.includes("নিবন্ধন")) ||
-                  (activeSlide.buttonLink && activeSlide.buttonLink.includes("register")));
+              const title = (activeSlide.title || "").toLowerCase();
+              const btnText = (activeSlide.buttonText || "").toLowerCase();
+              const btnLink = (activeSlide.buttonLink || "").toLowerCase();
 
-              if (isRegisterAction) {
+              // 1. Registration Slide: title contains 'নিবন্ধন' or 'register', or link contains 'register'
+              const isRegister =
+                title.includes("নিবন্ধন") ||
+                title.includes("register") ||
+                btnLink === "/register" ||
+                btnLink.includes("register") ||
+                btnText.includes("নিবন্ধন");
+
+              // 2. Book Order Slide: title contains 'বই' or 'অর্ডার' or 'অডার', or link has 'store'/'order'
+              const isBookOrder =
+                title.includes("বই") ||
+                title.includes("অর্ডার") ||
+                title.includes("অডার") ||
+                title.includes("store") ||
+                btnLink.includes("store") ||
+                btnLink.includes("order") ||
+                btnText.includes("বই") ||
+                btnText.includes("অর্ডার") ||
+                btnText.includes("অডার");
+
+              // Priority 1: Registration slide (title or link)
+              if (title.includes("নিবন্ধন") || (isRegister && !isBookOrder && !title.includes("স্বাগতম"))) {
+                const displayText =
+                  activeSlide.buttonText && activeSlide.buttonText.includes("নিবন্ধন")
+                    ? activeSlide.buttonText
+                    : "মাদরাসা নিবন্ধন করুন";
+
                 return (
                   <button
                     type="button"
                     onClick={() => setIsRegisterModalOpen(true)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-full font-bold transition-all shadow-lg text-xs md:text-sm hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
                   >
-                    <span>{activeSlide.buttonText && !activeSlide.buttonText.includes("আরও জানুন") ? activeSlide.buttonText : "মাদরাসা নিবন্ধন করুন"}</span>
+                    <span>{displayText}</span>
                   </button>
                 );
               }
 
-              if (activeSlide.buttonText && activeSlide.buttonLink) {
-                if (activeSlide.buttonLink === "/register" || activeSlide.buttonLink.includes("register")) {
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => setIsRegisterModalOpen(true)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-full font-bold transition-all shadow-lg text-xs md:text-sm hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span>{activeSlide.buttonText || "মাদরাসা নিবন্ধন করুন"}</span>
-                    </button>
-                  );
-                }
+              // Priority 2: Book / Order slide (title or link)
+              if (title.includes("বই") || title.includes("অর্ডার") || title.includes("অডার") || (isBookOrder && !title.includes("স্বাগতম"))) {
+                const displayText =
+                  activeSlide.buttonText && (activeSlide.buttonText.includes("বই") || activeSlide.buttonText.includes("অর্ডার") || activeSlide.buttonText.includes("অডার"))
+                    ? activeSlide.buttonText
+                    : "বই অর্ডার করুন";
+
+                const targetLink =
+                  activeSlide.buttonLink && !activeSlide.buttonLink.includes("register")
+                    ? activeSlide.buttonLink
+                    : "/store";
+
                 return (
                   <Link
-                    href={activeSlide.buttonLink}
+                    href={targetLink}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-full font-bold transition-all shadow-lg text-xs md:text-sm hover:scale-105 active:scale-95 flex items-center gap-1.5"
                   >
-                    {activeSlide.buttonText}
+                    {displayText}
                   </Link>
                 );
               }
 
+              // Priority 3: Default / Welcome / Know more slide
+              const displayText =
+                activeSlide.buttonText && !activeSlide.buttonText.includes("নিবন্ধন") && !activeSlide.buttonText.includes("অর্ডার")
+                  ? activeSlide.buttonText
+                  : "আরও জানুন";
+
+              const targetLink =
+                activeSlide.buttonLink && !activeSlide.buttonLink.includes("register")
+                  ? activeSlide.buttonLink
+                  : "/about";
+
               return (
                 <Link
-                  href="/about"
+                  href={targetLink}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-full font-bold transition-all shadow-lg text-xs md:text-sm hover:scale-105 active:scale-95 flex items-center gap-1.5"
                 >
-                  আরও জানুন
+                  {displayText}
                 </Link>
               );
             })()}

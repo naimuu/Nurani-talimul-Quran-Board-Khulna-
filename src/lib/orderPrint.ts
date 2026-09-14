@@ -398,26 +398,6 @@ export async function printOrderInvoice(
 
             <div class="grid-container">
               <div class="card-box">
-                <div class="card-box-header">ইনভয়েস ও অর্ডার বিবরণ</div>
-                <div class="info-item">
-                  <span class="label">ইনভয়েস নম্বর:</span>
-                  <span class="value" style="font-family: monospace; font-size: 12px; font-weight: 800;">${order.invoiceId}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">তারিখ ও সময়:</span>
-                  <span class="value">${new Date(order.createdAt).toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" })}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">অর্ডার অবস্থা:</span>
-                  <span class="value" style="font-weight: 800;">${getStatusText(order.status)}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">ডেলিভারি কুরিয়ার:</span>
-                  <span class="value">${courierName}</span>
-                </div>
-              </div>
-
-              <div class="card-box">
                 <div class="card-box-header">গ্রাহক ও মাদরাসার তথ্য</div>
                 <div class="info-item">
                   <span class="label">মাদরাসা / প্রতিষ্ঠান:</span>
@@ -441,6 +421,26 @@ export async function printOrderInvoice(
                 `
                     : ""
                 }
+              </div>
+
+              <div class="card-box">
+                <div class="card-box-header">ইনভয়েস ও অর্ডার বিবরণ</div>
+                <div class="info-item">
+                  <span class="label">ইনভয়েস নম্বর:</span>
+                  <span class="value" style="font-family: monospace; font-size: 12px; font-weight: 800;">${order.invoiceId}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">তারিখ ও সময়:</span>
+                  <span class="value">${new Date(order.createdAt).toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" })}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">অর্ডার অবস্থা:</span>
+                  <span class="value" style="font-weight: 800;">${getStatusText(order.status)}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">ডেলিভারি কুরিয়ার:</span>
+                  <span class="value">${courierName}</span>
+                </div>
               </div>
             </div>
 

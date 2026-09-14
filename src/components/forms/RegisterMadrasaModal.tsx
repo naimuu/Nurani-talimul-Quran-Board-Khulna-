@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, Building2, MapPin, Users, Phone, Mail, Calendar, CheckCircle2, X } from "lucide-react";
 import SearchableSelect from "@/components/ui/SearchableSelect";
@@ -48,6 +49,10 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
   });
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Mount guard for portal (SSR safe)
+  useEffect(() => { setIsMounted(true); }, []);
 
   // Load from local storage on mount
   useEffect(() => {
@@ -198,8 +203,11 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
 
   if (!isOpen) return null;
 
+  // Don't render until mounted (avoids SSR/hydration mismatch with portal)
+  if (!isMounted) return null;
+
   if (submitStatus === 'success') {
-    return (
+    return createPortal(
       <AnimatePresence>
         <div className="fixed inset-0 z-[99999] flex p-4 sm:p-6 print:p-0 print:static print:z-auto bg-slate-50 print:bg-white">
           <motion.div 
@@ -460,10 +468,10 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
           </motion.div>
         </div>
       </AnimatePresence>
-    );
+    , document.body);
   }
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <div className="fixed inset-0 z-[99999] flex p-4 sm:p-6 print:p-0 print:static print:z-auto">
         <motion.div 
@@ -772,5 +780,5 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
         </motion.div>
       </div>
     </AnimatePresence>
-  );
+  , document.body);
 }

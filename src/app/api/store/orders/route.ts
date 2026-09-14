@@ -54,6 +54,13 @@ export async function POST(request: Request) {
           role: matchedUser.role || "GENERAL",
           isNew: false,
         };
+
+        if (instituteId && instituteId.trim() && (!matchedUser.madrasaName || !matchedUser.instituteName)) {
+          await User.findByIdAndUpdate(matchedUser._id, {
+            madrasaName: matchedUser.madrasaName || instituteId.trim(),
+            instituteName: matchedUser.instituteName || instituteId.trim(),
+          });
+        }
       } else {
         // Create new account
         const rawPassword = (password && String(password).trim().length >= 4)
@@ -69,6 +76,8 @@ export async function POST(request: Request) {
           email: finalEmail,
           password: hashedPassword,
           role: "GENERAL",
+          madrasaName: instituteId?.trim() || undefined,
+          instituteName: instituteId?.trim() || undefined,
         });
 
         userAccountInfo = {

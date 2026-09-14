@@ -10,6 +10,8 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
+const DISMISS_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000; // 2 days (48 hours)
+
 export default function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(false);
@@ -42,7 +44,7 @@ export default function PwaInstallPrompt() {
     const mobileDetected = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
     setIsMobile(mobileDetected);
 
-    // 4. Check dismiss cooldown (24h)
+    // 4. Check dismiss cooldown (2 days)
     const dismissedUntil = localStorage.getItem("nbk_pwa_dismissed_until");
     const isCooldown = dismissedUntil && Date.now() < Number(dismissedUntil);
 
@@ -93,6 +95,23 @@ export default function PwaInstallPrompt() {
     };
   }, []);
 
+  const handleDismiss = () => {
+    // 2 days cooldown (48 hours)
+    localStorage.setItem("nbk_pwa_dismissed_until", (Date.now() + DISMISS_COOLDOWN_MS).toString());
+    setIsOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleDismiss();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
   const handleInstall = async () => {
     if (deferredPrompt) {
       try {
@@ -102,9 +121,12 @@ export default function PwaInstallPrompt() {
           localStorage.setItem("nbk_pwa_installed", "true");
           setIsInstalled(true);
           setIsOpen(false);
+        } else {
+          // User dismissed browser prompt, set 2 days cooldown
+          handleDismiss();
         }
       } catch {
-        // user or browser handled
+        handleDismiss();
       } finally {
         setDeferredPrompt(null);
       }
@@ -116,12 +138,6 @@ export default function PwaInstallPrompt() {
     }
   };
 
-  const handleDismiss = () => {
-    // 24 hour cooldown
-    localStorage.setItem("nbk_pwa_dismissed_until", (Date.now() + 24 * 60 * 60 * 1000).toString());
-    setIsOpen(false);
-  };
-
   // If already installed, never show
   if (isInstalled || !isOpen) {
     return null;
@@ -129,8 +145,12 @@ export default function PwaInstallPrompt() {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm"
+        onClick={handleDismiss}
+      >
         <motion.div
+          onClick={(e) => e.stopPropagation()}
           initial={{ opacity: 0, y: 40, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 40, scale: 0.96 }}
