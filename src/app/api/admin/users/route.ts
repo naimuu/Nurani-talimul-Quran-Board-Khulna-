@@ -33,7 +33,10 @@ export async function GET() {
 
   try {
     await connectDB();
-    const dbUsers = await User.find({}).sort({ createdAt: -1 }).lean();
+    const dbUsers = await User.find({})
+      .populate('madrasaId', 'name englishName code district upazila trackingId isApproved status')
+      .sort({ createdAt: -1 })
+      .lean();
     const madrasaCount = await Madrasa.countDocuments();
     
     const adminEmail = process.env.ADMIN_EMAIL || "admin@nuraniboard.com";
@@ -130,4 +133,90 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ইউজার তৈরি করতে সার্ভারে সমস্যা হয়েছে" }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  const isAdmin = await checkAdmin();
+  if (!isAdmin) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await connectDB();
+    const body = await request.json();
+    const userId = body.userId || body.id || body._id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    if (userId === "master_admin_id") {
+      return NextResponse.json({ error: "Cannot modify Master Admin" }, { status: 403 });
+    }
+
+    const existingUser = await User.findById(userId);
+    if (!existingUser) {
+      return NextResponse.json({ error: "ইউজার পাওয়া যায়নি" }, { status: 404 });
+    }
+
+    // Email unique check
+    if (body.email && body.email.toLowerCase().trim() !== existingUser.email.toLowerCase()) {
+      const emailTaken = await User.findOne({ 
+        email: body.email.toLowerCase().trim(), 
+        _id: { $ne: userId } 
+      });
+      if (emailTaken) {
+        return NextResponse.json({ error: "এই ইমেইলটি অন্য একটি অ্যাকাউন্টে ব্যবহৃত হচ্ছে" }, { status: 400 });
+      }
+      existingUser.email = body.email.toLowerCase().trim();
+    }
+
+    if (body.name !== undefined) existingUser.name = body.name.trim();
+    if (body.phone !== undefined) existingUser.phone = body.phone.trim() || undefined;
+    if (body.role !== undefined) existingUser.role = body.role.toUpperCase();
+
+    // Password update
+    if (body.password && typeof body.password === "string" && body.password.trim().length > 0) {
+      existingUser.password = await bcrypt.hash(body.password.trim(), 10);
+    }
+
+    // Madrasa / Ilhak assignment
+    if (body.madrasaId !== undefined) {
+      if (body.madrasaId === "" || body.madrasaId === null) {
+        existingUser.madrasaId = undefined;
+        existingUser.madrasaName = undefined;
+        existingUser.instituteName = undefined;
+      } else {
+        existingUser.madrasaId = body.madrasaId;
+        const linkedMadrasa = await Madrasa.findById(body.madrasaId);
+        if (linkedMadrasa) {
+          existingUser.madrasaName = linkedMadrasa.name;
+          existingUser.instituteName = linkedMadrasa.name;
+        }
+      }
+    } else if (body.madrasaName !== undefined || body.instituteName !== undefined) {
+      const mName = (body.madrasaName ?? body.instituteName)?.trim();
+      existingUser.madrasaName = mName || undefined;
+      existingUser.instituteName = mName || undefined;
+    }
+
+    await existingUser.save();
+
+    const updatedUser = await User.findById(userId)
+      .populate('madrasaId', 'name englishName code district upazila trackingId isApproved status')
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      message: "ইউজারের তথ্য ও ইলহাক সফলভাবে আপডেট করা হয়েছে",
+      user: updatedUser,
+    });
+  } catch (error: any) {
+    console.error("Error updating user:", error);
+    if (error.code === 11000) {
+      return NextResponse.json({ error: "ইমেইল বা ফোন নম্বরটি অন্য অ্যাকাউন্টে ব্যবহৃত হচ্ছে" }, { status: 400 });
+    }
+    return NextResponse.json({ error: error.message || "ইউজার আপডেট করতে সমস্যা হয়েছে" }, { status: 500 });
+  }
+}
+
 

@@ -32,7 +32,11 @@ import {
   BadgeCheck,
   ShieldCheck,
   User,
-  Filter
+  Filter,
+  LayoutList,
+  LayoutGrid,
+  MoreVertical,
+  PhoneCall
 } from "lucide-react";
 import { useDialog } from "@/components/ui/DialogProvider";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
@@ -107,6 +111,14 @@ export default function MuallimManagementView() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [filterDesignation, setFilterDesignation] = useState<string>("ALL");
   const [reportSelectedMuallim, setReportSelectedMuallim] = useState<string>("ALL");
+  const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -366,51 +378,58 @@ export default function MuallimManagementView() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#052e23] via-[#074b39] to-emerald-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-        <div className="absolute left-1/3 bottom-0 w-64 h-64 bg-amber-400/10 rounded-full blur-2xl pointer-events-none"></div>
+    <div className="w-full space-y-3 pb-8">
+      {/* Header Banner (Thinner & Wide Full) */}
+      <div className="w-full bg-gradient-to-r from-[#052e23] via-[#074b39] to-emerald-800 rounded-2xl px-4 py-3 sm:px-6 sm:py-3.5 text-white shadow-md relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="absolute right-0 top-0 w-96 h-full bg-emerald-500/10 blur-3xl pointer-events-none -mr-20"></div>
+        <div className="absolute left-1/3 bottom-0 w-64 h-full bg-amber-400/10 blur-2xl pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-700/60 border border-emerald-500/40 text-emerald-200 text-xs font-bold tracking-wide">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
-              <span>নূরানী তালিমুল কুরআন বোর্ড খুলনা</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
-              মুয়াল্লিম ও প্রশিক্ষক পরিচালনা
-            </h1>
-            <p className="text-emerald-100/90 text-sm sm:text-base max-w-2xl font-medium">
-              বোর্ডের অভিজ্ঞ শিক্ষক ও প্রশিক্ষকদের পূর্ণাঙ্গ ডাটাবেজ, শিক্ষাগত যোগ্যতা, প্রশিক্ষণ বিবরণ ও ব্যাচভিত্তিক দায়িত্বের সময়সূচি নিয়ন্ত্রণ করুন।
-            </p>
+        {/* Left: Title & Subtitle */}
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-inner">
+            <UserCheck className="w-5 h-5 text-amber-300" />
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm shadow-lg shadow-amber-400/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-            >
-              <Plus className="w-4 h-4 text-slate-950 stroke-[3]" />
-              <span>নতুন মুয়াল্লিম যোগ করুন</span>
-            </button>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
+                মুয়াল্লিম ও প্রশিক্ষক পরিচালনা
+              </h1>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-700/70 border border-emerald-500/40 text-emerald-200 text-[11px] font-bold">
+                <ShieldCheck className="w-3 h-3 text-amber-300" />
+                <span>বোর্ড ডাটাবেজ</span>
+              </span>
+            </div>
+            <p className="text-emerald-100/80 text-xs hidden sm:block font-medium">
+              বোর্ডের অভিজ্ঞ শিক্ষক ও প্রশিক্ষকদের পূর্ণাঙ্গ ডাটাবেজ, যোগ্যতা ও ব্যাচ শিডিউল
+            </p>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mt-6 pt-6 border-t border-emerald-700/50">
-          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10">
-            <span className="text-xs text-emerald-200 font-medium">সর্বমোট শিক্ষক/মুয়াল্লিম</span>
-            <div className="text-2xl font-black text-white mt-1">{stats.total} জন</div>
+        {/* Right: Inline Quick Stats + Action Button */}
+        <div className="flex items-center flex-wrap gap-2.5 relative z-10">
+          {/* Quick Stats Badges */}
+          <div className="flex items-center gap-1.5 bg-black/20 backdrop-blur-xs p-1 rounded-xl border border-white/10 text-xs">
+            <div className="px-2.5 py-1 rounded-lg bg-white/10 flex items-center gap-1.5">
+              <span className="text-emerald-200 text-[11px] font-medium">সর্বমোট:</span>
+              <span className="font-black text-white">{stats.total} জন</span>
+            </div>
+            <div className="px-2.5 py-1 rounded-lg bg-white/10 flex items-center gap-1.5">
+              <span className="text-emerald-200 text-[11px] font-medium">সক্রিয়:</span>
+              <span className="font-black text-amber-300">{stats.active} জন</span>
+            </div>
+            <div className="px-2.5 py-1 rounded-lg bg-white/10 hidden lg:flex items-center gap-1.5">
+              <span className="text-emerald-200 text-[11px] font-medium">ব্যাচ:</span>
+              <span className="font-black text-white">{stats.totalBatchesAssigned} টি</span>
+            </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10">
-            <span className="text-xs text-emerald-200 font-medium">সক্রিয় প্রশিক্ষক</span>
-            <div className="text-2xl font-black text-amber-300 mt-1">{stats.active} জন</div>
-          </div>
-          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 col-span-2 sm:col-span-1">
-            <span className="text-xs text-emerald-200 font-medium">অ্যাসাইনকৃত ব্যাচ সংখ্যা</span>
-            <div className="text-2xl font-black text-white mt-1">{stats.totalBatchesAssigned} টি</div>
-          </div>
+
+          <button
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
+            <span>নতুন মুয়াল্লিম যোগ করুন</span>
+          </button>
         </div>
       </div>
 
@@ -497,6 +516,36 @@ export default function MuallimManagementView() {
                 </select>
               )}
 
+              {/* View Mode Toggle (Table / Card) */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === "table"
+                      ? "bg-white text-emerald-800 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="টেবিল ভিউ (Table View)"
+                >
+                  <LayoutList className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="hidden sm:inline">টেবিল</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("card")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === "card"
+                      ? "bg-white text-emerald-800 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="কার্ড ভিউ (Card View)"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="hidden sm:inline">কার্ড</span>
+                </button>
+              </div>
+
               {(searchQuery || filterStatus !== "ALL" || filterDesignation !== "ALL") && (
                 <button
                   onClick={() => {
@@ -512,7 +561,7 @@ export default function MuallimManagementView() {
             </div>
           </div>
 
-          {/* Cards Grid */}
+          {/* List Content: Table View or Cards Grid */}
           {loading ? (
             <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-100">
               <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
@@ -526,7 +575,266 @@ export default function MuallimManagementView() {
                 উপরে &quot;নতুন মুয়াল্লিম যোগ করুন&quot; বাটনে ক্লিক করে নতুন শিক্ষক যুক্ত করুন।
               </p>
             </div>
+          ) : viewMode === "table" ? (
+            /* Table View (Default on Desktop) - Fixed Header with Scrollable Rows */
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col">
+              <div className="overflow-auto max-h-[calc(100vh-230px)] min-h-[380px] [scrollbar-gutter:stable] pb-24">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 z-20 bg-slate-50/98 backdrop-blur-md border-b border-slate-200 shadow-2xs">
+                    <tr className="text-slate-700 font-bold text-xs uppercase tracking-wider select-none">
+                      <th className="py-3.5 px-4 w-12 text-center bg-slate-50">ক্র.</th>
+                      <th className="py-3.5 px-4 min-w-[240px] bg-slate-50">শিক্ষক / মুয়াল্লিম</th>
+                      <th className="py-3.5 px-4 min-w-[190px] bg-slate-50">পদবী ও বিশেষত্ব</th>
+                      <th className="py-3.5 px-4 min-w-[160px] bg-slate-50">মোবাইল নম্বর</th>
+                      <th className="py-3.5 px-4 min-w-[210px] bg-slate-50">ঠিকানা ও জেলা</th>
+                      <th className="py-3.5 px-4 min-w-[140px] text-center bg-slate-50">দায়িত্বপ্রাপ্ত ব্যাচ</th>
+                      <th className="py-3.5 px-4 min-w-[115px] text-center bg-slate-50">স্ট্যাটাস</th>
+                      <th className="py-3.5 px-4 w-16 text-right bg-slate-50">অ্যাকশন</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                    {filteredMuallims.map((item, index) => {
+                      const assignedBatches = allBatches.filter(b => {
+                        const bMuallimId = b.muallimId ? String(b.muallimId) : "";
+                        const mId = String(item.id || item._id);
+                        return bMuallimId === mId || (b.muallimName && b.muallimName.trim() === item.name.trim());
+                      });
+                      const itemKey = String(item.id || item._id || index);
+
+                      return (
+                        <tr
+                          key={itemKey}
+                          className="hover:bg-emerald-50/40 transition-colors group"
+                        >
+                          {/* Index */}
+                          <td className="py-3 px-4 text-center font-bold text-slate-400 text-xs">
+                            {index + 1}
+                          </td>
+
+                          {/* Name & Photo & Education */}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/80 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                                {item.photoUrl ? (
+                                  <img
+                                    src={item.photoUrl}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                ) : (
+                                  <User className="w-5 h-5 text-emerald-600" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-black text-slate-900 text-sm leading-snug group-hover:text-emerald-800 transition-colors">
+                                  {item.name}
+                                </div>
+                                {item.education && (
+                                  <div className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 mt-0.5 max-w-[200px]" title={item.education}>
+                                    <GraduationCap className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span className="truncate">{item.education}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Designation & Specialty */}
+                          <td className="py-3 px-4">
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <Award className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>{item.designation || "মুয়াল্লিম"}</span>
+                              </span>
+                              {item.specialty && (
+                                <div className="text-[11px] text-amber-800 font-bold flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                                  <span className="truncate">{item.specialty}</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Mobile */}
+                          <td className="py-3 px-4">
+                            <div className="space-y-0.5">
+                              <a
+                                href={`tel:${item.phone}`}
+                                className="inline-flex items-center gap-1.5 font-bold text-emerald-700 hover:text-emerald-950 hover:underline text-xs"
+                              >
+                                <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>{item.phone}</span>
+                              </a>
+                              {item.email && (
+                                <div className="text-[11px] text-slate-500 truncate flex items-center gap-1 max-w-[150px]" title={item.email}>
+                                  <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span className="truncate">{item.email}</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Address & District */}
+                          <td className="py-3 px-4">
+                            {(item.district || item.upazila || item.address) ? (
+                              <div className="text-xs text-slate-700 flex items-start gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                                <span className="truncate max-w-[210px]" title={[item.address, item.upazila, item.district].filter(Boolean).join(", ")}>
+                                  {[item.upazila, item.district].filter(Boolean).join(", ") || item.address}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">উল্লেখ নেই</span>
+                            )}
+                            {item.trainingDetails && (
+                              <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate max-w-[210px]" title={item.trainingDetails}>
+                                <BadgeCheck className="w-3 h-3 text-amber-600 shrink-0" />
+                                <span className="truncate">{item.trainingDetails}</span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Assigned Batches */}
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={() => {
+                                setReportSelectedMuallim(item.id || item._id || "ALL");
+                                setActiveTab("report");
+                              }}
+                              title="ব্যাচ রিপোর্ট দেখুন"
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black transition-all hover:scale-105 active:scale-95 ${
+                                assignedBatches.length > 0
+                                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-300"
+                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
+                              }`}
+                            >
+                              <span>{assignedBatches.length} টি</span>
+                              <ChevronRight className="w-3 h-3" />
+                            </button>
+                          </td>
+
+                          {/* Status Toggle */}
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={() => toggleStatus(item)}
+                              title={item.status === "ACTIVE" ? "সক্রিয় (ক্লিক করে নিষ্ক্রিয় করুন)" : "নিষ্ক্রিয় (ক্লিক করে সক্রিয় করুন)"}
+                              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition-all hover:scale-105 ${
+                                item.status === "ACTIVE"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                  : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${item.status === "ACTIVE" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                              <span>{item.status === "ACTIVE" ? "সক্রিয়" : "নিষ্ক্রিয়"}</span>
+                            </button>
+                          </td>
+
+                          {/* Actions: 3-dot Dropdown */}
+                          <td className="py-3 px-4 text-right">
+                            <div className="relative inline-block text-left">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(openDropdownId === itemKey ? null : itemKey);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none"
+                                title="অপশন মেনু"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+
+                              <AnimatePresence>
+                                {openDropdownId === itemKey && (
+                                  <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.1 }}
+                                    style={{ transformOrigin: "top right" }}
+                                    className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-200/90 z-50 overflow-hidden py-1 origin-top-right text-left"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        openEditModal(item);
+                                      }}
+                                      className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>সম্পাদনা করুন</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        toggleStatus(item);
+                                      }}
+                                      className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                    >
+                                      {item.status === "ACTIVE" ? (
+                                        <>
+                                          <XCircle className="w-3.5 h-3.5 text-amber-600" />
+                                          <span>নিষ্ক্রিয় করুন</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>সক্রিয় করুন</span>
+                                        </>
+                                      )}
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        setReportSelectedMuallim(item.id || item._id || "ALL");
+                                        setActiveTab("report");
+                                      }}
+                                      className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                      <span>ব্যাচ রিপোর্ট দেখুন</span>
+                                    </button>
+
+                                    {item.phone && (
+                                      <a
+                                        href={`tel:${item.phone}`}
+                                        onClick={() => setOpenDropdownId(null)}
+                                        className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                      >
+                                        <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>কল করুন ({item.phone})</span>
+                                      </a>
+                                    )}
+
+                                    <div className="h-px bg-slate-100 my-1" />
+
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        handleDelete(item);
+                                      }}
+                                      className="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 transition-colors text-red-600 w-full text-left text-xs font-semibold"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                      <span>মুছে ফেলুন</span>
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
+            /* Cards Grid */
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
               {filteredMuallims.map(item => {
                 const assignedBatches = allBatches.filter(b => {
@@ -534,10 +842,11 @@ export default function MuallimManagementView() {
                   const mId = String(item.id || item._id);
                   return bMuallimId === mId || (b.muallimName && b.muallimName.trim() === item.name.trim());
                 });
+                const itemKey = String(item.id || item._id);
 
                 return (
                   <motion.div
-                    key={item.id || item._id}
+                    key={itemKey}
                     layout
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -565,21 +874,100 @@ export default function MuallimManagementView() {
                             <span>{item.status === "ACTIVE" ? "সক্রিয়" : "নিষ্ক্রিয়"}</span>
                           </button>
 
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                            title="সম্পাদনা করুন"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="relative inline-block text-left">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(openDropdownId === `card-${itemKey}` ? null : `card-${itemKey}`);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none"
+                              title="অপশন মেনু"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
 
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="মুছে ফেলুন"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                            <AnimatePresence>
+                              {openDropdownId === `card-${itemKey}` && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  transition={{ duration: 0.1 }}
+                                  style={{ transformOrigin: "top right" }}
+                                  className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-200/90 z-50 overflow-hidden py-1 origin-top-right text-left"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      openEditModal(item);
+                                    }}
+                                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>সম্পাদনা করুন</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      toggleStatus(item);
+                                    }}
+                                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                  >
+                                    {item.status === "ACTIVE" ? (
+                                      <>
+                                        <XCircle className="w-3.5 h-3.5 text-amber-600" />
+                                        <span>নিষ্ক্রিয় করুন</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>সক্রিয় করুন</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      setReportSelectedMuallim(item.id || item._id || "ALL");
+                                      setActiveTab("report");
+                                    }}
+                                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>ব্যাচ রিপোর্ট দেখুন</span>
+                                  </button>
+
+                                  {item.phone && (
+                                    <a
+                                      href={`tel:${item.phone}`}
+                                      onClick={() => setOpenDropdownId(null)}
+                                      className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-slate-700 w-full text-left text-xs font-semibold"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>কল করুন ({item.phone})</span>
+                                    </a>
+                                  )}
+
+                                  <div className="h-px bg-slate-100 my-1" />
+
+                                  <button
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      handleDelete(item);
+                                    }}
+                                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 transition-colors text-red-600 w-full text-left text-xs font-semibold"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                    <span>মুছে ফেলুন</span>
+                                  </button>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
                         </div>
                       </div>
 

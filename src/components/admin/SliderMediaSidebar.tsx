@@ -142,6 +142,23 @@ export default function SliderMediaSidebar({
     onUpdateSlides(updated);
   };
 
+  // Add new empty/template slide item directly
+  const handleAddNewSlide = () => {
+    const nextNumber = slides.length + 1;
+    const newSlide: HeroSlide = {
+      id: `slide-${Date.now()}`,
+      imageUrl: "/images/hero/slide1.jpg",
+      title: `ব্যানার শিরোনাম ${nextNumber}`,
+      subtitle: "ব্যানারের সংক্ষিপ্ত স্লোগান বা বিবরণ লিখুন...",
+      description: "ব্যানারের সংক্ষিপ্ত স্লোগান বা বিবরণ লিখুন...",
+      buttonText: "আরও জানুন",
+      buttonLink: "/about",
+    };
+    onUpdateSlides([...slides, newSlide]);
+    toast.success("নতুন স্লাইড আইটেম সফলভাবে তালিকায় যোগ করা হয়েছে!");
+    setActiveTab("list");
+  };
+
   // Add from URL form
   const handleAddFromUrl = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -261,15 +278,27 @@ export default function SliderMediaSidebar({
           </div>
         </div>
 
-        {onClose && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            title="বন্ধ করুন"
+            type="button"
+            onClick={handleAddNewSlide}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+            title="নতুন স্লাইড আইটেম যোগ করুন"
           >
-            <X className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ নতুন আইটেম</span>
           </button>
-        )}
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              title="বন্ধ করুন"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -358,7 +387,15 @@ export default function SliderMediaSidebar({
                 <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
                   নতুন ছবি আপলোড করতে পারেন, সরাসরি লিংক দিতে পারেন অথবা বিল্ট-ইন গ্যালারি থেকে পছন্দের ব্যানার যোগ করতে পারেন।
                 </p>
-                <div className="flex items-center justify-center gap-2 pt-2">
+                <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleAddNewSlide}
+                    className="px-3.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-xs font-bold shadow-xs inline-flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ নতুন আইটেম তৈরি করুন</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab("presets")}
@@ -495,23 +532,51 @@ export default function SliderMediaSidebar({
                     </div>
 
                     {/* Inline Quick Fields */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 border-t border-slate-200/60 text-xs">
-                      <div>
-                        <input
-                          type="text"
-                          placeholder="শিরোনাম (ঐচ্ছিক)"
-                          value={slide.title || ""}
-                          onChange={(e) => handleEditField(index, "title", e.target.value)}
-                          className="w-full px-2 py-1 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600"
-                        />
+                    <div className="space-y-1.5 pt-1.5 border-t border-slate-200/60 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                            ব্যানার শিরোনাম (Title)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="ব্যানার শিরোনাম লিখুন..."
+                            value={slide.title || ""}
+                            onChange={(e) => handleEditField(index, "title", e.target.value)}
+                            className="w-full px-2 py-1 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600 font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                            বাটন লিংক (Action Link)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="যেমন: /register অথবা https://..."
+                            value={slide.buttonLink || ""}
+                            onChange={(e) => handleEditField(index, "buttonLink", e.target.value)}
+                            className="w-full px-2 py-1 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600 font-mono"
+                          />
+                        </div>
                       </div>
+
+                      {/* Slogan Text Below Title */}
                       <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-0.5 flex items-center justify-between">
+                          <span>শিরোনামের নিচের স্লোগান / বিবরণ (Slogan below title)</span>
+                          <span className="text-[9px] text-slate-400 font-normal">হোমপেজে ব্যানারের শিরোনামের নিচে প্রদর্শিত হবে</span>
+                        </label>
                         <input
                           type="text"
-                          placeholder="বাটন লিংক (যেমন /register)"
-                          value={slide.buttonLink || ""}
-                          onChange={(e) => handleEditField(index, "buttonLink", e.target.value)}
-                          className="w-full px-2 py-1 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600"
+                          placeholder="স্লোগান বা বিবরণ লিখুন (যেমন: আধুনিক পদ্ধতির সাথে বিশুদ্ধ কোরআনি শিক্ষায় নতুন প্রজন্মকে ক্ষমতায়ন করা...)"
+                          value={slide.description || slide.subtitle || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const updated = [...slides];
+                            updated[index] = { ...updated[index], description: val, subtitle: val };
+                            onUpdateSlides(updated);
+                          }}
+                          className="w-full px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-600 text-slate-700"
                         />
                       </div>
                     </div>
@@ -549,6 +614,40 @@ export default function SliderMediaSidebar({
                 );
               })
             )}
+
+            {/* Add More Items Options Bar / Card */}
+            <div className="pt-2 border-t border-slate-200/80 space-y-2">
+              <button
+                type="button"
+                onClick={handleAddNewSlide}
+                className="w-full py-3 border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/50 hover:bg-emerald-100/60 text-emerald-800 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition-all active:scale-[0.99] shadow-2xs group cursor-pointer"
+                title="সরাসরি একটি নতুন স্লাইডার আইটেম যুক্ত করুন"
+              >
+                <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Plus className="w-3.5 h-3.5" />
+                </div>
+                <span>+ আরো নতুন ব্যানার / স্লাইড আইটেম যোগ করুন</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("upload")}
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-semibold flex items-center justify-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>ফাইল আপলোড করে যোগ</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("presets")}
+                  className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100/80 text-amber-900 font-semibold flex items-center justify-center gap-1.5 transition-colors border border-amber-200 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>গ্যালারি থেকে যোগ</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Info, Building2, MapPin, Users, Phone, Mail, Calendar, CheckCircle2, X } from "lucide-react";
+import { Info, Building2, MapPin, Users, Phone, Mail, Calendar, CheckCircle2, X, ShieldCheck, Printer } from "lucide-react";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 
 type Location = {
@@ -14,9 +14,27 @@ type Location = {
   parentId: string | null;
 };
 
-export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function RegisterMadrasaModal({
+  isOpen,
+  onClose,
+  isAdmin = false,
+  onSuccess,
+  initialData = null,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  isAdmin?: boolean;
+  onSuccess?: (madrasa?: any) => void;
+  initialData?: any;
+}) {
+  const isEdit = Boolean(initialData && (initialData._id || initialData.id));
   const [teachers, setTeachers] = useState([{ name: "", phone: "", designation: "প্রধান-শিক্ষক" }, { name: "", phone: "", designation: "সহকারী-শিক্ষক" }]);
   
+  // Admin entry options
+  const [autoApprove, setAutoApprove] = useState(true);
+  const [customCode, setCustomCode] = useState("");
+  const [createdCode, setCreatedCode] = useState("");
+
   // Location states
   const [divisions, setDivisions] = useState<Location[]>([]);
   const [districts, setDistricts] = useState<Location[]>([]);
@@ -54,8 +72,87 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
   // Mount guard for portal (SSR safe)
   useEffect(() => { setIsMounted(true); }, []);
 
+  // Pre-fill form when editing or clear when opening fresh
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (initialData) {
+      setFormData({
+        name: initialData.name || "",
+        englishName: initialData.englishName || "",
+        instituteType: initialData.instituteType || "",
+        managedBy: initialData.managedBy || "",
+        managerName: initialData.managerName || initialData.principalName || "",
+        email: initialData.email || "",
+        registrationDate: initialData.registrationDate || "",
+        phone1: initialData.phone1 || initialData.contactNo || "",
+        phone2: initialData.phone2 || "",
+        village: initialData.village || "",
+        postOffice: initialData.postOffice || "",
+        postCode: initialData.postCode || "",
+        union: initialData.union || "",
+        wardNo: initialData.wardNo || "",
+        addressDetails: initialData.addressDetails || initialData.address || "",
+      });
+
+      if (Array.isArray(initialData.teachers) && initialData.teachers.length > 0) {
+        setTeachers(initialData.teachers);
+      } else {
+        setTeachers([
+          { name: "", phone: "", designation: "প্রধান-শিক্ষক" },
+          { name: "", phone: "", designation: "সহকারী-শিক্ষক" }
+        ]);
+      }
+
+      setSelectedDivision(initialData.division || "");
+      setSelectedDistrict(initialData.district || "");
+      setSelectedUpazila(initialData.upazila || "");
+      setCustomCode(initialData.code || "");
+      setAutoApprove(initialData.isApproved !== false && initialData.status !== "PENDING");
+      setTrackingId(initialData.trackingId || "");
+      setCreatedCode(initialData.code || "");
+      setSubmitStatus('idle');
+      setShowSuccessModal(false);
+    } else if (isAdmin) {
+      setFormData({
+        name: "",
+        englishName: "",
+        instituteType: "",
+        managedBy: "",
+        managerName: "",
+        email: "",
+        registrationDate: "",
+        phone1: "",
+        phone2: "",
+        village: "",
+        postOffice: "",
+        postCode: "",
+        union: "",
+        wardNo: "",
+        addressDetails: "",
+      });
+      setTeachers([
+        { name: "", phone: "", designation: "প্রধান-শিক্ষক" },
+        { name: "", phone: "", designation: "সহকারী-শিক্ষক" }
+      ]);
+      setSelectedDivision("");
+      setSelectedDistrict("");
+      setSelectedUpazila("");
+      setCustomCode("");
+      setAutoApprove(true);
+      setTrackingId("");
+      setCreatedCode("");
+      setSubmitStatus('idle');
+      setShowSuccessModal(false);
+    }
+  }, [isOpen, initialData, isAdmin]);
+
   // Load from local storage on mount
   useEffect(() => {
+    if (isAdmin) {
+      setIsLoaded(true);
+      return;
+    }
     const savedData = localStorage.getItem("madrasa_register_form");
     if (savedData) {
       try {
@@ -70,10 +167,11 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
       }
     }
     setIsLoaded(true);
-  }, []);
+  }, [isAdmin]);
 
   // Save to local storage on change
   useEffect(() => {
+    if (isAdmin) return;
     if (isLoaded) {
       localStorage.setItem("madrasa_register_form", JSON.stringify({
         formData,
@@ -83,7 +181,7 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
         selectedUpazila
       }));
     }
-  }, [formData, teachers, selectedDivision, selectedDistrict, selectedUpazila, isLoaded]);
+  }, [formData, teachers, selectedDivision, selectedDistrict, selectedUpazila, isLoaded, isAdmin]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -169,16 +267,21 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
     setSubmitStatus('submitting');
     
     try {
+      const endpoint = isEdit ? '/api/admin/madrasas' : (isAdmin ? '/api/admin/madrasas' : '/api/madrasa/apply');
+      const method = isEdit ? 'PUT' : 'POST';
+
       const payload = {
+        ...(isEdit ? { id: initialData._id || initialData.id } : {}),
         ...formData,
         division: divisions.find(d => d._id === selectedDivision)?.bn_name || selectedDivision.replace('_fallback', ''),
         district: districts.find(d => d._id === selectedDistrict)?.bn_name || selectedDistrict,
         upazila: upazilas.find(u => u._id === selectedUpazila)?.bn_name || selectedUpazila,
-        teachers: teachers.filter(t => t.name || t.phone)
+        teachers: teachers.filter(t => t.name || t.phone),
+        ...(isAdmin ? { autoApprove, code: customCode.trim() || undefined } : {})
       };
 
-      const res = await fetch('/api/madrasa/apply', {
-        method: 'POST',
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -186,17 +289,25 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
       const data = await res.json();
       
       if (res.ok) {
-        setTrackingId(data.trackingId);
-        localStorage.removeItem("madrasa_register_form");
+        setTrackingId(data.trackingId || (initialData && initialData.trackingId) || "");
+        if (data.code || (data.madrasa && data.madrasa.code)) {
+          setCreatedCode(data.code || data.madrasa.code);
+        }
+        if (!isAdmin && !isEdit) {
+          localStorage.removeItem("madrasa_register_form");
+        }
         setSubmitStatus('success');
         setShowSuccessModal(true);
+        if (onSuccess) {
+          onSuccess(data.madrasa || data);
+        }
       } else {
-        alert("Error: " + (data.error || "Something went wrong"));
+        alert("ত্রুটি: " + (data.error || "Something went wrong"));
         setSubmitStatus('idle');
       }
     } catch (error) {
       console.error(error);
-      alert("Failed to submit application");
+      alert("আবেদন জমা দিতে সমস্যা হয়েছে");
       setSubmitStatus('idle');
     }
   };
@@ -246,9 +357,24 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
                   >
                     <CheckCircle2 className="w-14 h-14" />
                   </motion.div>
-                  <h2 className="text-3xl font-bold text-slate-800 mb-4">আবেদন সফল হয়েছে!</h2>
-                  <p className="text-slate-600 leading-relaxed mb-8">
-                    আপনার প্রতিষ্ঠানের নিবন্ধনের আবেদনটি সফলভাবে গৃহীত হয়েছে। আবেদনটি যাচাই-বাছাই করার পর আপনাকে জানানো হবে।
+                  <h2 className="text-3xl font-bold text-slate-800 mb-2">
+                    {isEdit 
+                      ? "তথ্য সফলভাবে আপডেট হয়েছে!" 
+                      : (isAdmin ? "মাদরাসা সফলভাবে যুক্ত হয়েছে!" : "আবেদন সফল হয়েছে!")}
+                  </h2>
+                  {createdCode && (
+                    <div className="my-3 inline-block bg-emerald-50 border border-emerald-300 px-5 py-2 rounded-xl">
+                      <span className="text-xs text-emerald-700 block font-medium">নির্ধারিত ইলহাক কোড</span>
+                      <span className="text-2xl font-mono font-extrabold text-emerald-900">{createdCode}</span>
+                    </div>
+                  )}
+                  <p className="text-slate-600 leading-relaxed mb-6 text-sm">
+                    {isEdit
+                      ? "মাদরাসা ও ইলহাকের সংশোধিত তথ্য সফলভাবে ডাটাবেজে সংরক্ষণ করা হয়েছে।"
+                      : isAdmin 
+                        ? (autoApprove ? "মাদরাসাটি সরাসরি অনুমোদন পেয়ে ডাটাবেজে অন্তর্ভুক্ত হয়েছে।" : "মাদরাসার আবেদনটি ডাটাবেজে সফলভাবে সংরক্ষণ করা হয়েছে।")
+                        : "আপনার প্রতিষ্ঠানের নিবন্ধনের আবেদনটি সফলভাবে গৃহীত হয়েছে। আবেদনটি যাচাই-বাছাই করার পর আপনাকে জানানো হবে।"
+                    }
                   </p>
                   <button
                     onClick={() => setShowSuccessModal(false)}
@@ -275,8 +401,19 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
               <p className="text-xl text-slate-600 font-semibold mb-4">প্রতিষ্ঠান নিবন্ধন আবেদন রসিদ (অফিস ও আবেদনকারী কপি)</p>
               
               <div className="inline-block border-2 border-slate-800 rounded-lg px-8 py-3 bg-slate-50 print:bg-white">
-                <p className="text-slate-600 font-semibold uppercase tracking-widest text-xs mb-1">ট্র্যাকিং নম্বর / ইলহাক নম্বর</p>
-                <p className="text-3xl font-mono font-bold tracking-[0.2em] text-slate-900">{trackingId}</p>
+                <p className="text-slate-600 font-semibold uppercase tracking-widest text-xs mb-1">
+                  {createdCode ? "ইলহাক কোড ও ট্র্যাকিং নম্বর" : "ট্র্যাকিং নম্বর / ইলহাক নম্বর"}
+                </p>
+                <div className="flex items-center justify-center gap-4 flex-wrap">
+                  {createdCode && (
+                    <span className="text-2xl sm:text-3xl font-mono font-bold tracking-wider text-emerald-800 bg-emerald-100/70 px-3 py-0.5 rounded-md border border-emerald-300">
+                      {createdCode}
+                    </span>
+                  )}
+                  <span className="text-2xl sm:text-3xl font-mono font-bold tracking-[0.2em] text-slate-900">
+                    {trackingId}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -484,7 +621,20 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
           className="w-full max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[95vh] print:max-h-none print:shadow-none print:bg-transparent print:h-auto"
         >
           <div className="flex justify-between items-center p-4 border-b border-slate-100 print:hidden bg-slate-50 sticky top-0 z-20 rounded-t-3xl">
-            <h2 className="text-xl font-bold text-slate-800">মাদরাসা নিবন্ধন</h2>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xl font-bold text-slate-800">
+                {isEdit ? "মাদরাসা ও ইলহাক তথ্য সম্পাদনা" : "মাদরাসা নিবন্ধন ও ইলহাক ফরম"}
+              </h2>
+              {isEdit ? (
+                <span className="text-xs bg-indigo-600 text-white font-bold px-2.5 py-0.5 rounded-full shadow-2xs">
+                  তথ্য সম্পাদনা (Edit)
+                </span>
+              ) : isAdmin ? (
+                <span className="text-xs bg-emerald-600 text-white font-bold px-2.5 py-0.5 rounded-full shadow-2xs">
+                  অ্যাডমিন এন্ট্রি
+                </span>
+              ) : null}
+            </div>
             <button onClick={onClose} className="p-2 bg-slate-200 hover:bg-slate-300 rounded-full text-slate-600 transition-colors">
               <X className="w-5 h-5" />
             </button>
@@ -492,24 +642,72 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
           <div className="overflow-y-auto flex-1 p-4 sm:p-6 md:p-8 bg-slate-50 print:bg-white print:p-0">
         
         {/* Header Section */}
-        <div className="text-center mb-10 print:mb-6">
+        <div className="text-center mb-8 print:mb-6">
           <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-2 border-b-2 border-primary inline-block pb-2 print:text-2xl">
-            নতুন প্রতিষ্ঠান নিবন্ধন ফরম
+            {isEdit ? "মাদরাসা ও ইলহাক তথ্য সংশোধন" : "নতুন প্রতিষ্ঠান নিবন্ধন ও ইলহাক ফরম"}
           </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            {isEdit
+              ? "মাদরাসার নাম, ঠিকানা, মুহতামিম, শিক্ষক ও ইলহাক কোডের তথ্য আপডেট করুন"
+              : isAdmin
+                ? "অ্যাডমিন প্যানেল থেকে নতুন মাদরাসা ও ইলহাক তথ্য সরাসরি এন্ট্রি"
+                : "সহজ ও দ্রুত অনলাইনে নতুন মাদরাসা নিবন্ধন আবেদন"}
+          </p>
         </div>
 
-        {/* Info Alerts */}
-        <div className="mb-8 space-y-4 print:hidden">
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl flex items-center justify-center text-center shadow-sm">
-            <Info className="w-5 h-5 mr-2 flex-shrink-0" />
-            <span className="font-medium">সকল তথ্য বাংলায় ইউনিকোড ব্যবহার করে পূরণ করুন।</span>
+        {/* Info Alerts / Admin Options */}
+        {isAdmin ? (
+          <div className="mb-8 bg-emerald-50/90 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 shadow-sm print:hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-700 flex-shrink-0" />
+                  <h3 className="font-bold text-slate-800 text-sm sm:text-base">অ্যাডমিন অনুমোদন ও ইলহাক কোড</h3>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  মাদরাসা যুক্ত করার সাথে সাথে সরাসরি অনুমোদিত হিসেবে সংরক্ষণ করুন অথবা অপেক্ষমাণ রাখুন।
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl border border-emerald-200/80 shadow-xs">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoApprove}
+                    onChange={(e) => setAutoApprove(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 accent-emerald-600"
+                  />
+                  <span className="text-xs font-bold text-slate-800">সরাসরি অনুমোদন (Auto Approve)</span>
+                </label>
+
+                {autoApprove && (
+                  <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                    <span className="text-xs text-slate-500 font-medium">কাস্টম কোড:</span>
+                    <input
+                      type="text"
+                      placeholder="স্বয়ংক্রিয় (KNB-XXXX)"
+                      value={customCode}
+                      onChange={(e) => setCustomCode(e.target.value)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 font-mono w-40 bg-slate-50 focus:bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-6 py-4 rounded-xl text-center shadow-sm text-sm">
-            <p className="font-semibold mb-1">আপনার প্রতিষ্ঠান নিবন্ধনের আবেদন পূর্বে করা হয়ে থাকলে পুনরায় করা হতে বিরত থাকুন।</p>
-            <p>আপনার প্রতিষ্ঠানের নিবন্ধন পূর্বে হয়েছে কিনা, প্রতিষ্ঠান কোড অথবা প্রতিষ্ঠান সম্পর্কিত যাবতীয় সকল তথ্যের জন্য হেল্পলাইন নম্বরে যোগাযোগ করুন।</p>
-            <p className="mt-2 font-bold text-emerald-900 bg-emerald-100 inline-block px-3 py-1 rounded-lg">হেল্পলাইন নম্বর: ০৯৬৪৭-৪৭৬৯৯০ (১০.০০am - ৮.০০pm)</p>
+        ) : (
+          <div className="mb-8 space-y-4 print:hidden">
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl flex items-center justify-center text-center shadow-sm">
+              <Info className="w-5 h-5 mr-2 flex-shrink-0" />
+              <span className="font-medium">সকল তথ্য বাংলায় ইউনিকোড ব্যবহার করে পূরণ করুন।</span>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-6 py-4 rounded-xl text-center shadow-sm text-sm">
+              <p className="font-semibold mb-1">আপনার প্রতিষ্ঠান নিবন্ধনের আবেদন পূর্বে করা হয়ে থাকলে পুনরায় করা হতে বিরত থাকুন।</p>
+              <p>আপনার প্রতিষ্ঠানের নিবন্ধন পূর্বে হয়েছে কিনা, প্রতিষ্ঠান কোড অথবা প্রতিষ্ঠান সম্পর্কিত যাবতীয় সকল তথ্যের জন্য হেল্পলাইন নম্বরে যোগাযোগ করুন।</p>
+              <p className="mt-2 font-bold text-emerald-900 bg-emerald-100 inline-block px-3 py-1 rounded-lg">হেল্পলাইন নম্বর: ০৯৬৪৭-৪৭৬৯৯০ (১০.০০am - ৮.০০pm)</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Form Container */}
         <form onSubmit={handleFormSubmit} className="bg-white shadow-xl rounded-2xl overflow-hidden border border-slate-100 print:shadow-none print:border-none">
@@ -770,7 +968,13 @@ export default function RegisterMadrasaModal({ isOpen, onClose }: { isOpen: bool
                 ) : (
                   <CheckCircle2 className="w-5 h-5 mr-2" />
                 )}
-                {submitStatus === 'submitting' ? 'সাবমিট হচ্ছে...' : 'সাবমিট'}
+                {submitStatus === 'submitting'
+                  ? (isEdit ? 'আপডেট হচ্ছে...' : 'সংরক্ষণ করা হচ্ছে...')
+                  : isEdit
+                    ? '✓ তথ্য আপডেট সংরক্ষণ করুন'
+                    : isAdmin
+                      ? (autoApprove ? '✓ সংরক্ষণ ও সরাসরি অনুমোদন করুন' : 'আবেদন সংরক্ষণ করুন')
+                      : 'সাবমিট'}
               </motion.button>
             </div>
 

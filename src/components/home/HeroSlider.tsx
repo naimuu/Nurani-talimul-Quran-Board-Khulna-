@@ -48,19 +48,21 @@ function formatBgUrl(url: string): string {
   return `url('${url}')`;
 }
 
-function cleanEmojis(str?: string): string {
+function sanitizeText(str?: string): string {
   if (!str) return "";
   return str
     .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\uFE00-\uFE0F]/g, "")
+    .replace(/অডার/g, "অর্ডার")
     .trim();
 }
 
 function sanitizeSlides(items: HeroSlideItem[]): HeroSlideItem[] {
   return items.map((item) => ({
     ...item,
-    title: cleanEmojis(item.title),
-    subtitle: cleanEmojis(item.subtitle),
-    description: cleanEmojis(item.description),
+    title: sanitizeText(item.title),
+    subtitle: sanitizeText(item.subtitle),
+    description: sanitizeText(item.description),
+    buttonText: sanitizeText(item.buttonText),
   }));
 }
 

@@ -2,7 +2,8 @@ import mongoose, { Document, Model, Schema } from 'mongoose';
 
 export interface IQuestionSet {
   _id?: mongoose.Types.ObjectId;
-  classId?: string;
+  itemCode?: string; // Unique English item ID handler (e.g. QS-SEM1-CLS1-A7F2)
+  classId?: string;  // Unique English class ID handler (e.g. cls_1, cls_shishu)
   className: string;
   setName: string;
   pricePerSet: number;
@@ -23,8 +24,9 @@ export interface IQuestionSet {
 
 export interface IExamItem {
   _id?: mongoose.Types.ObjectId;
+  examId?: string; // Unique English exam ID handler
+  code?: string;   // Unique English exam code handler (e.g. SEM-1, ANNUAL)
   name: string;
-  code?: string;
   examTerm?: string;
   startDate?: string;
   endDate?: string;
@@ -46,7 +48,8 @@ export interface IExamSession extends Document {
 
 const QuestionSetSchema = new Schema<IQuestionSet>(
   {
-    classId: { type: String },
+    itemCode: { type: String, index: true },
+    classId: { type: String, index: true },
     className: { type: String, required: true },
     setName: { type: String, required: true },
     pricePerSet: { type: Number, required: true, default: 0 },
@@ -67,8 +70,9 @@ const QuestionSetSchema = new Schema<IQuestionSet>(
 
 const ExamItemSchema = new Schema<IExamItem>(
   {
+    examId: { type: String, index: true },
+    code: { type: String, index: true },
     name: { type: String, required: true },
-    code: { type: String },
     examTerm: { type: String },
     startDate: { type: String },
     endDate: { type: String },

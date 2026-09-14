@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Plus,
@@ -18,12 +18,23 @@ import {
   Layers,
   BookOpen,
   MoreVertical,
+  Check,
+  ChevronDown,
+  ExternalLink,
 } from "lucide-react";
 import { useDialog } from "@/components/ui/DialogProvider";
-import { generateClassId, DEFAULT_PRESET_CLASSES } from "@/lib/classUtils";
+import {
+  getCanonicalClassId,
+  generateClassId,
+  generateExamCode,
+  getCanonicalExamId,
+  generateItemCode,
+  DEFAULT_PRESET_CLASSES,
+} from "@/lib/classUtils";
 
 export type QuestionSet = {
   _id?: string;
+  itemCode?: string;
   classId?: string;
   className: string;
   setName: string;
@@ -43,6 +54,7 @@ export type QuestionSet = {
 
 export type ExamItem = {
   _id: string;
+  examId?: string;
   name: string;
   code?: string;
   examTerm?: string;
@@ -84,6 +96,14 @@ const DEFAULT_PRESET_SUBJECTS = [
   "ইসলামি ইতিহাস",
 ];
 
+// Bangla numeral converter for counts and indices
+export const toBn = (n: number | string | undefined | null): string => {
+  if (n === undefined || n === null) return "";
+  const bnDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+  return String(n).replace(/[0-9]/g, (d) => bnDigits[parseInt(d, 10)] || d);
+};
+export const toBanglaDigits = toBn;
+
 // Helper to calculate auto status and remaining days/hours countdown based on dates
 export function getExamStatusByDate(
   startDate?: string,
@@ -105,9 +125,11 @@ export function getExamStatusByDate(
 
       let countdown = "";
       if (diffDays > 0) {
-        countdown = `${diffDays} দিন${diffHours > 0 ? ` ${diffHours} ঘণ্টা` : ""} বাকি`;
+        countdown = `${toBn(diffDays)} দিন${diffHours > 0 ? ` ${toBn(diffHours)} ঘণ্টা` : ""} বাকি`;
+      } else if (diffHours > 0) {
+        countdown = `${toBn(diffHours)} ঘণ্টা বাকি`;
       } else {
-        countdown = `${Math.max(1, diffHours)} ঘণ্টা বাকি`;
+        countdown = `${toBn(Math.max(1, diffHours))} ঘণ্টা বাকি`;
       }
 
       return {
@@ -130,9 +152,9 @@ export function getExamStatusByDate(
 
       let remaining = "";
       if (diffDays > 0) {
-        remaining = `${diffDays} দিন বাকি`;
+        remaining = `${toBn(diffDays)} দিন বাকি`;
       } else {
-        remaining = `${Math.max(1, diffHours)} ঘণ্টা বাকি`;
+        remaining = `${toBn(Math.max(1, diffHours))} ঘণ্টা বাকি`;
       }
 
       return {
@@ -178,14 +200,22 @@ export default function ExamQuestionManagementView() {
   const [sessionToDelete, setSessionToDelete] = useState<ExamSessionType | null>(null);
   const [deletingSession, setDeletingSession] = useState(false);
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
+  const [showSessionDropdown, setShowSessionDropdown] = useState(false);
+  const [openExamMenuId, setOpenExamMenuId] = useState<string | null>(null);
+  const [openQuestionMenuId, setOpenQuestionMenuId] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleGlobalClick = () => setOpenSessionMenuId(null);
-    if (openSessionMenuId) {
+    const handleGlobalClick = () => {
+      setShowSessionDropdown(false);
+      setOpenSessionMenuId(null);
+      setOpenExamMenuId(null);
+      setOpenQuestionMenuId(null);
+    };
+    if (showSessionDropdown || openSessionMenuId || openExamMenuId || openQuestionMenuId) {
       window.addEventListener("click", handleGlobalClick);
       return () => window.removeEventListener("click", handleGlobalClick);
     }
-  }, [openSessionMenuId]);
+  }, [showSessionDropdown, openSessionMenuId, openExamMenuId, openQuestionMenuId]);
 
   const [showExamModal, setShowExamModal] = useState(false);
   const [examForm, setExamForm] = useState<{
@@ -210,6 +240,7 @@ export default function ExamQuestionManagementView() {
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [editingQuestionSet, setEditingQuestionSet] = useState<QuestionSet | null>(null);
   const [questionForm, setQuestionForm] = useState<{
+    itemCode: string;
     classId: string;
     className: string;
     setName: string;
@@ -224,6 +255,7 @@ export default function ExamQuestionManagementView() {
     instructions: string;
     isActive: boolean;
   }>({
+    itemCode: "",
     classId: "cls_1",
     className: "১ম শ্রেণি",
     setName: "",
@@ -242,6 +274,114 @@ export default function ExamQuestionManagementView() {
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [customSubjectInput, setCustomSubjectInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const examTabsRef = useRef<HTMLDivElement>(null);
+  const classTabsRef = useRef<HTMLDivElement>(null);
+
+  const scrollElementToCenter = useCallback((el: HTMLElement | null, containerEl?: HTMLElement | null) => {
+    if (!el) return;
+    const container = containerEl || (el.closest('.no-scrollbar') as HTMLElement) || (el.parentElement as HTMLElement);
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const currentScrollLeft = container.scrollLeft;
+      const targetScrollLeft =
+        currentScrollLeft +
+        (elRect.left - containerRect.left) -
+        containerRect.width / 2 +
+        elRect.width / 2;
+
+      container.scrollTo({
+        left: Math.max(0, targetScrollLeft),
+        behavior: "smooth",
+      });
+    }
+  }, []);
+
+  // Isolate horizontal wheel scrolling so it never scrolls the main page vertically at the same time
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (delta !== 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        const container = e.currentTarget as HTMLElement;
+        container.scrollLeft += delta;
+      }
+    };
+
+    const examEl = examTabsRef.current;
+    const classEl = classTabsRef.current;
+
+    if (examEl) examEl.addEventListener("wheel", handleWheel, { passive: false });
+    if (classEl) classEl.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      if (examEl) examEl.removeEventListener("wheel", handleWheel);
+      if (classEl) classEl.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
+
+  // Auto-center active exam button in scroll container
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (examTabsRef.current) {
+        const activeEl = examTabsRef.current.querySelector('[data-active="true"]') as HTMLElement;
+        if (activeEl) {
+          scrollElementToCenter(activeEl, examTabsRef.current);
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [activeExamId, sessions, scrollElementToCenter]);
+
+  // Auto-center active class button in scroll container
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (classTabsRef.current) {
+        const activeEl = classTabsRef.current.querySelector('[data-active="true"]') as HTMLElement;
+        if (activeEl) {
+          scrollElementToCenter(activeEl, classTabsRef.current);
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [selectedClassFilter, curriculumClasses, scrollElementToCenter]);
+
+  // Add Class Modal State
+  const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [newClassNameInput, setNewClassNameInput] = useState("");
+  const [savingClass, setSavingClass] = useState(false);
+
+  const handleCreateNewClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = newClassNameInput.trim();
+    if (!cleanName) {
+      alert({ title: "সতর্কতা", message: "শ্রেণির নাম লিখুন", type: "warning" });
+      return;
+    }
+    setSavingClass(true);
+    try {
+      const res = await fetch("/api/curriculum/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: cleanName, order: availableClasses.length }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create class");
+
+      alert({ title: "সফল", message: `"${cleanName}" শ্রেণি সফলভাবে যুক্ত হয়েছে`, type: "success" });
+      setShowAddClassModal(false);
+      setNewClassNameInput("");
+      await fetchCurriculum();
+      if (data.id) {
+        setSelectedClassFilter(String(data.id));
+      }
+    } catch (err: any) {
+      alert({ title: "ত্রুটি", message: err.message, type: "error" });
+    } finally {
+      setSavingClass(false);
+    }
+  };
 
   // PDF Preview Modal
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
@@ -296,13 +436,16 @@ export default function ExamQuestionManagementView() {
     fetchCurriculum();
   }, []);
 
-  // Derived Classes from Curriculum with stable IDs
-  const availableClasses = useMemo<{ id: string; name: string }[]>(() => {
+  // Derived Classes from Curriculum with stable English ID handlers
+  const availableClasses = useMemo<{ id: string; name: string; rawId?: string }[]>(() => {
     if (curriculumClasses.length > 0) {
-      return curriculumClasses.map((c) => ({
-        id: String(c.id),
-        name: c.name,
-      }));
+      return curriculumClasses
+        .filter((c) => c.name && c.name !== "_YEAR_ANCHOR_")
+        .map((c) => ({
+          id: getCanonicalClassId(c.name, curriculumClasses), // Unique English ID handler e.g. cls_1
+          rawId: String(c.id),
+          name: c.name,
+        }));
     }
     return DEFAULT_PRESET_CLASSES.map((p) => ({
       id: p.id,
@@ -312,7 +455,9 @@ export default function ExamQuestionManagementView() {
 
   // Derived Books for Selected Class from Curriculum
   const availableBooksForSelectedClass = useMemo(() => {
-    const curClass = curriculumClasses.find((c) => c.name === questionForm.className);
+    const curClass = curriculumClasses.find(
+      (c) => c.name === questionForm.className && c.name !== "_YEAR_ANCHOR_"
+    );
     if (curClass && curClass.books && curClass.books.length > 0) {
       return curClass.books.map((b) => b.title);
     }
@@ -322,13 +467,15 @@ export default function ExamQuestionManagementView() {
   // Derived Exams from Curriculum
   const availableCurriculumExams = useMemo(() => {
     const examSet = new Set<string>();
-    curriculumClasses.forEach((c) => {
-      c.examYears?.forEach((y) => {
-        y.exams?.forEach((e) => {
-          if (e.name) examSet.add(e.name);
+    curriculumClasses
+      .filter((c) => c.name !== "_YEAR_ANCHOR_")
+      .forEach((c) => {
+        c.examYears?.forEach((y) => {
+          y.exams?.forEach((e) => {
+            if (e.name) examSet.add(e.name);
+          });
         });
       });
-    });
     const list = Array.from(examSet);
     if (list.length === 0) {
       return ["১ম সাময়িক পরীক্ষা", "২য় সাময়িক পরীক্ষা", "বার্ষিক পরীক্ষা", "কেন্দ্রীয় সমাপনী পরীক্ষা", "বিশেষ পরীক্ষা"];
@@ -356,13 +503,18 @@ export default function ExamQuestionManagementView() {
     }
   };
 
-  // Filtered Question Sets
+  // Filtered Question Sets with robust English ID matching
   const filteredQuestionSets = useMemo(() => {
     if (!activeExam || !activeExam.questionSets) return [];
     return activeExam.questionSets.filter((q) => {
       if (selectedClassFilter !== "ALL") {
-        const qCId = q.classId || generateClassId(q.className);
-        if (qCId !== selectedClassFilter && q.className !== selectedClassFilter) {
+        const qCId = getCanonicalClassId(q.classId || q.className, curriculumClasses);
+        const targetCId = getCanonicalClassId(selectedClassFilter, curriculumClasses);
+        if (
+          qCId !== targetCId &&
+          q.classId !== selectedClassFilter &&
+          q.className !== selectedClassFilter
+        ) {
           return false;
         }
       }
@@ -370,15 +522,24 @@ export default function ExamQuestionManagementView() {
         const query = searchQuery.toLowerCase().trim();
         const cName = (q.className || "").toLowerCase();
         const sName = (q.setName || "").toLowerCase();
+        const iCode = (q.itemCode || "").toLowerCase();
+        const cId = (q.classId || "").toLowerCase();
         const det = (q.details || "").toLowerCase();
         const subs = (q.subjects || []).join(" ").toLowerCase();
-        if (!cName.includes(query) && !sName.includes(query) && !det.includes(query) && !subs.includes(query)) {
+        if (
+          !cName.includes(query) &&
+          !sName.includes(query) &&
+          !iCode.includes(query) &&
+          !cId.includes(query) &&
+          !det.includes(query) &&
+          !subs.includes(query)
+        ) {
           return false;
         }
       }
       return true;
     });
-  }, [activeExam, selectedClassFilter, searchQuery]);
+  }, [activeExam, selectedClassFilter, searchQuery, curriculumClasses]);
 
   // Session Creation & Edit Handlers
   const handleOpenCreateSession = () => {
@@ -637,6 +798,13 @@ export default function ExamQuestionManagementView() {
       return;
     }
 
+    const finalClassId = getCanonicalClassId(questionForm.classId || questionForm.className, curriculumClasses);
+    const finalItemCode = (
+      questionForm.itemCode ||
+      editingQuestionSet?.itemCode ||
+      generateItemCode(finalClassId, activeExam.code, questionForm.setName)
+    ).trim();
+
     setSavingQuestion(true);
     try {
       if (editingQuestionSet && editingQuestionSet._id) {
@@ -647,7 +815,8 @@ export default function ExamQuestionManagementView() {
           body: JSON.stringify({
             examId: activeExam._id,
             questionSetId: editingQuestionSet._id,
-            classId: questionForm.classId || generateClassId(questionForm.className),
+            itemCode: finalItemCode,
+            classId: finalClassId,
             className: questionForm.className,
             setName: questionForm.setName,
             pricePerSet: questionForm.pricePerSet,
@@ -671,7 +840,8 @@ export default function ExamQuestionManagementView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             examId: activeExam._id,
-            classId: questionForm.classId || generateClassId(questionForm.className),
+            itemCode: finalItemCode,
+            classId: finalClassId,
             className: questionForm.className,
             setName: questionForm.setName,
             pricePerSet: questionForm.pricePerSet,
@@ -726,11 +896,54 @@ export default function ExamQuestionManagementView() {
     }
   };
 
+  // Toggle Question Set Active Status
+  const handleToggleQuestionSetStatus = async (q: QuestionSet) => {
+    if (!activeSession || !activeExam || !q._id) return;
+    const newStatus = !q.isActive;
+    try {
+      const res = await fetch(`/api/admin/exams/${activeSession._id}/questions`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          examId: activeExam._id,
+          questionSetId: q._id,
+          isActive: newStatus,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "স্ট্যাটাস আপডেট করা সম্ভব হয়নি");
+      }
+      setSessions((prevSessions) =>
+        prevSessions.map((s) => {
+          if (String(s._id) !== String(activeSession._id)) return s;
+          return {
+            ...s,
+            exams: s.exams.map((e) => {
+              if (String(e._id) !== String(activeExam._id)) return e;
+              return {
+                ...e,
+                questionSets: e.questionSets.map((item) => {
+                  if (String(item._id) !== String(q._id)) return item;
+                  return { ...item, isActive: newStatus };
+                }),
+              };
+            }),
+          };
+        })
+      );
+    } catch (err: any) {
+      alert({ title: "ত্রুটি", message: err.message, type: "error" });
+    }
+  };
+
   // Open Edit Modal
   const handleOpenEditQuestionModal = (q: QuestionSet) => {
     setEditingQuestionSet(q);
+    const finalClassId = getCanonicalClassId(q.classId || q.className, curriculumClasses);
     setQuestionForm({
-      classId: q.classId || generateClassId(q.className),
+      itemCode: q.itemCode || generateItemCode(finalClassId, activeExam?.code, q.setName),
+      classId: finalClassId,
       className: q.className,
       setName: q.setName,
       pricePerSet: q.pricePerSet || 0,
@@ -816,9 +1029,9 @@ export default function ExamQuestionManagementView() {
 
         let discountDisplay = "-";
         if (discountPercent > 0) {
-          discountDisplay = `${toBn(discountPercent)}%`;
+          discountDisplay = `${discountPercent}%`;
         } else if (discountAmount > 0) {
-          discountDisplay = `${toBn(discountAmount.toFixed(2))} ৳`;
+          discountDisplay = `${discountAmount.toFixed(2)} ৳`;
         }
 
         return `
@@ -827,9 +1040,9 @@ export default function ExamQuestionManagementView() {
             <td style="font-weight: 700; width: 85px;">${q.className}</td>
             <td style="font-weight: 600; width: 130px;">${q.setName}</td>
             <td style="font-size: 9.5px; line-height: 1.35; color: #000000;">${subjectsStr}</td>
-            <td style="text-align: right; font-weight: 700; width: 80px;">${toBn(price.toFixed(2))} ৳</td>
+            <td style="text-align: right; font-weight: 700; width: 80px;">${price.toFixed(2)} ৳</td>
             <td style="text-align: center; font-weight: 700; width: 65px;">${discountDisplay}</td>
-            <td style="text-align: right; font-weight: 800; width: 85px;">${toBn(centerPrice.toFixed(2))} ৳</td>
+            <td style="text-align: right; font-weight: 800; width: 85px;">${centerPrice.toFixed(2)} ৳</td>
             <td style="text-align: center; width: 75px; font-size: 9.5px; font-weight: 600;">${q.attachmentUrl ? "PDF সংলগ্ন" : "মুদ্রিত কপি"}</td>
           </tr>
         `;
@@ -1082,10 +1295,10 @@ export default function ExamQuestionManagementView() {
               <tfoot>
                 <tr>
                   <td colspan="4" style="text-align: right; font-weight: 800; padding-right: 8px;">সর্বমোট প্রতি ১ সেট (সকল শ্রেণি একত্রে):</td>
-                  <td style="text-align: right; font-weight: 800;">${toBn(totalRegular.toFixed(2))} ৳</td>
+                  <td style="text-align: right; font-weight: 800;">${totalRegular.toFixed(2)} ৳</td>
                   <td style="text-align: center; font-weight: 700; font-size: 9px;">—</td>
-                  <td style="text-align: right; font-weight: 800;">${toBn(totalCenter.toFixed(2))} ৳</td>
-                  <td style="text-align: center; font-size: 8.5px; font-weight: 700;">সাশ্রয়: ${toBn(totalSavings.toFixed(2))} ৳</td>
+                  <td style="text-align: right; font-weight: 800;">${totalCenter.toFixed(2)} ৳</td>
+                  <td style="text-align: center; font-size: 8.5px; font-weight: 700;">সাশ্রয়: ${totalSavings.toFixed(2)} ৳</td>
                 </tr>
               </tfoot>
             </table>
@@ -1133,345 +1346,434 @@ export default function ExamQuestionManagementView() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* 1. Header */}
-      <div className="flex items-center gap-2 pb-1">
-        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-          <FileCheck className="w-4 h-4" />
-        </div>
-        <h2 className="text-lg font-bold text-slate-800">পরীক্ষা ও প্রশ্নপত্র পরিচালনা</h2>
-      </div>
-
-      {/* SECTION 1: সেশন ও শিক্ষাবর্ষ */}
-      <div className="bg-white rounded-xl p-3.5 shadow-sm border border-slate-100 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-xs font-bold text-slate-800">১. শিক্ষাবর্ষ ও সেশন</h3>
+    <div className="space-y-3">
+      {/* 1. Header with Session Dropdown on the Right */}
+      <div className="flex items-center justify-between gap-2 pb-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+            <FileCheck className="w-4 h-4" />
           </div>
+          <h2 className="text-sm sm:text-lg font-bold text-slate-800 truncate">পরীক্ষা ও প্রশ্নপত্র পরিচালনা</h2>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleOpenCreateSession}
-              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-lg border border-emerald-200 transition-all cursor-pointer"
+        {/* Session Dropdown on the Right Side */}
+        <div className="relative inline-block text-left shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setShowSessionDropdown(!showSessionDropdown)}
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-semibold text-slate-800 shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+          >
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="font-bold">{activeSession?.title?.trim() || activeSession?.sessionYear || "সেশন নির্বাচন"}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${showSessionDropdown ? "rotate-180" : ""}`} />
+          </button>
+
+          {showSessionDropdown && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150 text-left"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>সেশন যোগ</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Sessions Pills */}
-        <div className="flex items-center gap-2 flex-wrap pb-0.5 max-w-full">
-          {sessions.length === 0 ? (
-            <span className="text-xs text-slate-400">কোনো সেশন তৈরি করা হয়নি। "+ সেশন যোগ" করুন।</span>
-          ) : (
-            sessions.map((s) => {
-              const isSelected = String(activeSessionId) === String(s._id);
-              const displayName = s.title?.trim() || s.sessionYear;
-              const isMenuOpen = openSessionMenuId === String(s._id);
-
-              return (
-                <div
-                  key={String(s._id)}
-                  className={`relative inline-flex items-center rounded-lg border transition-all ${
-                    isSelected
-                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
+              <div className="px-3 pb-2 mb-1 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">শিক্ষাবর্ষ ও সেশন</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSessionDropdown(false);
+                    handleOpenCreateSession();
+                  }}
+                  className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 hover:underline"
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleSelectSession(String(s._id))}
-                    className="px-3 py-1.5 text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>{displayName}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-                      }`}
-                    >
-                      {s.exams?.length || 0} পরীক্ষা
-                    </span>
-                  </button>
+                  <Plus className="w-3 h-3" />
+                  <span>নতুন সেশন</span>
+                </button>
+              </div>
 
-                  {/* Three-Dot Options Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenSessionMenuId(isMenuOpen ? null : String(s._id));
-                    }}
-                    className={`p-1.5 mr-0.5 rounded-md hover:bg-black/10 transition-colors cursor-pointer ${
-                      isSelected ? "text-white/80 hover:text-white" : "text-slate-400 hover:text-slate-700"
-                    }`}
-                    title="সেশন অপশন (এডিট / মুছুন)"
-                  >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                  </button>
+              <div className="max-h-60 overflow-y-auto py-0.5 space-y-0.5">
+                {sessions.length === 0 ? (
+                  <p className="text-xs text-slate-400 p-3 text-center">কোনো সেশন পাওয়া যায়নি</p>
+                ) : (
+                  sessions.map((s) => {
+                    const isSelected = String(activeSessionId) === String(s._id);
+                    const displayName = s.title?.trim() || s.sessionYear;
 
-                  {/* Dropdown Menu */}
-                  {isMenuOpen && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-150 text-slate-700"
-                    >
-                      <button
-                        type="button"
+                    return (
+                      <div
+                        key={String(s._id)}
+                        className={`flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors cursor-pointer group ${
+                          isSelected ? "bg-emerald-50 text-emerald-800 font-bold" : "text-slate-700 hover:bg-slate-50"
+                        }`}
                         onClick={() => {
-                          setOpenSessionMenuId(null);
-                          handleOpenEditSession(s);
+                          handleSelectSession(String(s._id));
+                          setShowSessionDropdown(false);
                         }}
-                        className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer text-left"
                       >
-                        <Edit2 className="w-3.5 h-3.5 text-blue-500" />
-                        <span>সেশন এডিট</span>
-                      </button>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-emerald-600" : "bg-transparent group-hover:bg-slate-300"}`} />
+                          <span className="truncate">{displayName}</span>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                            isSelected ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                          }`}>
+                            {toBn(s.exams?.length || 0)}
+                          </span>
+                        </div>
 
-                      <div className="h-px bg-slate-100 my-0.5" />
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowSessionDropdown(false);
+                              handleOpenEditSession(s);
+                            }}
+                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                            title="সেশন এডিট"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowSessionDropdown(false);
+                              setSessionToDelete(s);
+                            }}
+                            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-600 transition-colors"
+                            title="সেশন মুছুন"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenSessionMenuId(null);
-                          setSessionToDelete(s);
-                        }}
-                        className="w-full px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer text-left"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        <span>সেশন মুছুন</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })
+              <div className="mt-1 pt-1.5 border-t border-slate-100 px-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSessionDropdown(false);
+                    handleOpenCreateSession();
+                  }}
+                  className="w-full py-1.5 px-3 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ নতুন সেশন যোগ করুন</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* SECTION 2: সেশনের পরীক্ষাসমূহ */}
+      {/* SECTION 2 & 3: পরীক্ষা, শ্রেণি সিলেকশন ও প্রশ্নপত্র সেট (Unified Container - No Gap) */}
       {activeSession && (
-        <div className="bg-white rounded-xl p-3.5 shadow-sm border border-slate-100 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-xs font-bold text-slate-800">
-                ২. {activeSession.title?.trim() || activeSession.sessionYear} সেশনের পরীক্ষাসমূহ ({activeSession.exams?.length || 0})
-              </h3>
-            </div>
-
-            <button
-              onClick={() => {
-                const sName = activeSession.title?.trim() || activeSession.sessionYear;
-                setExamForm({
-                  name: availableCurriculumExams[0] ? `${availableCurriculumExams[0]} ${sName}` : `১ম সাময়িক পরীক্ষা ${sName}`,
-                  code: `SEM-${Date.now().toString().slice(-4)}`,
-                  examTerm: "১ম সাময়িক",
-                  startDate: "",
-                  endDate: "",
-                  status: "ACTIVE",
-                });
-                setShowExamModal(true);
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 space-y-0">
+          {/* 1. Exams & Classes Tabs Container */}
+          <div className="p-3 space-y-2.5 rounded-t-2xl">
+            {/* 1. Exams Scrollable Row with Rounded Buttons & Dashed Border New Exam Button */}
+          <div>
+            <div
+              ref={examTabsRef}
+              className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth w-full min-w-0 flex-nowrap touch-pan-x overscroll-x-contain"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-x",
+                overscrollBehaviorX: "contain",
               }}
-              className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-all shadow-sm"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>পরীক্ষা যোগ</span>
-            </button>
-          </div>
+              {activeSession.exams && activeSession.exams.length > 0 ? (
+                activeSession.exams.map((exam) => {
+                  const isSelected = activeExamId === exam._id;
+                  const eKey = String(exam._id);
+                  const isExamMenuOpen = openExamMenuId === eKey;
 
-          {/* Exam Cards with Auto Date Status Badge */}
-          {activeSession.exams && activeSession.exams.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {activeSession.exams.map((exam) => {
-                const isSelected = activeExamId === exam._id;
-                const totalSets = exam.questionSets?.length || 0;
-                const statusInfo = getExamStatusByDate(exam.startDate, exam.endDate, exam.status);
+                  return (
+                    <div
+                      key={exam._id}
+                      data-active={isSelected}
+                      onClick={(e) => {
+                        setActiveExamId(exam._id);
+                        scrollElementToCenter(e.currentTarget, examTabsRef.current);
+                      }}
+                      className={`group relative inline-flex items-center gap-1.5 rounded-full pl-4 pr-1.5 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer border shadow-2xs shrink-0 ${
+                        isSelected
+                          ? "bg-slate-900 text-white border-slate-900 ring-2 ring-slate-900/10 shadow-sm"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                      }`}
+                    >
+                      <span>{exam.name}</span>
 
-                return (
-                  <div
-                    key={exam._id}
-                    onClick={() => setActiveExamId(exam._id)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-                      isSelected
-                        ? "bg-emerald-50/40 border-emerald-500 ring-2 ring-emerald-500/10 shadow-sm"
-                        : "bg-slate-50/50 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-xs text-slate-800">{exam.name}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusInfo.colorClass}`}>
-                        {statusInfo.badgeText}
-                      </span>
-                    </div>
-
-                    {exam.startDate && (
-                      <div className="text-[10px] text-slate-500 font-medium my-0.5">
-                        📅 {exam.startDate} {exam.endDate ? `– ${exam.endDate}` : ""}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200/60">
-                      <span className="font-medium text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700">
-                        {totalSets} টি প্রশ্ন সেট
-                      </span>
-                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      {/* 3-dot options menu */}
+                      <div className="relative inline-block ml-0.5" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => {
-                            setExamForm({
-                              _id: exam._id,
-                              name: exam.name,
-                              code: exam.code || "",
-                              examTerm: exam.examTerm || "১ম সাময়িক",
-                              startDate: exam.startDate || "",
-                              endDate: exam.endDate || "",
-                              status: exam.status || "ACTIVE",
-                            });
-                            setShowExamModal(true);
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenExamMenuId(isExamMenuOpen ? null : eKey);
                           }}
-                          className="p-1 text-slate-400 hover:text-emerald-700 rounded hover:bg-slate-200"
-                          title="এডিট"
+                          className={`p-1 rounded-full transition-colors cursor-pointer ${
+                            isSelected
+                              ? "text-white/70 hover:text-white hover:bg-white/15"
+                              : "text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+                          }`}
+                          title="পরীক্ষা অপশন"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <MoreVertical className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteExam(exam._id)}
-                          className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-100"
-                          title="মুছুন"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+
+                        {isExamMenuOpen && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute left-0 top-full mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-150 text-slate-700 text-left"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenExamMenuId(null);
+                                setExamForm({
+                                  _id: exam._id,
+                                  name: exam.name,
+                                  code: exam.code || "",
+                                  examTerm: exam.examTerm || "১ম সাময়িক",
+                                  startDate: exam.startDate || "",
+                                  endDate: exam.endDate || "",
+                                  status: exam.status || "ACTIVE",
+                                });
+                                setShowExamModal(true);
+                              }}
+                              className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-700 flex items-center gap-2 transition-colors cursor-pointer text-left"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                              <span>পরীক্ষা এডিট</span>
+                            </button>
+
+                            <div className="h-px bg-slate-100 my-0.5" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenExamMenuId(null);
+                                handleDeleteExam(exam._id);
+                              }}
+                              className="w-full px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer text-left"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                              <span>পরীক্ষা মুছুন</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="p-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-              <p className="text-xs text-slate-500 mb-2">এই সেশনের অধীনে কোনো পরীক্ষা নেই।</p>
+                  );
+                })
+              ) : (
+                <span className="text-xs text-slate-400 py-1 px-2">এই সেশনে কোনো পরীক্ষা তৈরি করা হয়নি।</span>
+              )}
+
+              {/* Dashed Border New Exam Button */}
               <button
+                type="button"
                 onClick={() => {
-                  const sName = activeSession.title?.trim() || activeSession.sessionYear;
+                  const sName = activeSession?.title?.trim() || activeSession?.sessionYear || "";
+                  const defaultTerm = availableCurriculumExams[0] || "১ম সাময়িক";
+                  const defaultName = availableCurriculumExams[0] ? `${availableCurriculumExams[0]} ${sName}` : `১ম সাময়িক পরীক্ষা ${sName}`;
                   setExamForm({
-                    name: availableCurriculumExams[0] ? `${availableCurriculumExams[0]} ${sName}` : `১ম সাময়িক পরীক্ষা ${sName}`,
-                    code: `SEM-${Date.now().toString().slice(-4)}`,
-                    examTerm: "১ম সাময়িক",
+                    name: defaultName,
+                    code: generateExamCode(defaultName, defaultTerm),
+                    examTerm: defaultTerm,
                     startDate: "",
                     endDate: "",
                     status: "ACTIVE",
                   });
                   setShowExamModal(true);
                 }}
-                className="px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-dashed border-emerald-400 bg-emerald-50/60 hover:bg-emerald-100 hover:border-emerald-600 text-emerald-800 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer shadow-2xs shrink-0"
               >
-                + প্রথম পরীক্ষা যোগ করুন
+                <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                <span>নতুন পরীক্ষা</span>
               </button>
             </div>
-          )}
-        </div>
-      )}
+          </div>
 
-      {/* SECTION 3: শ্রেণিভিত্তিক প্রশ্নপত্র সেট ও ক্যাটালগ */}
-      {activeExam && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden space-y-0">
-          {/* Section 3 Header with its own Actions */}
-          <div className="p-3.5 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-emerald-700" />
-              <h3 className="text-xs font-bold text-slate-800">
-                ৩. {activeExam.name} — প্রশ্নপত্র সেট
-              </h3>
-              <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200">
-                {filteredQuestionSets.length} সেট
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              {/* Print Catalog Button in its own section */}
+          {/* 2. Classes Scrollable Row with Rounded Buttons (Directly Below Exams) */}
+          <div className="pt-2.5 border-t border-slate-100">
+            <div
+              ref={classTabsRef}
+              className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth w-full min-w-0 flex-nowrap touch-pan-x overscroll-x-contain"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-x",
+                overscrollBehaviorX: "contain",
+              }}
+            >
+              {/* 'All Classes' Rounded Tab Button */}
               <button
-                onClick={handlePrintQuestionCatalog}
-                disabled={filteredQuestionSets.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-sm transition-all disabled:opacity-50"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>ক্যাটালগ প্রিন্ট</span>
-              </button>
-
-              {/* Add Question Set Button */}
-              <button
-                onClick={() => {
-                  const initialClassObj = availableClasses[0] || { id: "cls_1", name: "১ম শ্রেণি" };
-                  const initialClass = initialClassObj.name;
-                  const initialClassId = initialClassObj.id;
-                  const initialBooks = curriculumClasses.find((c) => c.name === initialClass || c.id === initialClassId)?.books?.map((b) => b.title) || DEFAULT_PRESET_SUBJECTS.slice(0, 5);
-                  setEditingQuestionSet(null);
-                  setQuestionForm({
-                    classId: initialClassId,
-                    className: initialClass,
-                    setName: `${initialClass} প্রশ্নপত্র সেট`,
-                    pricePerSet: 15,
-                    centerDiscountPercent: 15,
-                    centerDiscountAmount: 0,
-                    attachmentUrl: "",
-                    attachmentName: "",
-                    attachmentSize: "",
-                    details: "",
-                    subjects: initialBooks,
-                    instructions: "",
-                    isActive: true,
-                  });
-                  setShowQuestionModal(true);
+                type="button"
+                data-active={selectedClassFilter === "ALL"}
+                onClick={(e) => {
+                  setSelectedClassFilter("ALL");
+                  scrollElementToCenter(e.currentTarget, classTabsRef.current);
                 }}
-                className="px-3.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1 transition-all"
+                className={`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer border shrink-0 shadow-2xs ${
+                  selectedClassFilter === "ALL"
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                }`}
+              >
+                <span>সকল শ্রেণি</span>
+                <span
+                  className={`ml-1.5 text-xs font-medium ${
+                    selectedClassFilter === "ALL" ? "text-emerald-100" : "text-slate-400"
+                  }`}
+                >
+                  {toBn(activeExam?.questionSets?.length || 0)}
+                </span>
+              </button>
+
+              {/* Class Rounded Tab Buttons */}
+              {availableClasses.map((c) => {
+                const isClassSelected =
+                  selectedClassFilter === c.id ||
+                  selectedClassFilter === c.name ||
+                  selectedClassFilter === c.rawId;
+
+                const count =
+                  activeExam?.questionSets?.filter((q) => {
+                    const qCId = getCanonicalClassId(q.classId || q.className, curriculumClasses);
+                    return (
+                      qCId === c.id ||
+                      q.classId === c.id ||
+                      q.classId === c.rawId ||
+                      q.className === c.name
+                    );
+                  }).length || 0;
+
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    data-active={isClassSelected}
+                    onClick={(e) => {
+                      setSelectedClassFilter(c.id);
+                      scrollElementToCenter(e.currentTarget, classTabsRef.current);
+                    }}
+                    className={`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer border shrink-0 shadow-2xs ${
+                      isClassSelected
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                    }`}
+                  >
+                    <span>{c.name}</span>
+                    {count > 0 && (
+                      <span
+                        className={`ml-1.5 text-xs font-medium ${
+                          isClassSelected ? "text-emerald-100" : "text-slate-400"
+                        }`}
+                      >
+                        {toBn(count)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* + নতুন শ্রেণি Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setNewClassNameInput("");
+                  setShowAddClassModal(true);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-dashed border-slate-300 hover:border-emerald-600 bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 shadow-2xs"
+                title="নতুন শ্রেণি যোগ করুন"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>প্রশ্ন সেট যোগ</span>
+                <span>নতুন শ্রেণি</span>
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Section 3 Filter & Search Toolbar */}
-          <div className="p-3 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
-            {/* Dynamic Class Filter from Curriculum */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500 font-medium">শ্রেণি ফিল্টার:</span>
-              <select
-                value={selectedClassFilter}
-                onChange={(e) => setSelectedClassFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:border-emerald-600"
-              >
-                <option value="ALL">সকল শ্রেণি (কারিকুলাম)</option>
-                {availableClasses.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+          {/* 2. Search & Action Bar - Attached Directly to Top with Zero Gap */}
+          {activeExam && (
+            <>
+              <div className="sticky -top-3 md:-top-8 z-30 bg-white p-2.5 pt-3.5 sm:p-3 border-t border-b border-slate-200/80 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="প্রশ্ন সেট খুঁজুন (শ্রেণি বা সেটের নাম)..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-9 py-2.5 sm:py-3 text-xs sm:text-sm rounded-2xl border border-slate-200/90 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-slate-50/80 hover:bg-white focus:bg-white shadow-2xs transition-all placeholder:text-slate-400"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
 
-            {/* Search */}
-            <div className="relative w-full sm:w-56">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="প্রশ্ন সেট খুঁজুন..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-6 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 bg-white"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
+                  {/* Catalog Print Button: Icon-only on mobile, icon + text on sm+ */}
+                  <button
+                    type="button"
+                    onClick={handlePrintQuestionCatalog}
+                    disabled={filteredQuestionSets.length === 0}
+                    title="ক্যাটালগ প্রিন্ট করুন"
+                    className="shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-3 h-[42px] sm:h-[46px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold rounded-2xl border border-slate-200 shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-slate-700" />
+                    <span className="hidden sm:inline">ক্যাটালগ প্রিন্ট</span>
+                  </button>
+
+                  {/* Add Question Set Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const initialClassObj = availableClasses[0] || { id: "cls_1", name: "১ম শ্রেণি" };
+                      const initialClass = initialClassObj.name;
+                      const initialClassId = initialClassObj.id;
+                      const initialBooks = curriculumClasses.find((c) => c.name === initialClass || c.id === initialClassId)?.books?.map((b) => b.title) || DEFAULT_PRESET_SUBJECTS.slice(0, 5);
+                      setEditingQuestionSet(null);
+                      const initialSetName = `${initialClass} প্রশ্নপত্র সেট`;
+                      setQuestionForm({
+                        itemCode: generateItemCode(initialClassId, activeExam?.code, initialSetName),
+                        classId: initialClassId,
+                        className: initialClass,
+                        setName: initialSetName,
+                        pricePerSet: 15,
+                        centerDiscountPercent: 15,
+                        centerDiscountAmount: 0,
+                        attachmentUrl: "",
+                        attachmentName: "",
+                        attachmentSize: "",
+                        details: "",
+                        subjects: initialBooks,
+                        instructions: "",
+                        isActive: true,
+                      });
+                      setShowQuestionModal(true);
+                    }}
+                    className="shrink-0 flex items-center justify-center gap-1 px-3 sm:px-4 py-2.5 sm:py-3 h-[42px] sm:h-[46px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-2xs transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">প্রশ্ন সেট যোগ</span>
+                    <span className="sm:hidden">নতুন</span>
+                  </button>
+                </div>
+              </div>
 
           {/* Desktop Table View (lg screens) */}
-          <div className="hidden lg:block overflow-x-auto">
+          <div className="hidden lg:block overflow-x-auto min-h-[240px] rounded-b-2xl">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-slate-600 text-xs border-b border-slate-200 font-semibold">
@@ -1482,7 +1784,7 @@ export default function ExamQuestionManagementView() {
                   <th className="px-3.5 py-2.5 min-w-[170px]">PDF প্রশ্নপত্র</th>
                   <th className="px-3.5 py-2.5 min-w-[200px]">বিষয় (বইসমূহ)</th>
                   <th className="px-3.5 py-2.5 w-20 text-center">স্ট্যাটাস</th>
-                  <th className="px-3.5 py-2.5 w-20 text-right">অ্যাকশন</th>
+                  <th className="px-3.5 py-2.5 w-16 text-right">অ্যাকশন</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -1497,18 +1799,23 @@ export default function ExamQuestionManagementView() {
                     const price = q.pricePerSet || 0;
                     const discount = q.centerDiscountPercent || 0;
                     const centerPrice = q.effectiveCenterPrice || (discount > 0 ? price - (price * discount) / 100 : price);
+                    const qKey = String(q._id || `${q.className}_${q.setName}_${idx}`);
+                    const isQuestionMenuOpen = openQuestionMenuId === qKey;
+                    const isLastRows = filteredQuestionSets.length > 2 && idx >= filteredQuestionSets.length - 2;
 
                     return (
                       <tr key={q._id || idx} className="hover:bg-slate-50/60 transition-colors">
                         <td className="px-3.5 py-2.5 text-center text-slate-400 font-mono">
-                          {idx + 1}
+                          {toBn(idx + 1)}
                         </td>
                         <td className="px-3.5 py-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[10px]">
-                              {q.className}
-                            </span>
-                            <span className="font-semibold text-slate-800">{q.setName}</span>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-lg text-[11px] border border-emerald-200/70">
+                                {q.className}
+                              </span>
+                            </div>
+                            <span className="font-semibold text-slate-800 text-xs">{q.setName}</span>
                           </div>
                         </td>
                         <td className="px-3.5 py-2.5 font-mono font-bold text-slate-700">
@@ -1535,7 +1842,7 @@ export default function ExamQuestionManagementView() {
                                 }}
                                 className="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1 text-[11px]"
                               >
-                                <Eye className="w-3 h-3" />
+                                <FileText className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>দেখুন</span>
                               </button>
                               <a
@@ -1568,21 +1875,104 @@ export default function ExamQuestionManagementView() {
                           <span className={`inline-block w-2 h-2 rounded-full ${q.isActive ? "bg-emerald-500" : "bg-slate-300"}`} title={q.isActive ? "সক্রিয়" : "নিষ্ক্রিয়"} />
                         </td>
                         <td className="px-3.5 py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="relative inline-block text-left">
                             <button
-                              onClick={() => handleOpenEditQuestionModal(q)}
-                              className="p-1 hover:bg-slate-100 text-slate-500 hover:text-emerald-700 rounded"
-                              title="এডিট"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenQuestionMenuId(isQuestionMenuOpen ? null : qKey);
+                              }}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isQuestionMenuOpen
+                                  ? "bg-slate-200 text-slate-800"
+                                  : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                              }`}
+                              title="আরও অপশন"
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <MoreVertical className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => q._id && handleDeleteQuestionSet(q._id)}
-                              className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded"
-                              title="মুছুন"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+
+                            {isQuestionMenuOpen && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className={`absolute right-0 ${
+                                  isLastRows
+                                    ? "bottom-full mb-1 origin-bottom-right"
+                                    : "top-full mt-1 origin-top-right"
+                                } w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-slate-700 text-left`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenQuestionMenuId(null);
+                                    handleOpenEditQuestionModal(q);
+                                  }}
+                                  className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                                  <span>সম্পাদনা করুন</span>
+                                </button>
+
+                                {q.attachmentUrl && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenQuestionMenuId(null);
+                                        setPreviewPdfUrl(q.attachmentUrl || null);
+                                        setPreviewPdfTitle(`${q.className} — ${q.setName}`);
+                                      }}
+                                      className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>PDF প্রিভিউ</span>
+                                    </button>
+
+                                    <a
+                                      href={q.attachmentUrl}
+                                      download={q.attachmentName || `${q.className}_${q.setName}.pdf`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setOpenQuestionMenuId(null)}
+                                      className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-purple-700 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                                    >
+                                      <FileDown className="w-3.5 h-3.5 text-purple-600" />
+                                      <span>PDF ডাউনলোড</span>
+                                    </a>
+                                  </>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenQuestionMenuId(null);
+                                    handleToggleQuestionSetStatus(q);
+                                  }}
+                                  className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer text-left flex items-center gap-2.5"
+                                >
+                                  <span
+                                    className={`w-2 h-2 rounded-full ${
+                                      q.isActive ? "bg-emerald-500" : "bg-slate-400"
+                                    }`}
+                                  />
+                                  <span>{q.isActive ? "নিষ্ক্রিয় করুন" : "সক্রিয় করুন"}</span>
+                                </button>
+
+                                <div className="h-px bg-slate-100 my-1" />
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenQuestionMenuId(null);
+                                    if (q._id) handleDeleteQuestionSet(q._id);
+                                  }}
+                                  className="w-full px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                  <span>মুছে ফেলুন</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1594,9 +1984,9 @@ export default function ExamQuestionManagementView() {
           </div>
 
           {/* Mobile / Tablet Cards View (screens < lg) */}
-          <div className="block lg:hidden divide-y divide-slate-100">
+          <div className="block lg:hidden p-3 bg-slate-50/60 space-y-2.5 rounded-b-2xl">
             {filteredQuestionSets.length === 0 ? (
-              <div className="p-6 text-center text-slate-400 text-xs">
+              <div className="p-8 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-100">
                 কোনো প্রশ্ন সেট পাওয়া যায়নি।
               </div>
             ) : (
@@ -1604,76 +1994,179 @@ export default function ExamQuestionManagementView() {
                 const price = q.pricePerSet || 0;
                 const discount = q.centerDiscountPercent || 0;
                 const centerPrice = q.effectiveCenterPrice || (discount > 0 ? price - (price * discount) / 100 : price);
+                const qKey = String(q._id || `m_${q.className}_${q.setName}_${idx}`);
+                const isQuestionMenuOpen = openQuestionMenuId === qKey;
 
                 return (
-                  <div key={q._id || idx} className="p-3.5 space-y-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className="bg-emerald-50 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px] border border-emerald-200">
-                            {q.className}
-                          </span>
-                          <span className="font-bold text-xs text-slate-800">{q.setName}</span>
+                  <div
+                    key={q._id || idx}
+                    className="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200/80 hover:border-emerald-300 shadow-2xs hover:shadow-xs transition-all space-y-2"
+                  >
+                    {/* Top Row: Class Badge + Status + 3-dot Menu */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="bg-emerald-50 text-emerald-800 font-bold px-2.5 py-0.5 rounded-lg text-xs border border-emerald-200/70 shrink-0">
+                        {q.className}
+                      </span>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`w-2 h-2 rounded-full ${q.isActive ? "bg-emerald-500" : "bg-slate-300"}`}
+                          title={q.isActive ? "সক্রিয় সেট" : "নিষ্ক্রিয় সেট"}
+                        />
+
+                        {/* 3-dot options menu */}
+                        <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenQuestionMenuId(isQuestionMenuOpen ? null : qKey);
+                            }}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              isQuestionMenuOpen
+                                ? "bg-slate-200 text-slate-800"
+                                : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            }`}
+                            title="আরও অপশন"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {isQuestionMenuOpen && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-slate-700 text-left"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenQuestionMenuId(null);
+                                  handleOpenEditQuestionModal(q);
+                                }}
+                                className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                                <span>সম্পাদনা করুন</span>
+                              </button>
+
+                              {q.attachmentUrl && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenQuestionMenuId(null);
+                                      setPreviewPdfUrl(q.attachmentUrl || null);
+                                      setPreviewPdfTitle(`${q.className} — ${q.setName}`);
+                                    }}
+                                    className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>PDF প্রিভিউ</span>
+                                  </button>
+
+                                  <a
+                                    href={q.attachmentUrl}
+                                    download={q.attachmentName || `${q.className}_${q.setName}.pdf`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setOpenQuestionMenuId(null)}
+                                    className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-purple-700 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                                  >
+                                    <FileDown className="w-3.5 h-3.5 text-purple-600" />
+                                    <span>PDF ডাউনলোড</span>
+                                  </a>
+                                </>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenQuestionMenuId(null);
+                                  handleToggleQuestionSetStatus(q);
+                                }}
+                                className="w-full px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer text-left flex items-center gap-2.5"
+                              >
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    q.isActive ? "bg-emerald-500" : "bg-slate-400"
+                                  }`}
+                                />
+                                <span>{q.isActive ? "নিষ্ক্রিয় করুন" : "সক্রিয় করুন"}</span>
+                              </button>
+
+                              <div className="h-px bg-slate-100 my-1" />
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenQuestionMenuId(null);
+                                  if (q._id) handleDeleteQuestionSet(q._id);
+                                }}
+                                className="w-full px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors cursor-pointer text-left"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                <span>মুছে ফেলুন</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleOpenEditQuestionModal(q)}
-                          className="p-1.5 text-slate-400 hover:text-emerald-700 rounded hover:bg-slate-100"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => q._id && handleDeleteQuestionSet(q._id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 rounded hover:bg-red-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <div>
-                        <span className="text-slate-500 text-[11px]">মূল্য: </span>
-                        <strong className="font-mono text-slate-800">৳ {price.toFixed(2)}</strong>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 text-[11px]">কেন্দ্র: </span>
-                        <strong className="font-mono text-emerald-700">৳ {centerPrice.toFixed(2)}</strong>
-                        {discount > 0 && <span className="text-[10px] text-emerald-600 ml-1">({discount}%)</span>}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex flex-wrap gap-1 max-w-[70%]">
-                        {q.subjects?.map((sub, sIdx) => (
-                          <span key={sIdx} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                            {sub}
-                          </span>
-                        ))}
-                      </div>
-
-                      {q.attachmentUrl && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPreviewPdfUrl(q.attachmentUrl || null);
-                            setPreviewPdfTitle(`${q.className} — ${q.setName}`);
-                          }}
-                          className="text-emerald-700 font-semibold text-xs flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
-                        >
-                          <Eye className="w-3 h-3" />
-                          <span>PDF</span>
-                        </button>
+                    {/* Set Title & Clean Subject preview */}
+                    <div>
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug">
+                        {q.setName}
+                      </h4>
+                      {q.subjects && q.subjects.length > 0 && (
+                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                          <span className="font-semibold text-slate-600">{toBn(q.subjects.length)}টি বিষয়: </span>
+                          <span>{q.subjects.join(" • ")}</span>
+                        </p>
                       )}
+                    </div>
+
+                    {/* Clean Pricing Row & PDF Button */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100/90 text-xs">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-[10px] text-slate-400">প্রতি সেট</span>
+                        <span className="font-mono font-bold text-slate-800 text-sm">৳{price.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {q.attachmentUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPreviewPdfUrl(q.attachmentUrl || null);
+                              setPreviewPdfTitle(`${q.className} — ${q.setName}`);
+                            }}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 border border-slate-200/70 transition-colors cursor-pointer shrink-0"
+                            title="PDF প্রিভিউ দেখুন"
+                          >
+                            <FileText className="w-3 h-3 text-slate-500" />
+                            <span>PDF</span>
+                          </button>
+                        )}
+
+                        <div className="flex items-baseline gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/80">
+                          <span className="text-[10px] text-emerald-700 font-medium">কেন্দ্র মূল্য:</span>
+                          <span className="font-mono font-bold text-emerald-800 text-xs">৳{centerPrice.toFixed(2)}</span>
+                          {discount > 0 && (
+                            <span className="text-[9.5px] text-emerald-600 font-semibold">({discount}%)</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
               })
             )}
-          </div>
-        </div>
-      )}
+            </div>
+          </>
+        )}
+      </div>
+    )}
 
       {/* ----------------- CLEAN MODALS (PORTALED TO BODY TO ELIMINATE TOP GAP) ----------------- */}
       {mounted && typeof document !== "undefined" && createPortal(
@@ -1772,7 +2265,7 @@ export default function ExamQuestionManagementView() {
                     <span>⚠ সতর্কতা:</span>
                   </p>
                   <p className="text-[11.5px] leading-relaxed">
-                    এই সেশনের অধীনে <strong className="font-black">{sessionToDelete.exams.length}টি পরীক্ষা</strong> এবং সকল প্রশ্নপত্র সংরক্ষিত আছে। সেশন ডিলিট করলে এগুলো স্থায়ীভাবে মুছে যাবে।
+                    এই সেশনের অধীনে <strong className="font-black">{toBn(sessionToDelete.exams.length)}টি পরীক্ষা</strong> এবং সকল প্রশ্নপত্র সংরক্ষিত আছে। সেশন ডিলিট করলে এগুলো স্থায়ীভাবে মুছে যাবে।
                   </p>
                 </div>
               )}
@@ -1845,10 +2338,34 @@ export default function ExamQuestionManagementView() {
                   type="text"
                   placeholder="উদাঃ ১ম সাময়িক পরীক্ষা ২০২৬"
                   value={examForm.name}
-                  onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
+                  onChange={(e) => {
+                    const newName = e.target.value;
+                    setExamForm({
+                      ...examForm,
+                      name: newName,
+                      code: examForm.code || generateExamCode(newName, examForm.examTerm),
+                    });
+                  }}
                   className="w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-emerald-600"
                   required
                 />
+              </div>
+
+              {/* Unique English Exam Code / ID Handler */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  ইংরেজি আইডি / কোড হ্যান্ডলার (Unique English ID)
+                </label>
+                <input
+                  type="text"
+                  placeholder="উদাঃ SEM-1, SEM-2, ANNUAL"
+                  value={examForm.code || ""}
+                  onChange={(e) => setExamForm({ ...examForm, code: e.target.value.toUpperCase().replace(/\s+/g, "-") })}
+                  className="w-full px-3 py-1.5 border rounded-xl text-xs focus:outline-none focus:border-emerald-600 font-mono bg-slate-50 text-slate-800"
+                />
+                <p className="text-[10.5px] text-slate-400 mt-0.5">
+                  পরীক্ষার বাংলা নাম পরিবর্তিত হলেও এই ইউনিক ইংরেজি আইডির মাধ্যমে প্রশ্নপত্র সর্বদা সংযুক্ত থাকবে।
+                </p>
               </div>
 
               {/* Date Selection: Start Date & End Date */}
@@ -1946,15 +2463,17 @@ export default function ExamQuestionManagementView() {
                     value={questionForm.classId || questionForm.className}
                     onChange={(e) => {
                       const val = e.target.value;
-                      const found = availableClasses.find((c) => c.id === val || c.name === val);
+                      const found = availableClasses.find((c) => c.id === val || c.name === val || c.rawId === val);
                       const newClass = found ? found.name : val;
-                      const newClassId = found ? found.id : generateClassId(val);
+                      const newClassId = found ? found.id : getCanonicalClassId(val, curriculumClasses);
                       const curClass = curriculumClasses.find((c) => c.name === newClass || c.id === newClassId);
                       const classBooks = curClass?.books?.map((b) => b.title) || [];
+                      const autoItemCode = generateItemCode(newClassId, activeExam?.code, `${newClass} প্রশ্নপত্র সেট`);
                       setQuestionForm((prev) => ({
                         ...prev,
                         classId: newClassId,
                         className: newClass,
+                        itemCode: prev.itemCode || autoItemCode,
                         setName: `${newClass} প্রশ্নপত্র সেট`,
                         subjects: classBooks.length > 0 ? classBooks : prev.subjects,
                       }));
@@ -1963,9 +2482,29 @@ export default function ExamQuestionManagementView() {
                     required
                   >
                     {availableClasses.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
                     ))}
                   </select>
+                </div>
+
+                {/* English Unique ID Card */}
+                <div className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200/80 space-y-1">
+                  <div className="flex items-center justify-between gap-1 text-[10.5px]">
+                    <span className="text-slate-600 font-semibold">শ্রেণি আইডি:</span>
+                    <span className="font-mono font-bold text-emerald-800 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                      {questionForm.classId || "cls_1"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1 text-[10.5px]">
+                    <span className="text-slate-600 font-semibold">আইটেম কোড:</span>
+                    <input
+                      type="text"
+                      value={questionForm.itemCode}
+                      onChange={(e) => setQuestionForm({ ...questionForm, itemCode: e.target.value.toUpperCase().replace(/\s+/g, "-") })}
+                      className="font-mono font-bold text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-300 text-[10px] w-32 focus:outline-none focus:border-emerald-600"
+                      placeholder="QS-..."
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -2075,7 +2614,7 @@ export default function ExamQuestionManagementView() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="font-semibold text-slate-700">
-                    অন্তর্ভুক্ত বই ও বিষয়সমূহ ({questionForm.subjects.length})
+                    অন্তর্ভুক্ত বই ও বিষয়সমূহ ({toBn(questionForm.subjects.length)})
                   </label>
                   {availableBooksForSelectedClass.length > 0 && (
                     <button
@@ -2218,7 +2757,7 @@ export default function ExamQuestionManagementView() {
       {/* 4. PDF Preview Modal */}
       {previewPdfUrl && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-3xl h-[85vh] shadow-2xl flex flex-col overflow-hidden">
+          <div className="bg-white rounded-2xl w-full max-w-4xl h-[88vh] shadow-2xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-900 text-white flex-shrink-0">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-400" />
@@ -2227,29 +2766,116 @@ export default function ExamQuestionManagementView() {
               <div className="flex items-center gap-2">
                 <a
                   href={previewPdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-200 hover:text-white text-xs font-semibold flex items-center gap-1 transition-colors"
+                  title="নতুন ট্যাবে খুলুন"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">নতুন ট্যাব</span>
+                </a>
+                <a
+                  href={previewPdfUrl}
                   download="question.pdf"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-xs font-semibold flex items-center gap-1"
+                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-xs font-semibold flex items-center gap-1 transition-colors"
                 >
                   <FileDown className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">ডাউনলোড</span>
                 </a>
                 <button
                   onClick={() => setPreviewPdfUrl(null)}
-                  className="p-1.5 hover:bg-slate-800 rounded-full text-slate-300 hover:text-white"
+                  className="p-1.5 hover:bg-slate-800 rounded-full text-slate-300 hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 bg-slate-100">
-              <iframe src={previewPdfUrl} className="w-full h-full border-none" title="PDF Preview" />
+            <div className="flex-1 bg-slate-100 relative">
+              <object
+                data={previewPdfUrl}
+                type="application/pdf"
+                className="w-full h-full"
+              >
+                <iframe
+                  src={previewPdfUrl}
+                  className="w-full h-full border-none"
+                  title="PDF Preview"
+                >
+                  <div className="p-8 text-center text-slate-500 flex flex-col items-center justify-center h-full">
+                    <p className="mb-3 text-sm">ব্রাউজারে সরাসরি PDF প্রিভিউ ওপেন করা সম্ভব হয়নি।</p>
+                    <a
+                      href={previewPdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                    >
+                      নতুন ট্যাবে PDF দেখুন
+                    </a>
+                  </div>
+                </iframe>
+              </object>
             </div>
           </div>
         </div>
       )}
+          {showAddClassModal && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-slate-100">
+                <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-emerald-600" />
+                    <h3 className="font-bold text-sm text-slate-800">নতুন শ্রেণি যুক্ত করুন</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowAddClassModal(false)}
+                    className="p-1 hover:bg-slate-100 rounded-full text-slate-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateNewClass} className="p-4 space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      শ্রেণির নাম <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="যেমন: ৬ষ্ঠ শ্রেণি, হিফজ বিভাগ, ইত্যাদি"
+                      value={newClassNameInput}
+                      onChange={(e) => setNewClassNameInput(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border rounded-xl focus:outline-none focus:border-emerald-600 font-medium"
+                      autoFocus
+                      required
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      এই শ্রেণিটি কারিকুলাম ও প্রশ্নপত্র উভয় স্থানেই স্থায়ীভাবে সংরক্ষিত হবে।
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddClassModal(false)}
+                      className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingClass}
+                      className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {savingClass ? "সংরক্ষণ হচ্ছে..." : "শ্রেণি যোগ করুন"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </>,
         document.body
       )}

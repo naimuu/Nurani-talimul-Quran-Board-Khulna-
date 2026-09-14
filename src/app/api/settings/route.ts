@@ -17,10 +17,11 @@ export interface HeroSlide {
   buttonLink?: string;
 }
 
-function cleanEmojis(str?: string): string {
+function sanitizeText(str?: string): string {
   if (!str) return "";
   return str
     .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|[\uFE00-\uFE0F]/g, "")
+    .replace(/অডার/g, "অর্ডার")
     .trim();
 }
 
@@ -28,9 +29,10 @@ function sanitizeHeroSlides(slides?: HeroSlide[]): HeroSlide[] {
   if (!Array.isArray(slides)) return [];
   return slides.map((s) => ({
     ...s,
-    title: cleanEmojis(s.title),
-    subtitle: cleanEmojis(s.subtitle),
-    description: cleanEmojis(s.description),
+    title: sanitizeText(s.title),
+    subtitle: sanitizeText(s.subtitle),
+    description: sanitizeText(s.description),
+    buttonText: sanitizeText(s.buttonText),
   }));
 }
 

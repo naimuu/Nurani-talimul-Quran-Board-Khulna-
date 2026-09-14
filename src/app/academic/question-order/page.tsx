@@ -32,7 +32,7 @@ import {
 import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
-import { generateClassId } from "@/lib/classUtils";
+import { generateClassId, getCanonicalClassId, generateExamCode, generateItemCode } from "@/lib/classUtils";
 import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
 import { printOrderInvoice } from "@/lib/orderPrint";
 import { generateQRCodeDataUrl, generateBarcodeSVG } from "@/lib/qrHelper";
@@ -40,10 +40,13 @@ import { cleanAddressNotes, parseQuestionItemsFromNotes } from "@/lib/orderTimel
 
 type QuestionItem = {
   id: string;
+  itemCode?: string;
   name: string;
   category: string;
   classId: string;
   className: string;
+  examId?: string;
+  examCode?: string;
   examTerm: string;
   pricePerSet: number;
   description: string;
@@ -300,13 +303,20 @@ export default function QuestionOrderPage() {
     // Merge session exams question sets added from admin
     sessionsToScan.forEach((session) => {
       session.exams?.forEach((exam: any) => {
+        const exCode = exam.code || generateExamCode(exam.name, exam.examTerm);
+        const exId = String(exam._id || exCode);
+
         exam.questionSets?.forEach((qs: any) => {
           if (qs.isActive === false) return;
-          const cId = qs.classId ? String(qs.classId) : generateClassId(qs.className);
+          const cId = getCanonicalClassId(qs.classId || qs.className);
+          const itemCode = qs.itemCode || generateItemCode(cId, exCode, qs.setName);
           // GUARANTEED IMMUTABLE ID:
-          const itemId = qs._id ? String(qs._id) : `item_${session._id}_${exam._id || 'ex'}_${cId}_${qs.setName}`;
+          const itemId = qs._id ? String(qs._id) : itemCode;
           list.push({
             id: itemId,
+            itemCode,
+            examId: exId,
+            examCode: exCode,
             name: qs.setName || `${qs.className} — ${exam.name}`,
             category: "প্রশ্নপত্র",
             classId: cId,
@@ -329,9 +339,10 @@ export default function QuestionOrderPage() {
     dbProducts.forEach((p) => {
       // Exclude auto-created sales bookkeeping products
       if (p.visibility === "academic" || p.visibility === "archived") return;
-      const cId = p.classId ? String(p.classId) : generateClassId(p.className || "অন্যান্য");
+      const cId = getCanonicalClassId(p.classId || p.className || "অন্যান্য");
       list.push({
         id: `db_${p.id}`,
+        itemCode: `PROD_${p.id}`,
         name: p.name,
         category: p.category || "প্রশ্নপত্র",
         classId: cId,
@@ -373,7 +384,12 @@ export default function QuestionOrderPage() {
     const relevantItems =
       selectedTerm === "all"
         ? allQuestionItems
-        : allQuestionItems.filter((i) => i.examTerm === selectedTerm);
+        : allQuestionItems.filter(
+            (i) =>
+              i.examCode === selectedTerm ||
+              i.examId === selectedTerm ||
+              i.examTerm === selectedTerm
+          );
 
     const classMap = new Map<string, string>();
     relevantItems.forEach((item) => {
@@ -398,15 +414,18 @@ export default function QuestionOrderPage() {
     }
   }, [availableClasses, selectedClassId]);
 
-  const getExamInfo = (termName: string) => {
-    if (!termName || termName === "all") return null;
+  const getExamInfo = (termNameOrId: string) => {
+    if (!termNameOrId || termNameOrId === "all") return null;
     for (const session of examSessions) {
       if (Array.isArray(session.exams)) {
         const found = session.exams.find(
           (e: any) =>
-            e.name === termName ||
-            e.name?.includes(termName) ||
-            termName.includes(e.name)
+            e.code === termNameOrId ||
+            e.examId === termNameOrId ||
+            String(e._id) === termNameOrId ||
+            e.name === termNameOrId ||
+            e.name?.includes(termNameOrId) ||
+            termNameOrId.includes(e.name)
         );
         if (found) return found;
       }
@@ -421,9 +440,21 @@ export default function QuestionOrderPage() {
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.className.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.examTerm.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.itemCode && item.itemCode.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.classId && item.classId.toLowerCase().includes(searchQuery.toLowerCase())) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchTerm = selectedTerm === "all" || item.examTerm === selectedTerm;
-      const matchClass = selectedClassId === "all" || item.classId === selectedClassId;
+
+      const matchTerm =
+        selectedTerm === "all" ||
+        item.examCode === selectedTerm ||
+        item.examId === selectedTerm ||
+        item.examTerm === selectedTerm;
+
+      const matchClass =
+        selectedClassId === "all" ||
+        item.classId === selectedClassId ||
+        getCanonicalClassId(item.className) === selectedClassId;
+
       return matchSearch && matchTerm && matchClass;
     });
   }, [allQuestionItems, searchQuery, selectedTerm, selectedClassId]);
@@ -656,6 +687,8 @@ export default function QuestionOrderPage() {
           productId: entry.item.dbProductId || undefined,
           name: itemFullName,
           className: entry.item.className || undefined,
+          classId: entry.item.classId || undefined,
+          itemCode: entry.item.itemCode || undefined,
           quantity: entry.qty,
           unitPrice: Number(entry.item.pricePerSet) || 0,
           weight: Number(entry.item.weightKg) || 0.25,
@@ -668,7 +701,8 @@ export default function QuestionOrderPage() {
         .map((c) => {
           const sName = getSessionDisplayNameById(c.item.sessionId, c.item.sessionName);
           const sLabel = sName ? ` (${sName})` : "";
-          return `[${c.item.name}${sLabel}: ${c.qty} সেট]`;
+          const codeTag = c.item.itemCode ? ` {${c.item.itemCode}}` : "";
+          return `[${c.item.name}${sLabel}${codeTag}: ${c.qty} সেট]`;
         })
         .join(", ");
 

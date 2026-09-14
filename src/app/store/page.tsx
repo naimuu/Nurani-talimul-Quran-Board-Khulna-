@@ -43,7 +43,6 @@ function ListProductRow({
 }) {
   return (
     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors bg-slate-100/50">
-      <td className="p-3 text-center font-bold text-slate-800 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
       <td className="p-2 hidden sm:table-cell">
         <div className="w-12 h-12 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-sm border border-slate-100 relative">
           {product.imageUrl ? (
@@ -1437,25 +1436,49 @@ export default function StorePage() {
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState<string>("calc(100dvh - 96px)");
+  const [contentHeight, setContentHeight] = useState<string>("calc(100vh - 85px)");
 
   useEffect(() => {
     const updateHeight = () => {
       if (containerRef.current) {
-        const top = containerRef.current.getBoundingClientRect().top;
-        if (top >= 0) {
-          setContentHeight(`calc(100dvh - ${top}px)`);
-        }
+        const rect = containerRef.current.getBoundingClientRect();
+        // Exact pixel distance from container top to the bottom of the viewport:
+        const available = Math.max(350, window.innerHeight - rect.top);
+        setContentHeight(`${available}px`);
       }
     };
+
     updateHeight();
+
+    // Use ResizeObserver to catch any dynamic header, banner, or font changes
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
+      updateHeight();
+    }) : null;
+    if (ro && document.body) {
+      ro.observe(document.body);
+    }
+
     window.addEventListener("resize", updateHeight);
-    window.addEventListener("scroll", updateHeight);
-    const timer = setTimeout(updateHeight, 300);
+    window.addEventListener("scroll", updateHeight, { passive: true });
+
+    const timers = [
+      setTimeout(updateHeight, 50),
+      setTimeout(updateHeight, 200),
+      setTimeout(updateHeight, 600),
+      setTimeout(updateHeight, 1200),
+      setTimeout(updateHeight, 3200),
+    ];
+
+    // Lock document scroll on /store so it behaves as a clean full-viewport web app
+    const originalOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+
     return () => {
+      if (ro) ro.disconnect();
       window.removeEventListener("resize", updateHeight);
       window.removeEventListener("scroll", updateHeight);
-      clearTimeout(timer);
+      timers.forEach(clearTimeout);
+      document.documentElement.style.overflow = originalOverflow;
     };
   }, []);
 
@@ -1463,7 +1486,7 @@ export default function StorePage() {
     <div
       ref={containerRef}
       style={{ height: contentHeight, maxHeight: contentHeight }}
-      className="w-full flex flex-col bg-slate-50 overflow-hidden"
+      className="w-full flex-1 flex flex-col bg-slate-50 overflow-hidden"
     >
       {/* Top Header */}
       <div className="bg-white border-b border-slate-200 z-30 shadow-sm flex-shrink-0">
@@ -1515,7 +1538,7 @@ export default function StorePage() {
         </div>
       </div>
 
-      <div className="w-full flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden relative bg-slate-50">
+      <div className="w-full flex flex-col lg:flex-row flex-1 h-full min-h-0 overflow-hidden relative bg-slate-50 items-stretch">
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 h-full min-h-0 flex flex-col px-4 sm:px-6 lg:px-8 py-3 lg:py-4 overflow-hidden">
@@ -1583,14 +1606,10 @@ export default function StorePage() {
             </div>
           )}
 
-          {/* Results Bar */}
-          <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <p className="text-sm text-slate-500 font-medium">
-              {loading ? "লোড হচ্ছে..." : <><span className="font-bold text-slate-700">{filtered.length}</span> টি পণ্য পাওয়া গেছে</>}
-            </p>
-            {/* Mobile sort */}
+          {/* Mobile sort (only visible on mobile devices) */}
+          <div className="md:hidden flex justify-end mb-2.5 flex-shrink-0">
             <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
-              className="text-sm border border-slate-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 md:hidden">
+              className="text-sm border border-slate-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40">
               <option value="default">ডিফল্ট</option>
               <option value="price-asc">মূল্য ↑</option>
               <option value="price-desc">মূল্য ↓</option>
@@ -1598,101 +1617,97 @@ export default function StorePage() {
             </select>
           </div>
 
-          {/* Scrollable Products Area */}
-          <div className="flex-1 overflow-y-auto pr-1 pb-10">
-
-            {/* CARD VIEW */}
-            {viewMode === "card" && (
-              <>
-                {!loading && filtered.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-                    <Package className="w-16 h-16 mb-4 text-slate-200" />
-                    <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
-                    <p className="text-sm mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করুন</p>
+          {/* Products Display Area */}
+          {viewMode === "card" ? (
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-10">
+              {!loading && filtered.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                  <Package className="w-16 h-16 mb-4 text-slate-200" />
+                  <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
+                  <p className="text-sm mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করুন</p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,240px)] justify-stretch sm:justify-start gap-4 sm:gap-5">
+                {loading ? Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse flex flex-row sm:flex-col">
+                    <div className="w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 bg-slate-100" />
+                    <div className="p-3 sm:p-4 flex flex-col gap-2 flex-1">
+                      <div className="h-4 bg-slate-100 rounded w-3/4" />
+                      <div className="h-3 bg-slate-100 rounded w-1/2" />
+                      <div className="h-6 bg-slate-100 rounded w-1/3 mt-auto pt-2" />
+                    </div>
                   </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,240px)] justify-stretch sm:justify-start gap-4 sm:gap-5">
-                  {loading ? Array.from({ length: 10 }).map((_, i) => (
-                    <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse flex flex-row sm:flex-col">
-                      <div className="w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 bg-slate-100" />
-                      <div className="p-3 sm:p-4 flex flex-col gap-2 flex-1">
-                        <div className="h-4 bg-slate-100 rounded w-3/4" />
-                        <div className="h-3 bg-slate-100 rounded w-1/2" />
-                        <div className="h-6 bg-slate-100 rounded w-1/3 mt-auto pt-2" />
+                )) : filtered.map(product => {
+                  const r = getProductRating(product.id);
+                  const isFav = favourites.has(product.id);
+                  const cartItem = cart.find(c => c.product.id === product.id);
+                  const cartQty = cartItem ? cartItem.qty : 0;
+
+                  return (
+                    <div key={product.id} onClick={() => setDetailProduct(product)} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-row sm:flex-col cursor-pointer">
+                      <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 flex items-center justify-center overflow-hidden border-r sm:border-r-0 sm:border-b border-slate-100">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const p = e.currentTarget.parentElement;
+                              if (p) {
+                                const fb = p.querySelector('.card-img-fb');
+                                if (fb) (fb as HTMLElement).style.display = 'flex';
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div className={`card-img-fb w-full h-full items-center justify-center ${product.imageUrl ? 'hidden' : 'flex'}`}>
+                          <Package className="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform" />
+                        </div>
+                        <span className="absolute bottom-2 left-2 text-[10px] sm:text-xs text-primary font-bold bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm z-10 max-w-[calc(100%-16px)] truncate">
+                          {product.category}
+                        </span>
+                      </div>
+                      <div className="flex flex-1 min-w-0">
+                        <div className="p-3 flex flex-col flex-1 min-w-0 border-r border-slate-50 border-dashed">
+                          <h3 className="font-bold text-slate-800 mb-1 line-clamp-2 sm:line-clamp-1">{product.name}</h3>
+                          {product.className && (
+                            <p className="text-xs sm:text-sm text-slate-500 font-medium truncate">
+                              {product.className}{product.subject ? ` - ${product.subject}` : ''}
+                            </p>
+                          )}
+                          <div className="mt-auto pt-2">
+                            <span className="text-xl font-black text-primary">৳{product.price}</span>
+                          </div>
+                        </div>
+                        <div className="w-14 flex flex-col items-center justify-center bg-slate-50/50 p-2">
+                          {cartQty > 0 ? (
+                            <div className="flex flex-col items-center gap-1 h-full justify-between w-full" onClick={e => e.stopPropagation()}>
+                              <button onClick={() => updateCartQty(product, cartQty + 1)}
+                                className="w-full h-8 bg-primary rounded text-white text-xl font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
+                              <span className="w-full flex-1 flex items-center justify-center text-sm font-black text-slate-800 py-1">{cartQty}</span>
+                              <button onClick={() => updateCartQty(product, cartQty - 1)}
+                                className="w-full h-8 bg-slate-200 rounded text-slate-600 text-xl font-medium flex items-center justify-center hover:bg-slate-300 transition-colors">−</button>
+                            </div>
+                          ) : (
+                            <button onClick={(e) => { e.stopPropagation(); addToCart(product); }}
+                              className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center hover:bg-primary hover:text-white transition-colors shadow-sm">
+                              <ShoppingCart className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  )) : filtered.map(product => {
-                    const r = getProductRating(product.id);
-                    const isFav = favourites.has(product.id);
-                    const cartItem = cart.find(c => c.product.id === product.id);
-                    const cartQty = cartItem ? cartItem.qty : 0;
-
-                    return (
-                      <div key={product.id} onClick={() => setDetailProduct(product)} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-row sm:flex-col cursor-pointer">
-                        <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 flex items-center justify-center overflow-hidden border-r sm:border-r-0 sm:border-b border-slate-100">
-                          {product.imageUrl ? (
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                const p = e.currentTarget.parentElement;
-                                if (p) {
-                                  const fb = p.querySelector('.card-img-fb');
-                                  if (fb) (fb as HTMLElement).style.display = 'flex';
-                                }
-                              }}
-                            />
-                          ) : null}
-                          <div className={`card-img-fb w-full h-full items-center justify-center ${product.imageUrl ? 'hidden' : 'flex'}`}>
-                            <Package className="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform" />
-                          </div>
-                          <span className="absolute bottom-2 left-2 text-[10px] sm:text-xs text-primary font-bold bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm z-10 max-w-[calc(100%-16px)] truncate">
-                            {product.category}
-                          </span>
-                        </div>
-                        <div className="flex flex-1 min-w-0">
-                          <div className="p-3 flex flex-col flex-1 min-w-0 border-r border-slate-50 border-dashed">
-                            <h3 className="font-bold text-slate-800 mb-1 line-clamp-2 sm:line-clamp-1">{product.name}</h3>
-                            {product.className && (
-                              <p className="text-xs sm:text-sm text-slate-500 font-medium truncate">
-                                {product.className}{product.subject ? ` - ${product.subject}` : ''}
-                              </p>
-                            )}
-                            <div className="mt-auto pt-2">
-                              <span className="text-xl font-black text-primary">৳{product.price}</span>
-                            </div>
-                          </div>
-                          <div className="w-14 flex flex-col items-center justify-center bg-slate-50/50 p-2">
-                            {cartQty > 0 ? (
-                              <div className="flex flex-col items-center gap-1 h-full justify-between w-full" onClick={e => e.stopPropagation()}>
-                                <button onClick={() => updateCartQty(product, cartQty + 1)}
-                                  className="w-full h-8 bg-primary rounded text-white text-xl font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
-                                <span className="w-full flex-1 flex items-center justify-center text-sm font-black text-slate-800 py-1">{cartQty}</span>
-                                <button onClick={() => updateCartQty(product, cartQty - 1)}
-                                  className="w-full h-8 bg-slate-200 rounded text-slate-600 text-xl font-medium flex items-center justify-center hover:bg-slate-300 transition-colors">−</button>
-                              </div>
-                            ) : (
-                              <button onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-                                className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center hover:bg-primary hover:text-white transition-colors shadow-sm">
-                                <ShoppingCart className="w-5 h-5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {/* LIST VIEW */}
-            {viewMode === "list" && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 mb-2 flex flex-col min-h-0">
-                {/* Compact Top Header & Action Bar */}
-                <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200/80 px-3.5 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 flex flex-col mb-2 overflow-hidden">
+              {/* LIST VIEW */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+                {/* Compact Top Header & Action Bar (FIXED at top) */}
+                <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200/80 px-3.5 py-2 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0 z-20">
                   <div className="flex items-center gap-2 text-center sm:text-left flex-wrap">
                     <span className="font-black text-emerald-800 text-sm sm:text-base whitespace-nowrap">বই ও স্টেশনারি তালিকা</span>
                     <span className="hidden md:inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -1700,34 +1715,40 @@ export default function StorePage() {
                       অর্ডারকৃত পণ্যের পরিমাণ সঠিকভাবে বসানোর পর "বিলে যুক্ত করুন" বাটনে ক্লিক করুন
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleOpenOrder}
-                    className="px-4 py-1.5 bg-[#2d3282] hover:bg-[#232766] text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>বিলে যুক্ত করুন</span>
-                  </button>
+                  <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-wrap sm:flex-nowrap justify-end">
+                    <div className="flex items-center gap-1.5 bg-white border border-emerald-300/80 px-3 py-1.5 rounded-xl shadow-2xs">
+                      <span className="text-xs sm:text-sm font-bold text-slate-700">সর্বমোট মূল্য:</span>
+                      <span className="text-sm sm:text-base font-black text-emerald-800">৳{cartTotal.toFixed(2)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleOpenOrder}
+                      className="px-4 py-1.5 bg-[#2d3282] hover:bg-[#232766] text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>বিলে যুক্ত করুন</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex-1 overflow-auto">
-                  <table className="w-full text-left border-collapse min-w-full sm:min-w-[800px]">
-                    <thead className="sticky top-0 z-10">
+                {/* Table Scroll Area (Table header sticky, rows scroll underneath behind header) */}
+                <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 relative">
+                  <table className="w-full text-left border-collapse min-w-full sm:min-w-[750px]">
+                    <thead className="sticky top-0 z-20 shadow-xs">
                       <tr className="bg-[#2f8c5b] text-white text-sm">
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-16 hidden sm:table-cell">ক্রম</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-16 sm:w-20 hidden sm:table-cell">ছবি</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell">কোড</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20">পণ্যের নাম</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 hidden sm:table-cell">ক্যাটাগরি</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 sm:w-32">দর (৳)</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 sm:w-48">পরিমাণ</th>
-                        <th className="p-3 font-bold text-right pr-6 w-36 hidden sm:table-cell">পরিমাণ*মূল্য(৳)</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-16 sm:w-20 hidden sm:table-cell bg-[#2f8c5b]">ছবি</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell bg-[#2f8c5b]">কোড</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 bg-[#2f8c5b]">পণ্যের নাম</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 hidden sm:table-cell bg-[#2f8c5b]">ক্যাটাগরি</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 sm:w-32 bg-[#2f8c5b]">দর (৳)</th>
+                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 sm:w-48 bg-[#2f8c5b]">পরিমাণ</th>
+                        <th className="p-3 font-bold text-right pr-6 w-36 hidden sm:table-cell bg-[#2f8c5b]">পরিমাণ*মূল্য(৳)</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                       {!loading && filtered.length === 0 && (
                         <tr>
-                          <td colSpan={8}>
+                          <td colSpan={7}>
                             <div className="flex flex-col items-center justify-center py-24 text-slate-400">
                               <Package className="w-16 h-16 mb-4 text-slate-200" />
                               <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
@@ -1738,7 +1759,7 @@ export default function StorePage() {
                       )}
                       {loading ? Array.from({ length: 5 }).map((_, i) => (
                         <tr key={i} className="border-b border-slate-100 animate-pulse">
-                          <td colSpan={8} className="p-4"><div className="h-8 bg-slate-100 rounded w-full" /></td>
+                          <td colSpan={7} className="p-4"><div className="h-8 bg-slate-100 rounded w-full" /></td>
                         </tr>
                       )) : filtered.map((product, index) => {
                         const cartItem = cart.find(c => c.product.id === product.id);
@@ -1751,25 +1772,19 @@ export default function StorePage() {
                         );
                       })}
                     </tbody>
-                    <tfoot className="sticky bottom-0 z-10 bg-white">
-                      <tr className="bg-slate-50 font-bold border-t border-slate-200 hidden sm:table-row">
-                        <td colSpan={7} className="p-3 text-right text-slate-800">সর্বমোট অর্ডারকৃত পণ্যের মূল্য(৳) =</td>
-                        <td className="p-3 text-right pr-6 text-lg text-slate-900">{cartTotal.toFixed(2)}</td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar - Cart */}
         <aside className={`
-          hidden xl:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out h-full min-h-0 overflow-hidden bg-white
+          hidden xl:flex flex-col flex-shrink-0 self-stretch transition-all duration-300 ease-in-out h-full min-h-0 overflow-hidden bg-white
           ${rightSidebarOpen ? "w-80 2xl:w-[330px] border-l border-slate-200 opacity-100" : "w-0 border-l-0 opacity-0"}
         `}>
-          <div className="flex flex-col h-full w-80 2xl:w-[330px] flex-shrink-0 min-h-0 overflow-hidden">
+          <div className="flex flex-col h-full w-80 2xl:w-[330px] flex-shrink-0 min-h-0 overflow-hidden justify-between">
             {/* Header */}
             <div className="flex-shrink-0 px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
               <h3 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
@@ -1843,15 +1858,31 @@ export default function StorePage() {
                           <span className="font-bold text-xs text-emerald-800 font-mono">
                             ৳{(item.product.price * item.qty).toFixed(2)}
                           </span>
-                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-md p-0.5 border border-slate-200/60">
+                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-lg p-0.5 border border-slate-200/80 shadow-2xs">
                             <button
-                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
-                              className="w-4.5 h-4.5 bg-white rounded text-slate-600 text-xs font-bold flex items-center justify-center hover:bg-slate-200 transition-colors shadow-2xs active:scale-95"
+                              type="button"
+                              onClick={() => updateCartQty(item.product, Math.max(1, item.qty - 1))}
+                              className="w-7 h-7 bg-white hover:bg-slate-200 text-slate-700 rounded-md font-bold text-base flex items-center justify-center border border-slate-200/80 shadow-2xs transition-all active:scale-90"
+                              title="পরিমাণ কমান"
                             >−</button>
-                            <span className="w-4 text-center text-[11px] font-bold text-slate-800 font-mono">{item.qty}</span>
+                            <input
+                              type="number"
+                              min={1}
+                              value={item.qty || ""}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!isNaN(val) && val > 0) {
+                                  updateCartQty(item.product, val);
+                                }
+                              }}
+                              onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
+                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-md outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
                             <button
-                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
-                              className="w-4.5 h-4.5 bg-emerald-700 rounded text-white text-xs font-bold flex items-center justify-center hover:bg-emerald-800 transition-colors shadow-2xs active:scale-95"
+                              type="button"
+                              onClick={() => updateCartQty(item.product, item.qty + 1)}
+                              className="w-7 h-7 bg-emerald-700 hover:bg-emerald-800 text-white rounded-md font-bold text-base flex items-center justify-center shadow-2xs transition-all active:scale-90"
+                              title="পরিমাণ বাড়ান"
                             >+</button>
                           </div>
                         </div>
@@ -1864,7 +1895,7 @@ export default function StorePage() {
 
             {/* Bottom Summary & Checkout */}
             {cart.length > 0 && (
-              <div className="flex-shrink-0 p-2.5 border-t border-slate-100 bg-slate-50/95 z-10 relative space-y-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+              <div className="mt-auto flex-shrink-0 p-2.5 border-t border-slate-100 bg-slate-50/95 z-10 relative space-y-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
                 <div className="space-y-1 text-[11.5px] text-slate-600 border-b border-slate-200/70 pb-1.5">
                   <div className="flex justify-between">
                     <span className="text-slate-500">পণ্যের মূল্য (সাবটোটাল):</span>
@@ -1901,10 +1932,12 @@ export default function StorePage() {
                   <span>অর্ডার করুন</span>
                 </button>
 
-                <p className="text-[9.5px] text-slate-500 bg-white p-1 rounded-md border border-slate-200/70 flex items-start gap-1 leading-tight">
-                  <span className="shrink-0 text-xs">🚚</span>
-                  <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
-                </p>
+                {isCenterOrMadrasa && deliveryInfo.ruleNotice && (
+                  <p className="text-[9.5px] text-slate-500 bg-white p-1 rounded-md border border-slate-200/70 flex items-start gap-1 leading-tight">
+                    <span className="shrink-0 text-xs">🚚</span>
+                    <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -1995,15 +2028,31 @@ export default function StorePage() {
                           <span className="font-bold text-xs text-emerald-800 font-mono">
                             ৳{(item.product.price * item.qty).toFixed(2)}
                           </span>
-                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-md p-0.5 border border-slate-200/60">
+                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-lg p-0.5 border border-slate-200/80 shadow-2xs">
                             <button
-                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c))}
-                              className="w-5 h-5 bg-white rounded text-slate-600 text-xs font-bold flex items-center justify-center hover:bg-slate-200 transition-colors shadow-2xs active:scale-95"
+                              type="button"
+                              onClick={() => updateCartQty(item.product, Math.max(1, item.qty - 1))}
+                              className="w-7 h-7 bg-white hover:bg-slate-200 text-slate-700 rounded-md font-bold text-base flex items-center justify-center border border-slate-200/80 shadow-2xs transition-all active:scale-90"
+                              title="পরিমাণ কমান"
                             >−</button>
-                            <span className="w-4 text-center text-xs font-bold text-slate-800 font-mono">{item.qty}</span>
+                            <input
+                              type="number"
+                              min={1}
+                              value={item.qty || ""}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!isNaN(val) && val > 0) {
+                                  updateCartQty(item.product, val);
+                                }
+                              }}
+                              onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
+                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-md outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
                             <button
-                              onClick={() => setCart(prev => prev.map(c => c.product.id === item.product.id ? { ...c, qty: c.qty + 1 } : c))}
-                              className="w-5 h-5 bg-emerald-700 rounded text-white text-xs font-bold flex items-center justify-center hover:bg-emerald-800 transition-colors shadow-2xs active:scale-95"
+                              type="button"
+                              onClick={() => updateCartQty(item.product, item.qty + 1)}
+                              className="w-7 h-7 bg-emerald-700 hover:bg-emerald-800 text-white rounded-md font-bold text-base flex items-center justify-center shadow-2xs transition-all active:scale-90"
+                              title="পরিমাণ বাড়ান"
                             >+</button>
                           </div>
                         </div>
@@ -2051,10 +2100,12 @@ export default function StorePage() {
                   <span>অর্ডার করুন</span>
                 </button>
 
-                <p className="text-[10px] text-slate-500 bg-white p-1.5 rounded-lg border border-slate-200/70 flex items-start gap-1 leading-snug">
-                  <span className="shrink-0 text-xs">🚚</span>
-                  <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
-                </p>
+                {isCenterOrMadrasa && deliveryInfo.ruleNotice && (
+                  <p className="text-[10px] text-slate-500 bg-white p-1.5 rounded-lg border border-slate-200/70 flex items-start gap-1 leading-snug">
+                    <span className="shrink-0 text-xs">🚚</span>
+                    <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
+                  </p>
+                )}
               </div>
             )}
           </div>

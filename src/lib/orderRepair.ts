@@ -40,6 +40,9 @@ export async function repairQuestionOrderSaleIfNeeded(sale: any, prisma: PrismaC
           if (qs.setName && qs.pricePerSet) {
             priceMap.set(qs.setName.trim().toLowerCase(), qs.pricePerSet);
             priceMap.set(`${qs.className || ''} ${qs.setName || ''}`.trim().toLowerCase(), qs.pricePerSet);
+            if (qs.itemCode) {
+              priceMap.set(qs.itemCode.trim().toLowerCase(), qs.pricePerSet);
+            }
             if (sess.title) {
               priceMap.set(`${qs.setName.trim()} (${sess.title.trim()})`.toLowerCase(), qs.pricePerSet);
             }

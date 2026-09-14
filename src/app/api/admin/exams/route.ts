@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import ExamSession from "@/lib/models/ExamQuestion";
+import { generateExamCode, getCanonicalClassId, generateItemCode } from "@/lib/classUtils";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 
@@ -152,8 +153,39 @@ const DEFAULT_INITIAL_SESSIONS = [
 export async function GET(request: Request) {
   try {
     await connectDB();
-    const sessions = await ExamSession.find({}).sort({ sessionYear: -1 }).lean();
-    return NextResponse.json({ sessions });
+    const sessions = await ExamSession.find({}).sort({ sessionYear: -1 });
+
+    // Auto-backfill unique English ID handlers for existing records if missing
+    for (const session of sessions) {
+      let sessionModified = false;
+      for (const exam of session.exams || []) {
+        if (!exam.code) {
+          exam.code = generateExamCode(exam.name, exam.examTerm);
+          exam.examId = exam.code;
+          sessionModified = true;
+        } else if (!exam.examId) {
+          exam.examId = exam.code;
+          sessionModified = true;
+        }
+
+        for (const qs of exam.questionSets || []) {
+          if (!qs.classId) {
+            qs.classId = getCanonicalClassId(qs.className);
+            sessionModified = true;
+          }
+          if (!qs.itemCode) {
+            qs.itemCode = generateItemCode(qs.classId, exam.code, qs.setName);
+            sessionModified = true;
+          }
+        }
+      }
+      if (sessionModified) {
+        await session.save();
+      }
+    }
+
+    const cleanSessions = await ExamSession.find({}).sort({ sessionYear: -1 }).lean();
+    return NextResponse.json({ sessions: cleanSessions });
   } catch (error: any) {
     console.error("Error fetching exams:", error);
     return NextResponse.json({ error: "Failed to fetch exams: " + error?.message }, { status: 500 });
@@ -222,9 +254,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "সেশন পাওয়া যায়নি" }, { status: 404 });
       }
 
+      const examCode = (body.code || code)?.trim() || generateExamCode(finalExamName, body.examTerm || examTerm);
       const newExam: any = {
         name: finalExamName,
-        code: (body.code || code)?.trim() || `EXAM-${Date.now().toString().slice(-4)}`,
+        code: examCode,
+        examId: examCode,
         examTerm: body.examTerm || examTerm || "১ম সাময়িক",
         startDate: body.startDate || startDate || "",
         endDate: body.endDate || endDate || "",
@@ -256,14 +290,20 @@ export async function POST(request: Request) {
       }
 
       const targetExamId = body.examId || body._id;
-      const exam = session.exams.find((e: any) => e._id?.toString() === targetExamId);
+      const exam = session.exams.find((e: any) => e._id?.toString() === targetExamId || e.code === targetExamId);
       if (!exam) {
         return NextResponse.json({ error: "পরীক্ষা পাওয়া যায়নি" }, { status: 404 });
       }
 
       const updatedName = (body.name || examName || "")?.trim();
       if (updatedName) exam.name = updatedName;
-      if (body.code !== undefined) exam.code = body.code?.trim();
+      if (body.code !== undefined && body.code?.trim()) {
+        exam.code = body.code.trim();
+        exam.examId = exam.code;
+      } else if (!exam.code) {
+        exam.code = generateExamCode(exam.name, exam.examTerm);
+        exam.examId = exam.code;
+      }
       if (body.examTerm !== undefined) exam.examTerm = body.examTerm;
       if (body.startDate !== undefined) exam.startDate = body.startDate;
       if (body.endDate !== undefined) exam.endDate = body.endDate;

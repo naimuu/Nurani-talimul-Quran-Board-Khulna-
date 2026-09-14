@@ -67,7 +67,7 @@ export default async function RootLayout({
             </div>
 
             {/* Main Content */}
-            <main className="flex-grow">
+            <main className="flex-grow flex flex-col min-h-0">
               {/* Sliding page header cover (conditionally shown from settings) */}
               <PageCoverHeader />
               {children}

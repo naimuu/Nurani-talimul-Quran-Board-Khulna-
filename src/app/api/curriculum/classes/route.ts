@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const classes = await prisma.curriculumClass.findMany({
+      where: {
+        name: { not: '_YEAR_ANCHOR_' },
+      },
       orderBy: { order: 'asc' },
       include: {
         books: true,
