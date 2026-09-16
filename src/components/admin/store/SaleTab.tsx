@@ -54,6 +54,7 @@ type Sale = {
   deliveryCharge?: number; courierName?: string; totalWeight?: number;
   promiseDate?: string | null;
   notes?: string;
+  geoAddress?: { division?: string; district?: string; upazila?: string; union?: string; village?: string; fullAddress?: string } | null;
 };
 
 type Product = { id: string; name: string; price: number; stock: number; unit: string; barcode?: string | null; weight?: number | null };
@@ -707,10 +708,15 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
     <html>
       <head>
         <title>Invoice ${sale.invoiceId}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/gh/maateen/solaiman-lipi@master/font.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Tiro+Bangla&family=Inter:wght@400;500;600;700&display=swap');
           @page { size: A4; margin: 0; }
-          body { font-family: 'Inter', 'Tiro Bangla', sans-serif; padding: 20px; max-width: 210mm; margin: 0 auto; color: #1e293b; background: #fff; line-height: 1.5; box-sizing: border-box; display: flex; flex-direction: column; min-height: 98vh; }
+          * { box-sizing: border-box; font-family: 'SolaimanLipi', 'Solaiman Lipi', 'Hind Siliguri', 'Kalpurush', 'Segoe UI', Tahoma, sans-serif; }
+          body { font-family: 'SolaimanLipi', 'Solaiman Lipi', 'Hind Siliguri', 'Kalpurush', 'Segoe UI', Tahoma, sans-serif; padding: 20px; max-width: 210mm; margin: 0 auto; color: #1e293b; background: #fff; line-height: 1.5; box-sizing: border-box; display: flex; flex-direction: column; min-height: 98vh; }
           .header { text-align: center; border-bottom: 2px solid #16a34a; padding-bottom: 20px; margin-bottom: 30px; position: relative; }
           .invoice-badge { position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); background: #16a34a; color: white; padding: 4px 20px; border-radius: 9999px; font-weight: 600; font-size: 14px; }
           .header h1 { font-size: 26px; color: #16a34a; margin: 0 0 8px 0; font-weight: 700; }
@@ -719,39 +725,104 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
           .info-box p { margin: 0 0 4px 0; font-size: 13px; color: #0f172a; }
           .info-box p:last-child { margin-bottom: 0; }
           .info-box p strong { color: #64748b; display: inline-block; width: 90px; font-weight: 500; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #16a34a; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #16a34a; background: transparent; }
           th { background: #16a34a; color: white; font-weight: 600; font-size: 13px; letter-spacing: 0.5px; padding: 4px 12px; text-align: left; border: 1px solid #16a34a; }
-          td { padding: 10px 12px; font-size: 13px; border: 1px solid #16a34a; color: #334155; }
+          td { padding: 10px 12px; font-size: 13px; border: 1px solid #16a34a; color: #334155; background: transparent; }
+          tr { background: transparent; }
           .text-right { text-align: right; }
           .text-center { text-align: center; }
-          .totals-section { width: 380px; margin-top: auto; align-self: flex-end; margin-bottom: 20px; }
-          .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: #475569; }
+          .totals-section { width: 380px; margin-top: auto; align-self: flex-end; margin-bottom: 20px; background: transparent; }
+          .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: #475569; background: transparent; }
           .total-row.grand-total { font-size: 16px; font-weight: 700; color: #0f172a; border-top: 2px solid #16a34a; padding-top: 8px; margin-top: 4px; }
           .total-row.paid { color: #16a34a; font-weight: 600; }
           .total-row.due { color: #dc2626; font-weight: 600; }
-          .qr-barcode-section { display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #cbd5e1; padding-top: 14px; margin-top: 15px; width: 100%; }
+          .qr-barcode-section { display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #cbd5e1; padding-top: 14px; margin-top: 15px; width: 100%; background: transparent; }
+          /* Watermark */
+          .watermark-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            height: 320px;
+            pointer-events: none;
+            z-index: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.25;
+          }
+          .watermark-logo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: grayscale(100%);
+          }
+          .invoice-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+          }
           @media print {
-            body { padding: 5px; max-width: none; }
-            .header { margin: -5px -5px 30px -5px; border-bottom-color: #000 !important; }
-            .info-section { border: 1px solid #000 !important; padding: 12px; background: transparent; }
-            .invoice-badge { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-color: #000 !important; }
-            .header h1 { color: #000 !important; }
-            table, th, td { border-color: #000 !important; }
-            th { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .total-row.grand-total { border-top-color: #000 !important; }
-            .total-row.paid, .total-row.due { color: #000 !important; font-weight: 700; }
-            .info-box p strong { color: #000 !important; }
-            .qr-barcode-section { border-top-color: #000 !important; }
-            img { -webkit-filter: grayscale(100%) brightness(0.6) contrast(2000%); filter: grayscale(100%) brightness(0.6) contrast(2000%); }
+            * { color: #000000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { padding: 5px; max-width: none; background: #ffffff !important; color: #000000 !important; }
+            .watermark-container {
+              position: fixed !important;
+              top: 50% !important;
+              left: 50% !important;
+              transform: translate(-50%, -50%) !important;
+              width: 320px !important;
+              height: 320px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              opacity: 0.25 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              z-index: 0 !important;
+            }
+            .watermark-logo {
+              width: 100% !important;
+              height: 100% !important;
+              object-fit: contain !important;
+              filter: grayscale(100%) !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .invoice-content {
+              position: relative !important;
+              z-index: 1 !important;
+            }
+            .header { margin: -5px -5px 30px -5px; border-bottom: 2px solid #000000 !important; }
+            .header h1, .header p, .header div { color: #000000 !important; }
+            .info-section { border: 1.5px solid #000000 !important; padding: 12px; background: transparent !important; }
+            .info-box p, .info-box p strong, .info-box span { color: #000000 !important; }
+            .invoice-badge { background: #000000 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #000000 !important; }
+            table, th, td, tr, tbody { border: 1px solid #000000 !important; color: #000000 !important; background: transparent !important; }
+            th { background: #000000 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            td { background: transparent !important; color: #000000 !important; }
+            .total-row { color: #000000 !important; background: transparent !important; }
+            .total-row.grand-total { border-top: 2px solid #000000 !important; color: #000000 !important; }
+            .total-row.paid, .total-row.due { color: #000000 !important; font-weight: 700 !important; }
+            .qr-barcode-section { border-top: 1px dashed #000000 !important; background: transparent !important; }
+            .qr-barcode-section p { color: #000000 !important; }
+            div[style*="background: #f0fdf4"] { background: transparent !important; border: 1px solid #000000 !important; color: #000000 !important; }
+            img { -webkit-filter: grayscale(100%) contrast(2000%); filter: grayscale(100%) contrast(2000%); }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div style="font-family: 'Amiri', 'Traditional Arabic', serif; font-size: 13px; color: #334155; margin-bottom: 2px; text-align: center;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
-          <h1 style="color: #095738; margin: 1px 0; font-size: 18px; font-weight: 800;">নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
-          <p style="color: #64748b; font-size: 9.5px; margin: 1px 0 3px 0;">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
-          <div class="invoice-badge">ইনভয়েস</div>
+        <div class="watermark-container">
+          <img src="/images/logo.jpeg" alt="Watermark Logo" class="watermark-logo" />
+        </div>
+        <div class="invoice-content">
+          <div class="header">
+          <div style="font-family: 'Amiri', 'Traditional Arabic', serif !important; font-size: 14px; color: #000000; margin-bottom: 2px; text-align: center; font-weight: 700;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+          <h1 style="color: #000000; margin: 2px 0 4px 0; font-size: 24px; font-weight: 900; letter-spacing: -0.3px;">নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
+          <p style="color: #000000; font-size: 10.5px; margin: 1px 0 4px 0; font-weight: 500;">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা। 📳 ০১৭১৪-৯০ ৮৩ ৮১</p>
+          <div class="invoice-badge" style="background: #000000; color: #ffffff;">ইনভয়েস</div>
         </div>
         
         <div class="info-section">
@@ -856,6 +927,7 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
             ${qrCodeUrl ? `<img src="${qrCodeUrl}" alt="QR" style="width: 60px; height: 60px; display: inline-block;" />` : ''}
           </div>
         </div>
+        </div>
       </body>
     </html>
   `;
@@ -864,152 +936,468 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
 const generateLedgerHTML = (ent: {
   name: string;
   institute: string;
+  phone?: string;
+  ilhak?: string;
+  address?: string;
+  firstDate?: string | null;
+  lastDate?: string | null;
   sales: Sale[];
   totalAmount: number;
   paidAmount: number;
   totalDue: number;
-}, coverUrl: string) => {
+  logoUrl?: string;
+}) => {
   // Sort sales chronologically ascending for ledger balance
   const sortedSales = [...ent.sales].sort((a, b) => 
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
+
+  const firstDateStr = sortedSales.length > 0 ? sortedSales[0].createdAt : ent.firstDate;
+  const lastDateStr = sortedSales.length > 0 ? sortedSales[sortedSales.length - 1].createdAt : ent.lastDate;
+
+  const firstDateFormatted = firstDateStr 
+    ? new Date(firstDateStr).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  const lastDateFormatted = lastDateStr 
+    ? new Date(lastDateStr).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  const dateRangeStr = firstDateFormatted && lastDateFormatted 
+    ? (firstDateFormatted === lastDateFormatted ? firstDateFormatted : `${firstDateFormatted} হতে ${lastDateFormatted}`)
+    : 'সকল লেনদেন';
 
   let runningDue = 0;
   const rows = sortedSales.map((s, idx) => {
     const sDue = Math.max(0, s.totalAmount - s.paidAmount);
     runningDue += sDue;
     const itemsCount = s.items.reduce((sum, it) => sum + it.quantity, 0);
-    const pInfo = formatPromiseDate(s.promiseDate);
 
     return `
       <tr>
-        <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+        <td style="text-align: center; font-weight: bold; color: #475569;">${String(idx + 1).padStart(2, '0')}</td>
         <td style="font-family: monospace; font-weight: bold; color: #15803d;">${s.invoiceId}</td>
-        <td>
-          <div>${new Date(s.createdAt).toLocaleDateString('bn-BD')}</div>
-          <div style="font-size: 11px; color: #64748b;">${new Date(s.createdAt).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+        <td style="text-align: center; font-weight: 600; color: #0f172a; white-space: nowrap;">
+          ${new Date(s.createdAt).toLocaleDateString('bn-BD')}
         </td>
-        <td style="text-align: center; font-weight: 600; color: #475569;">
+        <td style="text-align: center; font-weight: 600; color: #334155;">
           ${itemsCount} টি
         </td>
-        <td style="text-align: right; font-weight: 600;">${s.totalAmount.toFixed(2)} ৳</td>
+        <td style="text-align: right; font-weight: 600; color: #0f172a;">${s.totalAmount.toFixed(2)} ৳</td>
         <td style="text-align: right; color: #16a34a; font-weight: 600;">${s.paidAmount.toFixed(2)} ৳</td>
         <td style="text-align: right; color: ${sDue > 0 ? '#dc2626' : '#16a34a'}; font-weight: bold;">
           ${sDue > 0 ? `${sDue.toFixed(2)} ৳` : '০.০০ ৳'}
         </td>
-        <td style="text-align: center;">
+        <td style="text-align: center; vertical-align: middle;">
           ${s.paidAmount >= s.totalAmount 
-            ? '<span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; border: 1px solid #bbf7d0;">পরিশোধিত</span>' 
+            ? '<span class="status-badge paid">পরিশোধিত</span>' 
             : s.paidAmount > 0 
-            ? '<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; border: 1px solid #bfdbfe;">আংশিক</span>' 
-            : '<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; border: 1px solid #fde68a;">বকেয়া</span>'}
-          ${pInfo && sDue > 0 ? `<div style="font-size: 10px; color: #b45309; margin-top: 3px; font-weight: 600;">ওয়াদা: ${pInfo.formatted}</div>` : ''}
+            ? '<span class="status-badge partial">আংশিক</span>' 
+            : '<span class="status-badge due">বকেয়া</span>'}
         </td>
       </tr>
     `;
   }).join('');
 
   return `
-    <html>
+    <!DOCTYPE html>
+    <html lang="bn">
       <head>
-        <title>Ledger - ${ent.name}</title>
+        <meta charset="utf-8" />
+        <title>লেজার বিবরণী - ${ent.institute || ent.name}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/gh/maateen/solaiman-lipi@master/font.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Tiro+Bangla&family=Inter:wght@400;500;600;700&display=swap');
-          @page { size: A4; margin: 10mm; }
-          body { font-family: 'Inter', 'Tiro Bangla', sans-serif; padding: 10px; max-width: 210mm; margin: 0 auto; color: #1e293b; background: #fff; line-height: 1.5; }
-          .header { text-align: center; border-bottom: 2px solid #16a34a; padding-bottom: 15px; margin-bottom: 20px; position: relative; }
-          .ledger-badge { position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%); background: #16a34a; color: white; padding: 3px 18px; border-radius: 9999px; font-weight: 700; font-size: 13px; }
-          .header h1 { font-size: 24px; color: #16a34a; margin: 0 0 6px 0; font-weight: 700; }
-          .header p { margin: 0; color: #64748b; font-size: 13px; }
-          .customer-strip { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; background: #f8fafc; padding: 14px 18px; border-radius: 8px; border: 1px solid #e2e8f0; }
-          .customer-info h3 { margin: 0 0 4px 0; font-size: 16px; color: #0f172a; font-weight: 700; }
-          .customer-info p { margin: 0; font-size: 13px; color: #059669; font-weight: 600; }
-          .summary-boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
-          .summary-box { padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; background: #fafafa; }
-          .summary-box.bill { border-color: #cbd5e1; background: #f8fafc; }
-          .summary-box.paid { border-color: #bbf7d0; background: #f0fdf4; }
-          .summary-box.due { border-color: #fecaca; background: #fef2f2; }
-          .summary-box .label { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
-          .summary-box .amount { font-size: 18px; font-weight: 800; color: #0f172a; }
-          .summary-box.paid .amount { color: #16a34a; }
-          .summary-box.due .amount { color: #dc2626; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #16a34a; font-size: 12px; }
-          th { background: #16a34a; color: white; font-weight: 700; font-size: 12px; padding: 8px 10px; text-align: left; border: 1px solid #16a34a; }
-          td { padding: 8px 10px; border: 1px solid #cbd5e1; color: #334155; }
-          .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 35px; padding-top: 20px; }
-          .sig-box { text-align: center; width: 160px; border-top: 1px dashed #64748b; padding-top: 6px; font-size: 12px; color: #475569; font-weight: 600; }
+          @page { size: A4 portrait; margin: 8mm 10mm; }
+          * { box-sizing: border-box; font-family: 'SolaimanLipi', 'Solaiman Lipi', 'Hind Siliguri', 'Kalpurush', 'Segoe UI', Tahoma, sans-serif; }
+          body { 
+            font-family: 'SolaimanLipi', 'Solaiman Lipi', 'Hind Siliguri', 'Kalpurush', 'Segoe UI', Tahoma, sans-serif; 
+            padding: 0; 
+            max-width: 210mm; 
+            margin: 0 auto; 
+            color: #0f172a; 
+            background: #fff; 
+            line-height: 1.4; 
+            font-size: 11.5px; 
+            display: flex;
+            flex-direction: column;
+            min-height: 98vh;
+            box-sizing: border-box;
+          }
+          
+          /* Standard Invoice Header (No Image) */
+          .header { 
+            text-align: center; 
+            border-bottom: 2px solid #000000; 
+            padding-bottom: 10px; 
+            margin-bottom: 14px; 
+            position: relative; 
+          }
+          .bismillah { 
+            font-family: 'Amiri', 'Traditional Arabic', serif !important; 
+            font-size: 14px; 
+            color: #000000; 
+            margin-bottom: 2px; 
+            letter-spacing: 1px;
+            font-weight: 700;
+          }
+          .board-title { 
+            font-size: 24px; 
+            color: #000000; 
+            margin: 2px 0 4px 0; 
+            font-weight: 900; 
+            letter-spacing: -0.3px;
+            line-height: 1.25;
+          }
+          .board-address { 
+            color: #000000; 
+            font-size: 10.5px; 
+            margin: 0 0 10px 0; 
+            font-weight: 500;
+          }
+          .ledger-badge { 
+            position: absolute; 
+            bottom: -11px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: #000000; 
+            color: #ffffff; 
+            padding: 2.5px 20px; 
+            border-radius: 9999px; 
+            font-weight: 700; 
+            font-size: 11.5px; 
+            letter-spacing: 0.3px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+          }
+          
+          /* Customer & Institute Separate Two Boxes */
+          .customer-boxes { 
+            display: flex; 
+            justify-content: space-between; 
+            gap: 14px; 
+            margin-top: 14px;
+            margin-bottom: 12px; 
+          }
+          .info-box-card {
+            flex: 1;
+            background: transparent; 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            border: 1px solid #cbd5e1; 
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+          }
+          .info-box-card .box-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: #000000;
+            border-bottom: 1px dashed #cbd5e1;
+            padding-bottom: 3px;
+            margin-bottom: 3px;
+            background: transparent;
+          }
+          .info-box-card .row-item {
+            font-size: 11px;
+            color: #000000;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            background: transparent;
+          }
+          .info-box-card .label {
+            color: #000000;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+          }
+          .info-box-card .value {
+            color: #000000;
+          }
+          .info-box-card .inst-name {
+            font-weight: 800;
+            font-size: 11.5px;
+            color: #000000;
+          }
+
+          /* Table Layout */
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 10px; 
+            border: 1px solid #16a34a; 
+            font-size: 11px; 
+            background: transparent;
+          }
+          th { 
+            background: #16a34a; 
+            color: white; 
+            font-weight: 700; 
+            font-size: 11px; 
+            padding: 5px 8px; 
+            text-align: left; 
+            border: 1px solid #16a34a; 
+          }
+          td { 
+            padding: 4.5px 8px; 
+            border: 1px solid #e2e8f0; 
+            color: #334155; 
+            background: transparent;
+          }
+          tr { background: transparent; }
+          tr:nth-child(even) { background-color: transparent; }
+          
+          .status-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 9999px;
+            font-size: 9.5px;
+            font-weight: bold;
+            background: transparent;
+          }
+          .status-badge.paid { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+          .status-badge.partial { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+          .status-badge.due { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+          .table-footer-row td {
+            font-weight: bold;
+            background: transparent;
+            border-top: 2px solid #16a34a;
+            color: #0f172a;
+            font-size: 11px;
+          }
+          
+          /* Footer Signatures */
+          .footer-section { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-end; 
+            margin-top: auto; 
+            padding-top: 15px; 
+            padding-bottom: 2px;
+            page-break-inside: avoid;
+            background: transparent;
+          }
+          .sig-box { 
+            text-align: center; 
+            width: 140px; 
+            border-top: 1px dashed #64748b; 
+            padding-top: 4px; 
+            font-size: 10px; 
+            color: #475569; 
+            font-weight: 600; 
+            background: transparent;
+          }
+          
+          /* Center Watermark Logo */
+          .watermark-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            height: 320px;
+            pointer-events: none;
+            z-index: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.25;
+          }
+          .watermark-logo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: grayscale(100%);
+          }
+          .content-layer {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+          }
+          
           @media print {
-            body { padding: 0; max-width: none; }
-            .header { border-bottom-color: #000 !important; }
-            .ledger-badge { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            th { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-color: #000 !important; }
-            table, td { border-color: #000 !important; }
-            .summary-box { border-color: #000 !important; }
-            .summary-box.paid .amount, .summary-box.due .amount { color: #000 !important; font-weight: 900; }
-            .customer-strip { border-color: #000 !important; }
+            * { color: #000000 !important; font-family: 'SolaimanLipi', 'Solaiman Lipi', 'Hind Siliguri', 'Kalpurush', 'Segoe UI', Tahoma, sans-serif !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .bismillah { font-family: 'Amiri', 'Traditional Arabic', serif !important; }
+            body { 
+              padding: 0; 
+              max-width: none; 
+              background: #ffffff !important; 
+              color: #000000 !important; 
+              display: flex !important;
+              flex-direction: column !important;
+              min-height: 275mm !important;
+              height: 100% !important;
+              box-sizing: border-box !important;
+              font-family: 'SolaimanLipi', 'Solaiman Lipi', 'Hind Siliguri', 'Kalpurush', 'Segoe UI', Tahoma, sans-serif !important;
+            }
+            .watermark-container {
+              position: fixed !important;
+              top: 50% !important;
+              left: 50% !important;
+              transform: translate(-50%, -50%) !important;
+              width: 320px !important;
+              height: 320px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              opacity: 0.25 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              z-index: 0 !important;
+            }
+            .watermark-logo {
+              width: 100% !important;
+              height: 100% !important;
+              object-fit: contain !important;
+              filter: grayscale(100%) !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .content-layer {
+              position: relative !important;
+              z-index: 1 !important;
+            }
+            .header { border-bottom: 2px solid #000000 !important; }
+            .board-title { font-size: 24px !important; font-weight: 900 !important; color: #000000 !important; }
+            .bismillah, .board-address { color: #000000 !important; }
+            .ledger-badge { background: #000000 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #000000 !important; }
+            th { background: #000000 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #000000 !important; }
+            table, td, tr, tbody, tfoot { border: 1px solid #000000 !important; color: #000000 !important; background: transparent !important; }
+            td { background: transparent !important; color: #000000 !important; }
+            tr:nth-child(even) { background-color: transparent !important; }
+            .status-badge { border: 1px solid #000000 !important; background: transparent !important; color: #000000 !important; font-weight: bold !important; }
+            .table-footer-row td { background: transparent !important; border-top: 2px solid #000000 !important; color: #000000 !important; }
+            .customer-boxes { gap: 12px !important; margin-top: 10px !important; margin-bottom: 10px !important; }
+            .info-box-card { border: 1.5px solid #000000 !important; background: transparent !important; }
+            .info-box-card .box-title { border-bottom: 1px dashed #000000 !important; color: #000000 !important; background: transparent !important; }
+            .info-box-card .row-item, .info-box-card .label, .info-box-card .value, .info-box-card .inst-name, .info-box-card span, .info-box-card div { color: #000000 !important; background: transparent !important; }
+            .summary-table, .summary-table tbody, .summary-table tr, .summary-table td { border: 1.5px solid #000000 !important; background: transparent !important; }
+            .summary-table td { background: transparent !important; color: #000000 !important; border: 1px solid #000000 !important; }
+            .footer-section { margin-top: auto !important; page-break-inside: avoid !important; background: transparent !important; }
+            .footer-section .sig-box { border-top: 1px dashed #000000 !important; color: #000000 !important; background: transparent !important; }
+            .footer-section div { color: #000000 !important; }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          ${coverUrl ? `<img src="${coverUrl}" alt="Board Cover" style="width: 100%; display: block; margin: 0; max-height: 110px; object-fit: cover;" />` 
-          : `
-          <h1>নূরানী তালিমুল কুরআন বোর্ড খুলনা</h1>
-          <p>প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।</p>
-          `}
-          <div class="ledger-badge">গ্রাহক লেজার বিবরণী (Ledger Statement)</div>
+        <!-- Center Watermark Logo with 20% opacity -->
+        <div class="watermark-container">
+          <img src="${ent.logoUrl || '/images/logo.jpeg'}" alt="Watermark Logo" class="watermark-logo" />
         </div>
 
-        <div class="customer-strip">
-          <div class="customer-info">
-            <h3><strong>গ্রাহক:</strong> ${ent.name}</h3>
-            ${ent.institute ? `<p><strong>প্রতিষ্ঠান/মাদ্রাসা:</strong> ${ent.institute}</p>` : ''}
+        <div class="content-layer">
+          <div class="header">
+            <div class="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+            <div class="board-title">নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</div>
+            <div class="board-address">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা। 📳 ০১৭১৪-৯০ ৮৩ ৮১</div>
+            <div class="ledger-badge">গ্রাহক লেজার বিবরণী</div>
           </div>
-          <div style="text-align: right; font-size: 12px; color: #475569;">
-            <div><strong>মোট ভাউচার/অর্ডার:</strong> ${ent.sales.length} টি</div>
-            <div style="margin-top: 3px;"><strong>রিপোর্ট তারিখ:</strong> ${new Date().toLocaleDateString('bn-BD')} ${new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
-          </div>
-        </div>
 
-        <div class="summary-boxes">
-          <div class="summary-box bill">
-            <div class="label">মোট বিল / ক্রয়</div>
-            <div class="amount">${ent.totalAmount.toFixed(2)} ৳</div>
-          </div>
-          <div class="summary-box paid">
-            <div class="label">মোট জমা / পরিশোধ</div>
-            <div class="amount">${ent.paidAmount.toFixed(2)} ৳</div>
-          </div>
-          <div class="summary-box due">
-            <div class="label">সর্বমোট বকেয়া</div>
-            <div class="amount">${ent.totalDue.toFixed(2)} ৳</div>
-          </div>
-        </div>
+          <div class="customer-boxes">
+            <!-- Left Box: Institute Details -->
+            <div class="info-box-card">
+              <div class="box-title">প্রতিষ্ঠান / মাদরাসার তথ্য</div>
+              <div class="row-item">
+                <span class="label">প্রতিষ্ঠান:</span>
+                <span class="value inst-name">${ent.institute || 'ব্যক্তিগত / খুচরা গ্রাহক'}</span>
+              </div>
+              ${ent.ilhak ? `
+              <div class="row-item">
+                <span class="label">ইলহাক নং:</span>
+                <span class="value" style="font-family: monospace; font-weight: bold;">${ent.ilhak}</span>
+              </div>` : ''}
+              ${ent.address ? `
+              <div class="row-item">
+                <span class="label">ঠিকানা:</span>
+                <span class="value" style="font-weight: 500;">${ent.address}</span>
+              </div>` : ''}
+              <div class="row-item">
+                <span class="label">লেনদেনের সময়কাল:</span>
+                <span class="value" style="font-weight: 500;">${dateRangeStr}</span>
+              </div>
+            </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: center; width: 40px;">ক্রমিক</th>
-              <th style="width: 130px;">ইনভয়েস নং</th>
-              <th style="width: 120px;">তারিখ ও সময়</th>
-              <th style="text-align: center; width: 85px;">মোট আইটেম</th>
-              <th style="text-align: right; width: 95px;">মোট বিল</th>
-              <th style="text-align: right; width: 95px;">পরিশোধ</th>
-              <th style="text-align: right; width: 95px;">বকেয়া</th>
-              <th style="text-align: center; width: 100px;">অবস্থা</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
-
-        <div class="footer-section">
-          <div class="sig-box">হিসাব রক্ষকের স্বাক্ষর</div>
-          <div style="font-size: 11px; color: #64748b; text-align: center;">
-            কম্পিউটার জেনারেটেড গ্রাহক লেজার বিবরণী | নূরানী তালিমুল কুরআন বোর্ড খুলনা
+            <!-- Right Box: Customer & Statement Metadata -->
+            <div class="info-box-card">
+              <div class="box-title">গ্রাহক ও হিসাবের বিবরণ</div>
+              <div class="row-item">
+                <span class="label">মুহতামিম / স্বত্বাধিকারী:</span>
+                <span class="value" style="font-weight: 700;">${ent.name}</span>
+              </div>
+              ${ent.phone ? `
+              <div class="row-item">
+                <span class="label">মোবাইল নম্বর:</span>
+                <span class="value" style="font-family: monospace; font-weight: 700;">${ent.phone}</span>
+              </div>` : ''}
+              <div class="row-item">
+                <span class="label">মোট ভাউচার / অর্ডার:</span>
+                <span class="value" style="font-weight: 700;">${ent.sales.length} টি</span>
+              </div>
+              <div class="row-item">
+                <span class="label">স্টেটমেন্ট তৈরির তারিখ:</span>
+                <span class="value" style="font-weight: 500;">${new Date().toLocaleDateString('bn-BD')}</span>
+              </div>
+            </div>
           </div>
-          <div class="sig-box">অনুমোদনকারীর স্বাক্ষর</div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: center; width: 35px;">ক্রমিক</th>
+                <th style="width: 110px;">ইনভয়েস নং</th>
+                <th style="text-align: center; width: 90px;">তারিখ</th>
+                <th style="text-align: center; width: 70px;">আইটেম</th>
+                <th style="text-align: right; width: 90px;">মোট বিল</th>
+                <th style="text-align: right; width: 90px;">পরিশোধ</th>
+                <th style="text-align: right; width: 90px;">বকেয়া</th>
+                <th style="text-align: center; width: 90px;">অবস্থা</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+            <tfoot>
+              <tr class="table-footer-row">
+                <td colspan="4" style="text-align: right; padding-right: 10px;">সর্বমোট হিসাব:</td>
+                <td style="text-align: right;">${ent.totalAmount.toFixed(2)} ৳</td>
+                <td style="text-align: right; color: #16a34a;">${ent.paidAmount.toFixed(2)} ৳</td>
+                <td style="text-align: right; color: ${ent.totalDue > 0 ? '#dc2626' : '#16a34a'};">${ent.totalDue.toFixed(2)} ৳</td>
+                <td style="text-align: center;">${ent.totalDue === 0 ? 'পরিশোধিত' : 'বকেয়া'}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <!-- Below Table: Clean Simple Summary Table -->
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px; margin-bottom: 20px;">
+            <table class="summary-table" style="width: 320px; border-collapse: collapse; border: 1.5px solid #16a34a; font-size: 11.5px; margin-bottom: 0;">
+              <tbody>
+                <tr>
+                  <td style="padding: 5px 12px; font-weight: 600; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0;">মোট বিল / ক্রয়:</td>
+                  <td style="padding: 5px 12px; font-weight: bold; text-align: right; border: 1px solid #e2e8f0; color: #0f172a;">${ent.totalAmount.toFixed(2)} ৳</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 12px; font-weight: 600; color: #166534; background: #f0fdf4; border: 1px solid #e2e8f0;">মোট জমা / পরিশোধ:</td>
+                  <td style="padding: 5px 12px; font-weight: bold; text-align: right; border: 1px solid #e2e8f0; color: #16a34a;">${ent.paidAmount.toFixed(2)} ৳</td>
+                </tr>
+                <tr style="background: ${ent.totalDue > 0 ? '#fef2f2' : '#f0fdf4'};">
+                  <td style="padding: 6px 12px; font-weight: bold; color: ${ent.totalDue > 0 ? '#b91c1c' : '#166534'}; border-top: 1.5px solid #16a34a;">সর্বমোট বকেয়া:</td>
+                  <td style="padding: 6px 12px; font-weight: 900; font-size: 12.5px; text-align: right; color: ${ent.totalDue > 0 ? '#dc2626' : '#16a34a'}; border-top: 1.5px solid #16a34a;">${ent.totalDue.toFixed(2)} ৳</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer-section">
+            <div class="sig-box">হিসাব রক্ষকের স্বাক্ষর</div>
+            <div style="font-size: 9.5px; color: #64748b; text-align: center;">
+              কম্পিউটার জেনারেটেড গ্রাহক লেজার বিবরণী | নূরানী তা'লীমুল কুরআন board খুলনা
+            </div>
+            <div class="sig-box">অনুমোদনকারীর স্বাক্ষর</div>
+          </div>
         </div>
       </body>
     </html>
@@ -1017,11 +1405,11 @@ const generateLedgerHTML = (ent: {
 };
 
 const printEntityLedger = async (ent: any) => {
-  let coverUrl = '';
+  let logoUrl = '/images/logo.jpeg';
   try {
     const res = await fetch('/api/settings');
     const settings = await res.json();
-    coverUrl = settings.coverUrl || '';
+    if (settings.logoUrl) logoUrl = settings.logoUrl;
   } catch (e) {}
 
   const iframe = document.createElement('iframe');
@@ -1036,7 +1424,7 @@ const printEntityLedger = async (ent: any) => {
   const doc = iframe.contentWindow?.document;
   if (doc) {
     doc.open();
-    doc.write(generateLedgerHTML(ent, coverUrl));
+    doc.write(generateLedgerHTML({ ...ent, logoUrl }));
     doc.close();
     iframe.onload = () => {
       setTimeout(() => {
@@ -1595,18 +1983,41 @@ export default function SaleTab({
     });
   };
 
+  // Helper to extract a normalized smart key for grouping
+  const getEntityKey = (s: { customerName?: string | null; instituteId?: string | null; customerPhone?: string | null; notes?: string | null }) => {
+    const institute = (s.instituteId || '').trim();
+    let phone = (s.customerPhone || '').trim();
+    if (!phone && s.notes) {
+      const phoneMatch = s.notes.match(/(?:01[3-9]\d{8}|০১[৩-৯][০-৯]{৮})/);
+      if (phoneMatch) phone = phoneMatch[0];
+    }
+    const name = (s.customerName || 'বেনামী').trim();
+
+    if (institute) {
+      return `inst:::${institute.toLowerCase()}`;
+    }
+    if (phone) {
+      return `phone:::${phone}`;
+    }
+    return `name:::${name.toLowerCase()}`;
+  };
+
   // Unique Customer & Madrasa list for dropdown filter
   const entityList = useMemo(() => {
     const map = new Map<string, { key: string; name: string; institute: string }>();
     categorySales.forEach(s => {
+      const key = getEntityKey(s);
       const name = (s.customerName || '').trim();
       const institute = (s.instituteId || '').trim();
-      const key = `${name}|||${institute}`;
       if (!map.has(key)) {
-        map.set(key, { key, name, institute });
+        map.set(key, { key, name: name || institute || 'বেনামী গ্রাহক', institute });
+      } else {
+        const existing = map.get(key)!;
+        if (!existing.name && name) existing.name = name;
+        if (!existing.institute && institute) existing.institute = institute;
       }
     });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(map.values()).sort((a, b) => (a.institute || a.name).localeCompare(b.institute || b.name));
   }, [categorySales]);
 
   // Sub-tab counts
@@ -1634,17 +2045,18 @@ export default function SaleTab({
     };
   }, [categorySales]);
 
-  // Filtered and sorted sales list
+  // Filtered and sorted sales list (for Invoices List View)
   const filtered = useMemo(() => {
     return categorySales
       .filter(s => {
         // Search filter
         if (searchTerm.trim()) {
           const q = searchTerm.toLowerCase();
-          const matchName = s.customerName.toLowerCase().includes(q);
-          const matchInvoice = s.invoiceId.toLowerCase().includes(q);
+          const matchName = (s.customerName || '').toLowerCase().includes(q);
+          const matchInvoice = (s.invoiceId || '').toLowerCase().includes(q);
           const matchInstitute = (s.instituteId || '').toLowerCase().includes(q);
-          if (!matchName && !matchInvoice && !matchInstitute) return false;
+          const matchPhone = (s.customerPhone || '').toLowerCase().includes(q);
+          if (!matchName && !matchInvoice && !matchInstitute && !matchPhone) return false;
         }
 
         // Sub tab filter
@@ -1664,7 +2076,7 @@ export default function SaleTab({
 
         // Person / Madrasa dropdown filter
         if (selectedEntity !== 'all') {
-          const entityKey = `${(s.customerName || '').trim()}|||${(s.instituteId || '').trim()}`;
+          const entityKey = getEntityKey(s);
           if (entityKey !== selectedEntity) return false;
         }
 
@@ -1688,14 +2100,19 @@ export default function SaleTab({
         const dateB = new Date(b.updatedAt || b.createdAt).getTime();
         return dateB - dateA;
       });
-  }, [sales, searchTerm, subTab, selectedEntity, sortBy]);
+  }, [categorySales, searchTerm, subTab, selectedEntity, sortBy]);
 
-  // Person / Madrasa Wise Grouped Data
+  // Person / Madrasa Wise Grouped Data (All order invoices grouped by Madrasa/Customer)
   const entityGroups = useMemo(() => {
     const map = new Map<string, {
       key: string;
       name: string;
       institute: string;
+      phone: string;
+      ilhak: string;
+      address: string;
+      firstDate: string | null;
+      lastDate: string | null;
       sales: Sale[];
       totalAmount: number;
       paidAmount: number;
@@ -1703,16 +2120,55 @@ export default function SaleTab({
       nearestPromiseDate: string | null;
     }>();
 
-    filtered.forEach(s => {
+    // Group ALL categorySales so that every entity holds all its order invoices
+    categorySales.forEach(s => {
+      if (s.status === 'Rejected') return;
+
       const name = (s.customerName || 'বেনামী').trim();
       const institute = (s.instituteId || '').trim();
-      const key = `${name}|||${institute}`;
+      const key = getEntityKey(s);
+
+      // Extract ilhak if present in institute or notes or instituteId
+      let ilhak = '';
+      const ilhakMatch = (institute + ' ' + (s.notes || '')).match(/(?:ইলহাক|ইলহাক নং|কোড|Code|Ilhak)[:\s-]*([0-9০-৯a-zA-Z-]+)/i);
+      if (ilhakMatch) {
+        ilhak = ilhakMatch[1].trim();
+      } else if (/^\d+$/.test(institute)) {
+        ilhak = institute;
+      }
+
+      // Extract phone
+      let phone = (s.customerPhone || '').trim();
+      if (!phone && s.notes) {
+        const phoneMatch = s.notes.match(/(?:01[3-9]\d{8}|০১[৩-৯][০-৯]{৮})/);
+        if (phoneMatch) phone = phoneMatch[0];
+      }
+
+      // Extract address
+      let address = '';
+      if (s.geoAddress) {
+        const g = s.geoAddress;
+        address = [g.village, g.union, g.upazila, g.district].filter(Boolean).join(', ') || g.fullAddress || '';
+      }
+      if (!address && s.notes) {
+        const addrMatch = s.notes.match(/(?:ঠিকানা|Address)[:\s-]*([^,\n\r\(\)]+)/i);
+        if (addrMatch) {
+          address = addrMatch[1].trim();
+        } else if (s.notes.length < 100 && !s.notes.includes('{') && !s.notes.includes('status')) {
+          address = s.notes;
+        }
+      }
 
       if (!map.has(key)) {
         map.set(key, {
           key,
-          name,
+          name: name && name !== 'বেনামী' ? name : (institute || 'বেনামী'),
           institute,
+          phone,
+          ilhak,
+          address,
+          firstDate: s.createdAt,
+          lastDate: s.createdAt,
           sales: [],
           totalAmount: 0,
           paidAmount: 0,
@@ -1722,11 +2178,26 @@ export default function SaleTab({
       }
 
       const entry = map.get(key)!;
-      entry.sales.push(s);
-      entry.totalAmount += s.totalAmount;
-      entry.paidAmount += s.paidAmount;
-      const due = Math.max(0, s.totalAmount - s.paidAmount);
-      entry.totalDue += due;
+      if (!entry.sales.some(existing => existing.id === s.id)) {
+        entry.sales.push(s);
+        entry.totalAmount += s.totalAmount;
+        entry.paidAmount += s.paidAmount;
+        const due = Math.max(0, s.totalAmount - s.paidAmount);
+        entry.totalDue += due;
+      }
+
+      if ((!entry.name || entry.name === 'বেনামী') && name && name !== 'বেনামী') entry.name = name;
+      if (!entry.institute && institute) entry.institute = institute;
+      if (!entry.phone && phone) entry.phone = phone;
+      if (!entry.ilhak && ilhak) entry.ilhak = ilhak;
+      if (!entry.address && address) entry.address = address;
+
+      if (new Date(s.createdAt).getTime() < new Date(entry.firstDate || s.createdAt).getTime()) {
+        entry.firstDate = s.createdAt;
+      }
+      if (new Date(s.createdAt).getTime() > new Date(entry.lastDate || s.createdAt).getTime()) {
+        entry.lastDate = s.createdAt;
+      }
 
       if (s.promiseDate) {
         if (!entry.nearestPromiseDate) {
@@ -1741,7 +2212,41 @@ export default function SaleTab({
       }
     });
 
-    return Array.from(map.values()).sort((a, b) => {
+    // Sort order invoices inside each entity (newest date first)
+    map.forEach(ent => {
+      ent.sales.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    });
+
+    // Filter entity groups by search term, sub-tab and entity selector
+    let list = Array.from(map.values());
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter(ent => {
+        const matchName = (ent.name || '').toLowerCase().includes(q);
+        const matchInst = (ent.institute || '').toLowerCase().includes(q);
+        const matchPhone = (ent.phone || '').toLowerCase().includes(q);
+        const matchIlhak = (ent.ilhak || '').toLowerCase().includes(q);
+        const matchInvoice = ent.sales.some(s => (s.invoiceId || '').toLowerCase().includes(q));
+        return matchName || matchInst || matchPhone || matchIlhak || matchInvoice;
+      });
+    }
+
+    if (subTab === 'due') {
+      list = list.filter(ent => ent.totalDue > 0);
+    } else if (subTab === 'paid') {
+      list = list.filter(ent => ent.totalDue === 0 && ent.paidAmount > 0);
+    } else if (subTab === 'partial') {
+      list = list.filter(ent => ent.paidAmount > 0 && ent.totalDue > 0);
+    } else if (subTab === 'promise') {
+      list = list.filter(ent => Boolean(ent.nearestPromiseDate));
+    }
+
+    if (selectedEntity !== 'all') {
+      list = list.filter(ent => ent.key === selectedEntity);
+    }
+
+    return list.sort((a, b) => {
       if (sortBy === 'due-desc') return b.totalDue - a.totalDue;
       if (sortBy === 'amount-desc') return b.totalAmount - a.totalAmount;
       if (sortBy === 'promise-near') {
@@ -1751,7 +2256,7 @@ export default function SaleTab({
       }
       return b.totalDue - a.totalDue; // default: highest due first
     });
-  }, [filtered, sortBy]);
+  }, [categorySales, searchTerm, subTab, selectedEntity, sortBy]);
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-300">
@@ -2285,14 +2790,27 @@ export default function SaleTab({
                               </span>
                             )}
                           </div>
-                          {ent.institute ? (
-                            <p className="text-xs font-semibold text-emerald-700 mt-1 flex items-center gap-1">
-                              <Building className="w-3.5 h-3.5 shrink-0" />
-                              <span>{ent.institute}</span>
-                            </p>
-                          ) : (
-                            <p className="text-xs text-slate-400 mt-1">ব্যক্তিগত কাস্টমার</p>
-                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                            {ent.institute ? (
+                              <p className="font-semibold text-emerald-700 flex items-center gap-1">
+                                <Building className="w-3.5 h-3.5 shrink-0" />
+                                <span>{ent.institute}</span>
+                                {ent.ilhak && <span className="font-mono text-[11px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">ইলহাক: {ent.ilhak}</span>}
+                              </p>
+                            ) : (
+                              <p className="text-slate-400">ব্যক্তিগত কাস্টমার</p>
+                            )}
+                            {ent.phone && (
+                              <span className="text-slate-500 font-mono flex items-center gap-1">
+                                📞 {ent.phone}
+                              </span>
+                            )}
+                            {ent.address && (
+                              <span className="text-slate-400 text-[11px] truncate max-w-xs">
+                                📍 {ent.address}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 

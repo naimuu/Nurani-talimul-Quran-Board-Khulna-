@@ -185,7 +185,9 @@ export async function printOrderInvoice(
               max-width: 100%;
               margin: 0 auto;
               padding: 0;
-              background: #ffffff !important;
+              background: transparent !important;
+              position: relative;
+              z-index: 1;
             }
             .bismillah {
               font-family: 'Amiri', 'Traditional Arabic', serif !important;
@@ -202,6 +204,7 @@ export async function printOrderInvoice(
               padding-bottom: 4px;
               margin-bottom: 6px;
               position: relative;
+              background: transparent;
             }
             .board-title {
               color: #000000 !important;
@@ -241,10 +244,11 @@ export async function printOrderInvoice(
               margin-bottom: 6px;
               page-break-inside: avoid;
               break-inside: avoid;
+              background: transparent;
             }
             .card-box {
               flex: 1;
-              background: #ffffff !important;
+              background: transparent !important;
               border: 1.5px solid #000000;
               border-radius: 4px;
               padding: 5px 8px;
@@ -258,12 +262,14 @@ export async function printOrderInvoice(
               padding-bottom: 2px;
               margin-bottom: 3px;
               text-transform: uppercase;
+              background: transparent;
             }
             .info-item {
               display: flex;
               justify-content: space-between;
               padding: 1.5px 0;
               font-size: 10.5px;
+              background: transparent;
             }
             .info-item .label {
               font-weight: 700;
@@ -281,6 +287,10 @@ export async function printOrderInvoice(
               font-size: 10.5px;
               page-break-inside: avoid;
               break-inside: avoid;
+              background: transparent !important;
+            }
+            table.items-table tr {
+              background: transparent !important;
             }
             table.items-table th {
               background: #000000 !important;
@@ -295,7 +305,7 @@ export async function printOrderInvoice(
               border: 1px solid #000000 !important;
               font-size: 10.5px;
               vertical-align: middle;
-              background: #ffffff !important;
+              background: transparent !important;
               color: #000000 !important;
             }
             .text-right { text-align: right; }
@@ -309,10 +319,11 @@ export async function printOrderInvoice(
               gap: 10px;
               page-break-inside: avoid;
               break-inside: avoid;
+              background: transparent;
             }
             .notes-box {
               flex: 1;
-              background: #ffffff !important;
+              background: transparent !important;
               border: 1px solid #000000;
               border-radius: 4px;
               padding: 5px 7px;
@@ -321,7 +332,7 @@ export async function printOrderInvoice(
             }
             .totals-box {
               width: 260px;
-              background: #ffffff !important;
+              background: transparent !important;
               border: 1.5px solid #000000;
               border-radius: 4px;
               padding: 5px 7px;
@@ -333,11 +344,12 @@ export async function printOrderInvoice(
               padding: 1.5px 0;
               font-size: 10.5px;
               color: #000000 !important;
+              background: transparent;
             }
             .totals-row.grand {
               border-top: 1.5px solid #000000;
               border-bottom: 1.5px solid #000000;
-              background: #ffffff !important;
+              background: transparent !important;
               padding: 3px 0;
               margin: 3px 0;
               font-weight: 800;
@@ -358,6 +370,7 @@ export async function printOrderInvoice(
               padding-top: 2px;
               page-break-inside: avoid;
               break-inside: avoid;
+              background: transparent;
             }
             .signature-block {
               text-align: center;
@@ -367,6 +380,7 @@ export async function printOrderInvoice(
               font-size: 9.5px;
               font-weight: 700;
               color: #000000 !important;
+              background: transparent;
             }
             .footer-bar {
               display: flex;
@@ -377,6 +391,7 @@ export async function printOrderInvoice(
               margin-top: 6px;
               page-break-inside: avoid;
               break-inside: avoid;
+              background: transparent;
             }
             .system-notice {
               text-align: center;
@@ -384,9 +399,38 @@ export async function printOrderInvoice(
               color: #000000 !important;
               margin-top: 3px;
             }
+            .watermark-container {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              width: 320px;
+              height: 320px;
+              pointer-events: none;
+              z-index: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              opacity: 0.25;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .watermark-logo {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+              filter: grayscale(100%);
+            }
+            .invoice-wrapper {
+              position: relative;
+              z-index: 1;
+            }
           </style>
         </head>
         <body>
+          <div class="watermark-container">
+            <img src="${boardSettings?.logoUrl || '/images/logo.jpeg'}" alt="Watermark Logo" class="watermark-logo" />
+          </div>
           <div class="invoice-wrapper">
             <div class="header-container">
               <div class="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
