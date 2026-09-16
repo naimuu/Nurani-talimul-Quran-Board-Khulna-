@@ -129,24 +129,6 @@ export default function HomeMobileNavModals({ notices = [] }: { notices?: Notice
               বিজ্ঞপ্তি ({notices.length})
             </span>
           </button>
-
-          {/* Button 3: প্রশ্ন অর্ডার */}
-          <Link
-            href="/academic/question-order"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 shadow-sm text-white active:scale-95 transition-all text-xs font-bold shrink-0"
-          >
-            <FileText className="w-3.5 h-3.5 text-amber-300" />
-            <span>প্রশ্ন অর্ডার</span>
-          </Link>
-
-          {/* Button 4: বই অর্ডার */}
-          <Link
-            href="/store"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 shadow-sm text-slate-950 active:scale-95 transition-all text-xs font-black shrink-0"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>বই অর্ডার</span>
-          </Link>
         </div>
       </div>
 

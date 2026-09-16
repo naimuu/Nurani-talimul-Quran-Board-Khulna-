@@ -42,9 +42,9 @@ function ListProductRow({
   updateCartQty: (p: Product, q: number) => void, setDetailProduct: (p: Product) => void
 }) {
   return (
-    <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors bg-slate-100/50">
+    <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors bg-white/70">
       <td className="p-2 hidden sm:table-cell">
-        <div className="w-12 h-12 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-sm border border-slate-100 relative">
+        <div className="w-10 h-10 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-2xs border border-slate-100 relative">
           {product.imageUrl ? (
             <img
               src={product.imageUrl}
@@ -61,32 +61,32 @@ function ListProductRow({
             />
           ) : null}
           <div className={`img-fb w-full h-full items-center justify-center bg-slate-50 ${product.imageUrl ? 'hidden' : 'flex'}`}>
-            <Package className="w-6 h-6 text-slate-300" />
+            <Package className="w-5 h-5 text-slate-300" />
           </div>
         </div>
       </td>
-      <td className="p-3 text-center text-sm font-bold text-slate-700 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
-      <td className="p-3">
-        <h3 className="font-bold text-slate-800 text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2" onClick={() => setDetailProduct(product)}>{product.name}</h3>
+      <td className="p-2 text-center text-xs sm:text-sm font-bold text-slate-700 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
+      <td className="p-2 sm:p-2.5">
+        <h3 className="font-bold text-slate-800 text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2" onClick={() => setDetailProduct(product)}>{product.name}</h3>
       </td>
-      <td className="p-3 text-center text-xs sm:text-sm font-bold text-slate-600 hidden sm:table-cell">
+      <td className="p-2 text-center text-xs font-bold text-slate-600 hidden sm:table-cell">
         {product.category}
       </td>
-      <td className="p-3 text-center font-bold text-slate-800">{product.price.toFixed(2)}</td>
-      <td className="p-3">
+      <td className="p-2 sm:p-2.5 text-center font-bold text-xs sm:text-sm text-slate-800">{product.price.toFixed(2)}</td>
+      <td className="p-2 sm:p-2.5">
         <div className="flex items-center justify-center gap-1 mx-auto w-fit">
-          <button onClick={() => updateCartQty(product, Math.max(0, cartQty - 1))} className="w-7 h-7 bg-slate-400 text-white flex items-center justify-center rounded-sm font-bold text-lg leading-none">-</button>
+          <button onClick={() => updateCartQty(product, Math.max(0, cartQty - 1))} className="w-6 h-6 sm:w-7 sm:h-7 bg-slate-400 text-white flex items-center justify-center rounded-sm font-bold text-base sm:text-lg leading-none active:scale-95 transition-transform">-</button>
           <input
             type="number"
             value={cartQty || ""}
             onChange={(e) => updateCartQty(product, parseInt(e.target.value) || 0)}
             onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-            className="w-10 sm:w-16 h-7 text-center text-sm font-bold border border-slate-300 rounded-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-9 sm:w-14 h-6 sm:h-7 text-center text-xs sm:text-sm font-bold border border-slate-300 rounded-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <button onClick={() => updateCartQty(product, cartQty + 1)} className="w-7 h-7 bg-[#2f8c5b] hover:bg-[#2f8c5b]/90 text-white flex items-center justify-center rounded-sm font-bold text-lg leading-none">+</button>
+          <button onClick={() => updateCartQty(product, cartQty + 1)} className="w-6 h-6 sm:w-7 sm:h-7 bg-[#2f8c5b] hover:bg-[#2f8c5b]/90 text-white flex items-center justify-center rounded-sm font-bold text-base sm:text-lg leading-none active:scale-95 transition-transform">+</button>
         </div>
       </td>
-      <td className="p-3 text-right pr-6 font-bold text-slate-800 hidden sm:table-cell">{(product.price * cartQty).toFixed(2)}</td>
+      <td className="p-2 sm:p-2.5 text-right pr-3 sm:pr-6 font-bold text-xs sm:text-sm text-slate-800">{(product.price * cartQty).toFixed(2)}</td>
     </tr>
   );
 }
@@ -1272,11 +1272,6 @@ export default function StorePage() {
   const [isDeliveryAlertOpen, setIsDeliveryAlertOpen] = useState(false);
   const [deliveryAlertMode, setDeliveryAlertMode] = useState<"first_visit" | "before_order" | "manual">("before_order");
   const [isDeliveryBannerDismissed, setIsDeliveryBannerDismissed] = useState(false);
-  const [cartToast, setCartToast] = useState<{
-    show: boolean;
-    productName: string;
-    price: number;
-  } | null>(null);
 
   // Fetch logged in session
   useEffect(() => {
@@ -1329,24 +1324,7 @@ export default function StorePage() {
         setCart(cleanCart);
       }
     } catch { }
-
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "auto";
-      document.documentElement.style.overflow = "auto";
-    };
   }, []);
-
-  // Auto hide cart toast
-  useEffect(() => {
-    if (cartToast?.show) {
-      const timer = setTimeout(() => {
-        setCartToast(null);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [cartToast]);
 
   useEffect(() => {
     if (isMounted) {
@@ -1369,7 +1347,6 @@ export default function StorePage() {
       if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + qty } : i);
       return [...prev, { product, qty }];
     });
-    setCartToast({ show: true, productName: product.name, price: product.price });
   };
 
   const updateCartQty = (product: Product, qty: number) => {
@@ -1377,12 +1354,8 @@ export default function StorePage() {
       if (qty <= 0) return prev.filter(i => i.product.id !== product.id);
       const existing = prev.find(i => i.product.id === product.id);
       if (existing) {
-        if (qty > existing.qty) {
-          setCartToast({ show: true, productName: product.name, price: product.price });
-        }
         return prev.map(i => i.product.id === product.id ? { ...i, qty } : i);
       }
-      setCartToast({ show: true, productName: product.name, price: product.price });
       return [...prev, { product, qty }];
     });
   };
@@ -1435,62 +1408,11 @@ export default function StorePage() {
     });
   };
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState<string>("calc(100vh - 85px)");
-
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        // Exact pixel distance from container top to the bottom of the viewport:
-        const available = Math.max(350, window.innerHeight - rect.top);
-        setContentHeight(`${available}px`);
-      }
-    };
-
-    updateHeight();
-
-    // Use ResizeObserver to catch any dynamic header, banner, or font changes
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
-      updateHeight();
-    }) : null;
-    if (ro && document.body) {
-      ro.observe(document.body);
-    }
-
-    window.addEventListener("resize", updateHeight);
-    window.addEventListener("scroll", updateHeight, { passive: true });
-
-    const timers = [
-      setTimeout(updateHeight, 50),
-      setTimeout(updateHeight, 200),
-      setTimeout(updateHeight, 600),
-      setTimeout(updateHeight, 1200),
-      setTimeout(updateHeight, 3200),
-    ];
-
-    // Lock document scroll on /store so it behaves as a clean full-viewport web app
-    const originalOverflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      if (ro) ro.disconnect();
-      window.removeEventListener("resize", updateHeight);
-      window.removeEventListener("scroll", updateHeight);
-      timers.forEach(clearTimeout);
-      document.documentElement.style.overflow = originalOverflow;
-    };
-  }, []);
-
   return (
-    <div
-      ref={containerRef}
-      style={{ height: contentHeight, maxHeight: contentHeight }}
-      className="w-full flex-1 flex flex-col bg-slate-50 overflow-hidden"
-    >
+    <div className="w-full flex-1 flex flex-col bg-slate-50 min-h-screen">
       {/* Top Header */}
-      <div className="bg-white border-b border-slate-200 z-30 shadow-sm flex-shrink-0">
-        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-3 flex items-center justify-between gap-3">
+      <div className="bg-white border-b border-slate-200 z-30 shadow-xs flex-shrink-0 sticky top-0">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-2.5 sm:py-3 flex items-center justify-between gap-3">
           <h1 className="text-lg font-black text-slate-800 whitespace-nowrap hidden sm:block">বই ও স্টেশনারি</h1>
 
           {/* Search & Filters */}
@@ -1504,7 +1426,7 @@ export default function StorePage() {
                 value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="পণ্য খুঁজুন..."
                 lang="bn"
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
               />
               {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>}
             </div>
@@ -1517,7 +1439,7 @@ export default function StorePage() {
           {/* Sort & View Toggle */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
-              className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 hidden md:block">
+              className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 hidden md:block">
               <option value="default">ডিফল্ট</option>
               <option value="price-asc">মূল্য: কম থেকে বেশি</option>
               <option value="price-desc">মূল্য: বেশি থেকে কম</option>
@@ -1538,19 +1460,19 @@ export default function StorePage() {
         </div>
       </div>
 
-      <div className="w-full flex flex-col lg:flex-row flex-1 h-full min-h-0 overflow-hidden relative bg-slate-50 items-stretch">
+      <div className="w-full flex flex-col xl:flex-row flex-1 bg-slate-50 items-start px-2 sm:px-4 lg:px-6 py-2 sm:py-3 gap-3 min-h-0">
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0 h-full min-h-0 flex flex-col px-4 sm:px-6 lg:px-8 py-3 lg:py-4 overflow-hidden">
+        <div className="flex-1 min-w-0 w-full flex flex-col min-h-0">
           {/* Horizontal Category Tabs (Mobile & Desktop) */}
-          <div className="w-full overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-shrink-0">
-            <div className="flex items-center gap-2 w-max">
+          <div className="w-full overflow-x-auto pb-2.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-max">
               <button
                 onClick={(e) => {
                   setSelectedCategories(new Set());
                   e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                 }}
-                className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors border ${selectedCategories.size === 0 ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
+                className={`px-4 py-1.5 sm:px-5 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${selectedCategories.size === 0 ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
               >
                 সকল
               </button>
@@ -1563,7 +1485,7 @@ export default function StorePage() {
                       toggleCategory(cat);
                       e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                     }}
-                    className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors border ${isSelected ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
+                    className={`px-4 py-1.5 sm:px-5 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${isSelected ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
                   >
                     {cat}
                   </button>
@@ -1606,20 +1528,9 @@ export default function StorePage() {
             </div>
           )}
 
-          {/* Mobile sort (only visible on mobile devices) */}
-          <div className="md:hidden flex justify-end mb-2.5 flex-shrink-0">
-            <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
-              className="text-sm border border-slate-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40">
-              <option value="default">ডিফল্ট</option>
-              <option value="price-asc">মূল্য ↑</option>
-              <option value="price-desc">মূল্য ↓</option>
-              <option value="name">নাম</option>
-            </select>
-          </div>
-
           {/* Products Display Area */}
           {viewMode === "card" ? (
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-10">
+            <div className="w-full pb-16 lg:pb-10">
               {!loading && filtered.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-24 text-slate-400">
                   <Package className="w-16 h-16 mb-4 text-slate-200" />
@@ -1703,46 +1614,42 @@ export default function StorePage() {
               </div>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col mb-2 overflow-hidden">
+            <div className="w-full flex-1 flex flex-col min-h-0 mb-2">
               {/* LIST VIEW */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
-                {/* Compact Top Header & Action Bar (FIXED at top) */}
-                <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200/80 px-3.5 py-2 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0 z-20">
-                  <div className="flex items-center gap-2 text-center sm:text-left flex-wrap">
-                    <span className="font-black text-emerald-800 text-sm sm:text-base whitespace-nowrap">বই ও স্টেশনারি তালিকা</span>
-                    <span className="hidden md:inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <p className="text-red-600 font-bold text-xs sm:text-[13px]">
-                      অর্ডারকৃত পণ্যের পরিমাণ সঠিকভাবে বসানোর পর "বিলে যুক্ত করুন" বাটনে ক্লিক করুন
-                    </p>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full flex-1 flex flex-col min-h-0">
+                {/* Compact Top Header & Action Bar */}
+                <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200/80 px-3.5 py-2.5 flex items-center justify-between gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-black text-emerald-800 text-xs sm:text-sm md:text-base truncate">বই ও স্টেশনারি তালিকা</span>
                   </div>
-                  <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-wrap sm:flex-nowrap justify-end">
-                    <div className="flex items-center gap-1.5 bg-white border border-emerald-300/80 px-3 py-1.5 rounded-xl shadow-2xs">
-                      <span className="text-xs sm:text-sm font-bold text-slate-700">সর্বমোট মূল্য:</span>
-                      <span className="text-sm sm:text-base font-black text-emerald-800">৳{cartTotal.toFixed(2)}</span>
+                  <div className="flex items-center gap-2 shrink-0 justify-end">
+                    <div className="flex items-center gap-1 bg-white border border-emerald-300/80 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl shadow-2xs">
+                      <span className="text-[11px] sm:text-xs font-bold text-slate-700">সর্বমোট:</span>
+                      <span className="text-xs sm:text-sm md:text-base font-black text-emerald-800">৳{cartTotal.toFixed(2)}</span>
                     </div>
                     <button
                       type="button"
                       onClick={handleOpenOrder}
-                      className="px-4 py-1.5 bg-[#2d3282] hover:bg-[#232766] text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
+                      className="px-3.5 py-1.5 bg-[#2d3282] hover:bg-[#232766] text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer"
                     >
-                      <ShoppingBag className="w-4 h-4" />
+                      <ShoppingBag className="w-3.5 h-3.5" />
                       <span>বিলে যুক্ত করুন</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Table Scroll Area (Table header sticky, rows scroll underneath behind header) */}
-                <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 relative">
+                {/* Table Area with internal scroll: only rows scroll behind the thead */}
+                <div className="overflow-auto w-full flex-1 min-h-[calc(100dvh-210px)] sm:min-h-[calc(100dvh-190px)] max-h-[calc(100dvh-190px)] sm:max-h-[calc(100dvh-170px)]">
                   <table className="w-full text-left border-collapse min-w-full sm:min-w-[750px]">
-                    <thead className="sticky top-0 z-20 shadow-xs">
-                      <tr className="bg-[#2f8c5b] text-white text-sm">
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-16 sm:w-20 hidden sm:table-cell bg-[#2f8c5b]">ছবি</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell bg-[#2f8c5b]">কোড</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 bg-[#2f8c5b]">পণ্যের নাম</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 hidden sm:table-cell bg-[#2f8c5b]">ক্যাটাগরি</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-20 sm:w-32 bg-[#2f8c5b]">দর (৳)</th>
-                        <th className="p-3 font-bold text-center border-r border-white/20 w-28 sm:w-48 bg-[#2f8c5b]">পরিমাণ</th>
-                        <th className="p-3 font-bold text-right pr-6 w-36 hidden sm:table-cell bg-[#2f8c5b]">পরিমাণ*মূল্য(৳)</th>
+                    <thead className="sticky top-0 z-10 bg-[#2f8c5b] shadow-xs">
+                      <tr className="bg-[#2f8c5b] text-white text-xs sm:text-sm">
+                        <th className="p-2.5 font-bold text-center border-r border-white/20 w-14 sm:w-20 hidden sm:table-cell bg-[#2f8c5b]">ছবি</th>
+                        <th className="p-2.5 font-bold text-center border-r border-white/20 w-16 hidden sm:table-cell bg-[#2f8c5b]">কোড</th>
+                        <th className="p-2.5 sm:p-3 font-bold text-left sm:text-center border-r border-white/20 bg-[#2f8c5b]">পণ্যের নাম</th>
+                        <th className="p-2.5 font-bold text-center border-r border-white/20 w-24 hidden sm:table-cell bg-[#2f8c5b]">ক্যাটাগরি</th>
+                        <th className="p-2.5 sm:p-3 font-bold text-center border-r border-white/20 w-20 sm:w-28 bg-[#2f8c5b]">দর (৳)</th>
+                        <th className="p-2.5 sm:p-3 font-bold text-center border-r border-white/20 w-28 sm:w-44 bg-[#2f8c5b]">পরিমাণ</th>
+                        <th className="p-2.5 sm:p-3 font-bold text-right pr-3 sm:pr-6 w-20 sm:w-32 bg-[#2f8c5b]">মূল্য (৳)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1781,8 +1688,8 @@ export default function StorePage() {
 
         {/* Right Sidebar - Cart */}
         <aside className={`
-          hidden xl:flex flex-col flex-shrink-0 self-stretch transition-all duration-300 ease-in-out h-full min-h-0 overflow-hidden bg-white
-          ${rightSidebarOpen ? "w-80 2xl:w-[330px] border-l border-slate-200 opacity-100" : "w-0 border-l-0 opacity-0"}
+          hidden xl:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out bg-white rounded-2xl border border-slate-200 shadow-sm sticky top-20 self-start max-h-[calc(100vh-100px)] overflow-hidden
+          ${rightSidebarOpen ? "w-80 2xl:w-[330px] opacity-100" : "w-0 border-l-0 opacity-0 overflow-hidden"}
         `}>
           <div className="flex flex-col h-full w-80 2xl:w-[330px] flex-shrink-0 min-h-0 overflow-hidden justify-between">
             {/* Header */}
@@ -1944,20 +1851,7 @@ export default function StorePage() {
         </aside>
       </div>
 
-      {/* Floating Stylish Cart Summary (Mobile/Tablet) */}
-      {cartCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-sm bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200/50 p-4 flex items-center justify-between animate-in slide-in-from-bottom-10 xl:hidden">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-              {cartCount} টি পণ্য · {deliveryInfo.isFreeDelivery ? "ফ্রি ডেলিভারি" : `+${deliveryInfo.deliveryCharge} ৳ কুরিয়ার`}
-            </span>
-            <span className="text-xl font-black text-primary">৳{grandTotal.toFixed(2)}</span>
-          </div>
-          <button onClick={() => setCartOpen(true)} className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/25 hover:bg-primary/90 hover:-translate-y-0.5 transition-all flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4" /> কার্ট দেখুন
-          </button>
-        </div>
-      )}
+
 
       {/* Detail Modal */}
       {detailProduct && (
@@ -2124,50 +2018,6 @@ export default function StorePage() {
           setIsOrderModalOpen(true);
         }}
       />
-
-      {/* Toast Alert after clicking add to cart / bill button */}
-      {cartToast && (
-        <div className="fixed top-20 right-4 sm:right-6 z-[100] max-w-sm w-full bg-slate-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-start gap-3 animate-in slide-in-from-top-4 duration-200">
-          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-            <CheckCircle className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-emerald-300 truncate leading-tight">
-              ✓ {cartToast.productName} কার্টে যোগ হয়েছে!
-            </p>
-            <p className="text-[11px] text-slate-300 mt-1 leading-snug">
-              বর্তমান বিল: <strong className="text-white">৳{cartTotal.toFixed(2)}</strong> · {deliveryInfo.isFreeDelivery ? <span className="text-emerald-400 font-bold">ফ্রি ডেলিভারি 🎉</span> : <span className="text-amber-300">কুরিয়ার: ৳{deliveryInfo.deliveryCharge}</span>}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDeliveryAlertMode("manual");
-                  setIsDeliveryAlertOpen(true);
-                }}
-                className="text-[10px] font-bold text-amber-300 hover:text-amber-200 underline"
-              >
-                ডেলিভারি নীতিমালা
-              </button>
-              <span className="text-slate-500 text-[10px]">·</span>
-              <button
-                type="button"
-                onClick={() => setCartOpen(true)}
-                className="text-[10px] font-bold text-emerald-300 hover:text-emerald-200 underline"
-              >
-                কার্ট দেখুন ({cartCount})
-              </button>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCartToast(null)}
-            className="w-6 h-6 rounded-lg text-slate-400 hover:text-white flex items-center justify-center shrink-0 hover:bg-white/10 transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
 
       {isOrderModalOpen && (
         <OrderFormModal

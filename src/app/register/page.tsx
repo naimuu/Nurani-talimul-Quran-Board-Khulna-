@@ -473,7 +473,7 @@ export default function RegisterMadrasaPage() {
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-6 py-4 rounded-xl text-center shadow-sm text-sm">
             <p className="font-semibold mb-1">আপনার প্রতিষ্ঠান নিবন্ধনের আবেদন পূর্বে করা হয়ে থাকলে পুনরায় করা হতে বিরত থাকুন।</p>
             <p>আপনার প্রতিষ্ঠানের নিবন্ধন পূর্বে হয়েছে কিনা, প্রতিষ্ঠান কোড অথবা প্রতিষ্ঠান সম্পর্কিত যাবতীয় সকল তথ্যের জন্য হেল্পলাইন নম্বরে যোগাযোগ করুন।</p>
-            <p className="mt-2 font-bold text-emerald-900 bg-emerald-100 inline-block px-3 py-1 rounded-lg">হেল্পলাইন নম্বর: ০৯৬৪৭-৪৭৬৯৯০ (১০.০০am - ৮.০০pm)</p>
+            <p className="mt-2 font-bold text-emerald-900 bg-emerald-100 inline-block px-3 py-1 rounded-lg">হেল্পলাইন নম্বর: ০১৮২০-৫৮০৫৬০ (১০.০০am - ৮.০০pm)</p>
           </div>
         </div>
 

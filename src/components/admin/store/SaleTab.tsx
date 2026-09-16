@@ -2235,9 +2235,9 @@ export default function SaleTab({
       </>
       ) : (
         /* ================= PERSON / MADRASA WISE GROUPED VIEW ================= */
-        <div className="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-310px)] pr-1">
+        <div className="flex flex-col gap-3.5 overflow-y-auto max-h-[calc(100vh-310px)] pr-1">
           {entityGroups.length === 0 ? (
-            <div className="bg-white p-12 text-center rounded-2xl border border-slate-200/80 text-slate-400">
+            <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400">
               <Building className="w-10 h-10 text-slate-300 mx-auto mb-2" />
               <p className="font-bold text-slate-600">কোনো ব্যক্তি বা মাদ্রাসার হিসাব পাওয়া যায়নি</p>
             </div>
@@ -2249,137 +2249,134 @@ export default function SaleTab({
               return (
                 <div 
                   key={ent.key} 
-                  className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+                  className={`bg-white rounded-2xl transition-all duration-200 border ${
                     isExpanded 
-                      ? 'bg-white border-2 border-emerald-600/60 shadow-md ring-4 ring-emerald-500/10' 
-                      : 'bg-white border border-slate-200/90 shadow-2xs hover:border-slate-300'
+                      ? 'border-emerald-500 shadow-md ring-2 ring-emerald-500/10' 
+                      : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md'
                   }`}
                 >
-                  {/* Entity Header Summary Bar */}
-                  <div 
-                    onClick={() => toggleEntityExpand(ent.key)}
-                    className={`p-3 sm:p-4 cursor-pointer transition-colors duration-300 flex flex-col gap-2 ${
-                      isExpanded 
-                        ? 'bg-emerald-50/80 hover:bg-emerald-50 border-b border-emerald-200/70' 
-                        : 'hover:bg-slate-50/70'
-                    }`}
-                  >
-                    {/* Top Row: User/Madrasa Info & Expand Chevron */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                  {/* Entity Header Summary Card */}
+                  <div className="p-4 flex flex-col gap-3">
+                    {/* Top Row: User / Madrasa Info & Action Buttons */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start sm:items-center gap-3 min-w-0">
+                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${
                           ent.totalDue > 0 
-                            ? 'bg-amber-100 text-amber-800' 
-                            : isExpanded 
-                            ? 'bg-emerald-200/80 text-emerald-900 ring-2 ring-emerald-300/60' 
-                            : 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                         }`}>
-                          {ent.institute ? <Building className="w-4.5 h-4.5" /> : <User className="w-4.5 h-4.5" />}
+                          {ent.institute ? <Building className="w-5 h-5" /> : <User className="w-5 h-5" />}
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <h4 className="font-extrabold text-sm sm:text-base text-slate-900 truncate leading-snug">{ent.name}</h4>
-                            <span className={`text-[10px] sm:text-xs px-2 py-0.2 rounded-full font-bold transition-colors duration-300 ${
-                              isExpanded 
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-extrabold text-base text-slate-900 leading-snug">
+                              {ent.name}
+                            </h4>
+                            <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
                               {ent.sales.length} টি অর্ডার
                             </span>
+                            {ent.totalDue > 0 ? (
+                              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                                বকেয়া: {ent.totalDue.toFixed(2)} ৳
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                পরিশোধিত ✓
+                              </span>
+                            )}
                           </div>
                           {ent.institute ? (
-                            <p className="text-xs text-emerald-700 font-medium truncate mt-0.5">
-                              {ent.institute}
+                            <p className="text-xs font-semibold text-emerald-700 mt-1 flex items-center gap-1">
+                              <Building className="w-3.5 h-3.5 shrink-0" />
+                              <span>{ent.institute}</span>
                             </p>
                           ) : (
-                            <p className="text-[11px] text-slate-400 mt-0.5">ব্যক্তিগত কাস্টমার</p>
+                            <p className="text-xs text-slate-400 mt-1">ব্যক্তিগত কাস্টমার</p>
                           )}
                         </div>
                       </div>
 
-                      {/* Right Actions: Ledger Print & Expand Chevron */}
-                      <div className="flex items-center gap-2 shrink-0">
+                      {/* Right Action Buttons */}
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             printEntityLedger(ent);
                           }}
                           title="গ্রাহকের সম্পূর্ণ লেজার / খতিয়ান প্রিন্ট করুন"
-                          className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300/80 hover:border-emerald-500 rounded-lg text-xs font-bold shadow-2xs transition-all active:scale-95"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 hover:border-emerald-500 rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
                         >
-                          <Printer className="w-3.5 h-3.5 text-emerald-600" />
+                          <Printer className="w-4 h-4 text-emerald-600" />
                           <span>লেজার প্রিন্ট</span>
                         </button>
 
-                        <div className={`w-7 h-7 rounded-lg transition-all duration-300 flex items-center justify-center ${
-                          isExpanded 
-                            ? 'bg-emerald-600 text-white shadow-2xs rotate-180' 
-                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 rotate-0'
-                        }`}>
-                          <ChevronDown className="w-4 h-4" />
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleEntityExpand(ent.key)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            isExpanded
+                              ? 'bg-emerald-700 text-white shadow-xs'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          <span>{isExpanded ? 'লুকান' : 'ইনভয়েস বিবরণ'}</span>
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
                       </div>
                     </div>
 
-                    {/* Bottom Row: Compact Financial Strip */}
-                    <div className={`flex items-center justify-between text-xs pt-2 border-t transition-colors duration-300 ${
-                      isExpanded ? 'border-emerald-200/60' : 'border-slate-100'
-                    }`}>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-extrabold text-slate-800 text-xs sm:text-sm">
-                          মোট বিল: {ent.totalAmount.toFixed(2)} ৳
-                        </span>
-                        {ent.totalDue > 0 ? (
-                          <span className="bg-red-50 text-red-600 border border-red-200/80 text-[11px] font-bold px-2 py-0.5 rounded-md">
-                            বকেয়া: {ent.totalDue.toFixed(2)} ৳
-                          </span>
-                        ) : (
-                          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-bold px-2 py-0.5 rounded-md">
-                            পরিশোধিত
-                          </span>
-                        )}
+                    {/* Financial Metric Strip (3 Mini Cards) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col">
+                        <span className="text-[11px] font-semibold text-slate-500">মোট ক্রয় / বিল</span>
+                        <span className="text-sm font-black text-slate-900 mt-0.5">{ent.totalAmount.toFixed(2)} ৳</span>
                       </div>
 
-                      <div>
+                      <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100 flex flex-col">
+                        <span className="text-[11px] font-semibold text-emerald-700">মোট জমা / পরিশোধ</span>
+                        <span className="text-sm font-black text-emerald-800 mt-0.5">{ent.paidAmount.toFixed(2)} ৳</span>
+                      </div>
+
+                      <div className={`p-2.5 rounded-xl border flex flex-col ${
+                        ent.totalDue > 0 ? 'bg-red-50/80 border-red-200' : 'bg-slate-50 border-slate-100'
+                      }`}>
+                        <span className={`text-[11px] font-semibold ${ent.totalDue > 0 ? 'text-red-600' : 'text-slate-500'}`}>বর্তমান বকেয়া</span>
+                        <span className={`text-sm font-black mt-0.5 ${ent.totalDue > 0 ? 'text-red-700' : 'text-slate-700'}`}>
+                          {ent.totalDue.toFixed(2)} ৳
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col justify-center">
+                        <span className="text-[11px] font-semibold text-slate-500">ওয়াদার তারিখ</span>
                         {promiseInfo && ent.totalDue > 0 ? (
-                          <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md border font-semibold ${promiseInfo.badgeClass}`}>
-                            <Calendar className="w-2.5 h-2.5" />
-                            <span>ওয়াদা: {promiseInfo.formatted}</span>
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-bold mt-0.5 ${promiseInfo.diffDays < 0 ? 'text-red-600' : 'text-purple-700'}`}>
+                            <Calendar className="w-3 h-3 shrink-0" />
+                            <span>{promiseInfo.formatted} ({promiseInfo.label})</span>
                           </span>
                         ) : (
-                          <span className="text-[11px] text-emerald-700 font-medium">
-                            জমা: {ent.paidAmount.toFixed(2)} ৳
-                          </span>
+                          <span className="text-xs text-slate-400 mt-0.5 font-medium">নির্ধারিত নেই</span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Expandable Invoices List with Smooth Accordion Transition */}
-                  <div 
-                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                      isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-                    }`}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="bg-slate-50/80 p-3 sm:p-4">
-                        <div className="flex items-center justify-between mb-2.5">
-                          <h5 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
-                            <span>{ent.name} এর ইনভয়েস বিবরণ ({ent.sales.length} টি)</span>
-                          </h5>
-                          {ent.sales.length > 3 && (
-                            <span className="text-[10px] text-slate-400 font-medium">স্ক্রোল করুন ↕</span>
-                          )}
-                        </div>
+                  {/* Expandable Invoices Breakdown List */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-200 bg-slate-50/70 p-3.5 sm:p-4 rounded-b-2xl animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
+                          <span>{ent.name} এর ইনভয়েস বিবরণ ({ent.sales.length} টি)</span>
+                        </h5>
+                        <span className="text-[11px] text-slate-500 font-medium">মোট বিল: ৳{ent.totalAmount.toFixed(2)}</span>
+                      </div>
 
-                        {/* Scrollable Container with Max Height */}
-                        <div className="max-h-[360px] sm:max-h-[420px] overflow-y-auto pr-1 space-y-2.5 overscroll-contain [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
-                          {/* Desktop Table */}
-                          <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left text-xs bg-white rounded-xl border border-slate-200 shadow-2xs">
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-xs">
+                        <table className="w-full text-left text-xs border-collapse">
                           <thead>
-                            <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-bold">
+                            <tr className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-bold">
                               <th className="p-3">ইনভয়েস</th>
                               <th className="p-3">তারিখ ও সময়</th>
                               <th className="p-3 text-center">আইটেম</th>
@@ -2397,18 +2394,18 @@ export default function SaleTab({
                               return (
                                 <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                                   <td className="p-3 font-mono font-bold text-primary">{s.invoiceId}</td>
-                                  <td className="p-3 text-slate-600">
-                                    {new Date(s.updatedAt || s.createdAt).toLocaleDateString('bn-BD')} {new Date(s.updatedAt || s.createdAt).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                  <td className="p-3 text-slate-600 font-medium">
+                                    {new Date(s.updatedAt || s.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })}
                                   </td>
                                   <td className="p-3 text-center font-semibold text-slate-700">
                                     {s.items.reduce((acc, it) => acc + it.quantity, 0)} টি
                                   </td>
-                                  <td className="p-3 text-right font-bold text-slate-800">{s.totalAmount.toFixed(2)} ৳</td>
+                                  <td className="p-3 text-right font-black text-slate-800">{s.totalAmount.toFixed(2)} ৳</td>
                                   <td className="p-3 text-right font-bold text-emerald-700">{s.paidAmount.toFixed(2)} ৳</td>
                                   <td className="p-3 text-right font-bold text-red-600">{sDue > 0 ? `${sDue.toFixed(2)} ৳` : '০.০০ ৳'}</td>
                                   <td className="p-3">
                                     {pInfo ? (
-                                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${pInfo.badgeClass}`}>
+                                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${pInfo.badgeClass}`}>
                                         {pInfo.formatted} ({pInfo.label})
                                       </span>
                                     ) : (
@@ -2418,7 +2415,7 @@ export default function SaleTab({
                                   <td className="p-3 text-right">
                                     <button
                                       onClick={() => setSelectedSale(s)}
-                                      className="px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-bold text-[11px] transition-colors"
+                                      className="px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-bold text-xs transition-colors"
                                     >
                                       বিস্তারিত
                                     </button>
@@ -2443,7 +2440,7 @@ export default function SaleTab({
                             <div
                               key={s.id}
                               onClick={() => setSelectedSale(s)}
-                              className="bg-white rounded-xl border border-slate-200/90 p-3 shadow-2xs hover:border-slate-300 active:bg-slate-50 transition-all cursor-pointer flex flex-col gap-2"
+                              className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs hover:border-slate-300 active:bg-slate-50 transition-all cursor-pointer flex flex-col gap-2"
                             >
                               {/* Row 1: Invoice ID + Date + Status */}
                               <div className="flex items-center justify-between text-xs">
@@ -2504,10 +2501,8 @@ export default function SaleTab({
                         })}
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-              </div>
-            </div>
               );
             })
           )}

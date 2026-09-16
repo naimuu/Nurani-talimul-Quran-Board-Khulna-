@@ -472,12 +472,16 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
             <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group hover:opacity-95 transition-opacity min-w-0">
               {/* Official Board Logo with Automatic Fallback (Round shape) */}
               <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform overflow-hidden border border-amber-300 ring-1 ring-amber-400/40">
-                <img
-                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"}
-                  alt="বোর্ড লোগো"
-                  className="w-full h-full object-contain rounded-full"
-                  onError={() => setLogoError(true)}
-                />
+                {!logoError ? (
+                  <img
+                    src={settings?.logoUrl || "/images/logo.jpeg"}
+                    alt="বোর্ড লোগো"
+                    className="w-full h-full object-contain rounded-full"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <IslamicLogoIcon className="w-full h-full" />
+                )}
               </div>
 
               {/* Full Board Typography Branding & Address */}
@@ -881,12 +885,16 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
           <div className="sticky top-0 z-10 px-4 sm:px-5 py-4 flex items-center justify-between border-b border-white/10 bg-[#021d15]/90 backdrop-blur-xl flex-shrink-0 shadow-md">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-full bg-white p-0.5 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-amber-400/60 overflow-hidden">
-                <img
-                  src={(!logoError && settings?.logoUrl) ? settings.logoUrl : "/images/logo.svg"}
-                  alt="Logo"
-                  className="w-full h-full object-contain rounded-full"
-                  onError={() => setLogoError(true)}
-                />
+                {!logoError ? (
+                  <img
+                    src={settings?.logoUrl || "/images/logo.jpeg"}
+                    alt="Logo"
+                    className="w-full h-full object-contain rounded-full"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <IslamicLogoIcon className="w-full h-full" />
+                )}
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="font-black text-sm sm:text-base leading-tight truncate text-amber-300">{settings?.name || "নূরানী বোর্ড খুলনা"}</span>
