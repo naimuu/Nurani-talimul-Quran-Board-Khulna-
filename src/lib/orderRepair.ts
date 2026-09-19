@@ -66,15 +66,15 @@ export async function repairQuestionOrderSaleIfNeeded(sale: any, prisma: PrismaC
         }
       });
       if (!unitPrice) {
-        // Fallback default set price per class
-        if (cleanNameLower.includes('প্লে')) unitPrice = 20;
-        else if (cleanNameLower.includes('নার্সারী')) unitPrice = 20;
-        else if (cleanNameLower.includes('প্রথম')) unitPrice = 18;
-        else if (cleanNameLower.includes('দ্বিতীয়') || cleanNameLower.includes('দ্বিতীয়')) unitPrice = 18;
-        else if (cleanNameLower.includes('তৃতীয়') || cleanNameLower.includes('তৃতীয়')) unitPrice = 18;
-        else if (cleanNameLower.includes('চতুর্থ')) unitPrice = 18;
-        else if (cleanNameLower.includes('পঞ্চম')) unitPrice = 18;
-        else unitPrice = 20;
+        // Fallback default set price per class matching current sets
+        if (cleanNameLower.includes('প্লে')) unitPrice = 60;
+        else if (cleanNameLower.includes('নার্সারী') || cleanNameLower.includes('নার্সারি')) unitPrice = 60;
+        else if (cleanNameLower.includes('প্রথম')) unitPrice = 70;
+        else if (cleanNameLower.includes('দ্বিতীয়') || cleanNameLower.includes('দ্বিতীয়')) unitPrice = 80;
+        else if (cleanNameLower.includes('তৃতীয়') || cleanNameLower.includes('তৃতীয়')) unitPrice = 80;
+        else if (cleanNameLower.includes('চতুর্থ')) unitPrice = 100;
+        else if (cleanNameLower.includes('পঞ্চম')) unitPrice = 100;
+        else unitPrice = 60;
       }
 
       let prod = await (prisma as any).storeProduct.findFirst({ where: { name: pItem.name } });

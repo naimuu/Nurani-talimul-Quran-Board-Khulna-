@@ -66,6 +66,22 @@ export async function printOrderInvoice(
     }));
   }
 
+  const isQuestion = Boolean(
+    order.orderType === 'QUESTION' ||
+    order.orderType === 'EXAM_QUESTION' ||
+    (order.notes && (
+      order.notes.includes('[প্রশ্নের অর্ডার]') ||
+      order.notes.includes('প্রশ্নপত্র') ||
+      order.notes.includes('প্রশ্ন অর্ডার') ||
+      order.notes.includes('প্রশ্নপত্র সেট')
+    )) ||
+    (displayItems && displayItems.some((i: any) => {
+      const pName = String(i.product?.name || i.name || '').toLowerCase();
+      const pCat = String(i.product?.category || i.category || '').toLowerCase();
+      return pName.includes('প্রশ্ন') || pCat.includes('প্রশ্ন') || pCat.includes('question');
+    }))
+  );
+
   const trackingUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/track?code=${order.invoiceId}`
@@ -437,7 +453,7 @@ export async function printOrderInvoice(
               <h1 class="board-title">${boardSettings?.siteTitle || "নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ"}</h1>
               <p class="sub-title">কেন্দ্রীয় কার্যালয় ও পরীক্ষা নিয়ন্ত্রণ বিভাগ — অফিসিয়াল ইনভয়েস</p>
               <p class="board-address">${boardSettings?.address || "প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।"} | হেল্পলাইন: ${boardSettings?.contactPhone || "০১৮২০-৫৮০৫৬০"}</p>
-              <span class="invoice-pill">অফিসিয়াল অর্ডার ইনভয়েস ও ক্যাশ মেমো</span>
+              <span class="invoice-pill">${isQuestion ? "অফিসিয়াল প্রশ্নপত্র অর্ডার ইনভয়েস ও ক্যাশ মেমো" : "অফিসিয়াল অর্ডার ইনভয়েস ও ক্যাশ মেমো"}</span>
             </div>
 
             <div class="grid-container">
@@ -492,7 +508,7 @@ export async function printOrderInvoice(
               <thead>
                 <tr>
                   <th class="text-center" style="width: 36px;">ক্র.নং</th>
-                  <th class="text-left">প্রশ্নপত্র সেট / পণ্যের বিবরণ</th>
+                  <th class="text-left">${isQuestion ? "প্রশ্ন ও বিষয়সমূহ" : "বই ও স্টেশনারি বিবরণ"}</th>
                   <th class="text-center" style="width: 55px;">পরিমাণ</th>
                   <th class="text-right" style="width: 75px;">একক মূল্য</th>
                   <th class="text-right" style="width: 85px;">মোট মূল্য</th>
@@ -504,10 +520,15 @@ export async function printOrderInvoice(
                     const uPrice = Number(i.unitPrice || 0);
                     const lineTotal = i.quantity * uPrice;
                     const pName = i.product?.name || i.name || "প্রশ্নপত্র সেট";
+                    const subjects = i.product?.description && !i.product.description.includes('কেন্দ্রীয়') ? i.product.description : '';
                     return `
                     <tr>
                       <td class="text-center" style="font-weight: 700;">${String(idx + 1).padStart(2, "0")}</td>
-                      <td class="text-left"><strong>${pName}</strong></td>
+                      <td class="text-left">
+                        <strong>${pName}</strong>
+                        ${i.product?.className && !pName.includes(i.product.className) ? `<span style="font-size: 9.5px; font-weight: normal; margin-left: 4px;">(${i.product.className})</span>` : ''}
+                        ${subjects ? `<div style="font-size: 8.5px; color: #333; margin-top: 1.5px; line-height: 1.25;">বিষয়সমূহ: ${subjects}</div>` : ''}
+                      </td>
                       <td class="text-center" style="font-weight: 800;">${i.quantity}</td>
                       <td class="text-right">৳${uPrice.toFixed(2)}</td>
                       <td class="text-right" style="font-weight: 800;">৳${lineTotal.toFixed(2)}</td>

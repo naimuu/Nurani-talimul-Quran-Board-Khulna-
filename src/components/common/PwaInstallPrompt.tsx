@@ -15,6 +15,10 @@ const MAX_SHOW_COUNT = 3;
 const DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days (72 hours)
 
 export default function PwaInstallPrompt() {
+  // PWA install prompt is disabled
+  return null;
+
+  // eslint-disable-next-line no-unreachable
   const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(false);

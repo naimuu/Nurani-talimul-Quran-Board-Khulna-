@@ -1282,7 +1282,7 @@ export default function ExamQuestionManagementView() {
                   <th style="text-align: center; width: 32px;">ক্র.</th>
                   <th style="width: 85px;">শ্রেণি</th>
                   <th style="width: 130px;">প্রশ্নপত্রের সেট</th>
-                  <th>অন্তর্ভুক্ত বিষয় (বইসমূহ)</th>
+                  <th>প্রশ্ন ও বিষয়সমূহ</th>
                   <th style="text-align: right; width: 80px;">সাধারণ মূল্য</th>
                   <th style="text-align: center; width: 65px;">কেন্দ্র ছাড়</th>
                   <th style="text-align: right; width: 85px;">কেন্দ্রীয় মূল্য</th>
@@ -1782,7 +1782,7 @@ export default function ExamQuestionManagementView() {
                   <th className="px-3.5 py-2.5 w-24">সাধারণ মূল্য</th>
                   <th className="px-3.5 py-2.5 w-32">কেন্দ্র মূল্য</th>
                   <th className="px-3.5 py-2.5 min-w-[170px]">PDF প্রশ্নপত্র</th>
-                  <th className="px-3.5 py-2.5 min-w-[200px]">বিষয় (বইসমূহ)</th>
+                  <th className="px-3.5 py-2.5 min-w-[200px]">প্রশ্ন ও বিষয়সমূহ</th>
                   <th className="px-3.5 py-2.5 w-20 text-center">স্ট্যাটাস</th>
                   <th className="px-3.5 py-2.5 w-16 text-right">অ্যাকশন</th>
                 </tr>
@@ -2614,7 +2614,7 @@ export default function ExamQuestionManagementView() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="font-semibold text-slate-700">
-                    অন্তর্ভুক্ত বই ও বিষয়সমূহ ({toBn(questionForm.subjects.length)})
+                    অন্তর্ভুক্ত প্রশ্ন ও বিষয়সমূহ ({toBn(questionForm.subjects.length)})
                   </label>
                   {availableBooksForSelectedClass.length > 0 && (
                     <button

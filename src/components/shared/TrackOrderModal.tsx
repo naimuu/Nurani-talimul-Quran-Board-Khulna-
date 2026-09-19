@@ -236,6 +236,22 @@ export function TrackOrderModal({
     printOrderInvoice(order, { printBW });
   };
 
+  const isQuestion = Boolean(
+    order?.orderType === 'QUESTION' ||
+    order?.orderType === 'EXAM_QUESTION' ||
+    (order?.notes && (
+      order.notes.includes('[প্রশ্নের অর্ডার]') ||
+      order.notes.includes('প্রশ্নপত্র') ||
+      order.notes.includes('প্রশ্ন অর্ডার') ||
+      order.notes.includes('প্রশ্নপত্র সেট')
+    )) ||
+    (order?.items && order.items.some((i: any) => {
+      const pName = String(i.product?.name || i.name || '').toLowerCase();
+      const pCat = String(i.product?.category || i.category || '').toLowerCase();
+      return pName.includes('প্রশ্ন') || pCat.includes('প্রশ্ন') || pCat.includes('question');
+    }))
+  );
+
   return (
     <>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
@@ -660,7 +676,9 @@ export function TrackOrderModal({
                                   পণ্য কি হাতে পেয়েছেন? ডেলিভারি নিশ্চিত করুন
                                 </h4>
                                 <p className="text-xs text-slate-600 mt-0.5">
-                                  বই ও স্টেশনারি সঠিকভাবে হাতে পাওয়ার পর নিচের বোতামে ক্লিক করে রিসিভ নিশ্চিত করুন।
+                                  {isQuestion 
+                                    ? "প্রশ্নপত্র ও আনুষঙ্গিক সামগ্রী সঠিকভাবে হাতে পাওয়ার পর নিচের বোতামে ক্লিক করে রিসিভ নিশ্চিত করুন।" 
+                                    : "বই ও স্টেশনারি সঠিকভাবে হাতে পাওয়ার পর নিচের বোতামে ক্লিক করে রিসিভ নিশ্চিত করুন।"}
                                 </p>
                               </div>
                             </div>
@@ -686,7 +704,7 @@ export function TrackOrderModal({
                                 </label>
                                 <input
                                   type="text"
-                                  placeholder="যেমন: সকল বই সঠিকভাবে হাতে পেয়েছি, ধন্যবাদ।"
+                                  placeholder={isQuestion ? "যেমন: সকল প্রশ্নপত্র সঠিকভাবে হাতে পেয়েছি, ধন্যবাদ।" : "যেমন: সকল বই সঠিকভাবে হাতে পেয়েছি, ধন্যবাদ।"}
                                   value={customerRemarks}
                                   onChange={e => setCustomerRemarks(e.target.value)}
                                   className="w-full border border-emerald-200 rounded-xl px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none"
@@ -937,7 +955,7 @@ export function TrackOrderModal({
                       <div className="flex items-center justify-between mb-2.5">
                         <p className="text-xs text-slate-700 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
                           <Package className="w-4 h-4 text-emerald-700" />
-                          <span>অর্ডারকৃত পণ্যের তালিকা (Item List)</span>
+                          <span>{isQuestion ? "অর্ডারকৃত প্রশ্নপত্রের তালিকা (Question List)" : "অর্ডারকৃত পণ্যের তালিকা (Item List)"}</span>
                         </p>
                         <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full">
                           মোট {displayItems.length} টি আইটেম
@@ -949,7 +967,7 @@ export function TrackOrderModal({
                           <thead>
                             <tr className="bg-slate-50/90 text-slate-500 font-bold border-b border-slate-200/80 text-[11px] uppercase tracking-wider">
                               <th className="py-2.5 px-3 text-center w-10">#</th>
-                              <th className="py-2.5 px-3">পণ্যের নাম</th>
+                              <th className="py-2.5 px-3">{isQuestion ? "প্রশ্ন ও বিষয়সমূহ" : "পণ্যের নাম"}</th>
                               <th className="py-2.5 px-3 text-center">পরিমাণ</th>
                               <th className="py-2.5 px-3 text-right">একক মূল্য</th>
                               <th className="py-2.5 px-3 text-right">মোট মূল্য</th>
@@ -959,15 +977,23 @@ export function TrackOrderModal({
                             {displayItems.map((item: any, i: number) => {
                               const unitPrice = Number(item.unitPrice) || 0;
                               const total = item.quantity * unitPrice;
+                              const subjects = item.product?.description && !item.product.description.includes('কেন্দ্রীয়') ? item.product.description : '';
                               return (
                                 <tr key={i} className="hover:bg-slate-50/60 transition-colors">
                                   <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-xs">{i + 1}</td>
                                   <td className="py-2.5 px-3 font-bold text-slate-800">
-                                    {item.product?.name || item.name || 'আইটেম'}
-                                    {item.product?.className && (
-                                      <span className="text-[10px] text-slate-500 font-normal ml-1 bg-slate-100 px-1.5 py-0.5 rounded">
-                                        {item.product.className}
-                                      </span>
+                                    <div>
+                                      <span>{item.product?.name || item.name || 'আইটেম'}</span>
+                                      {item.product?.className && (
+                                        <span className="text-[10px] text-slate-500 font-normal ml-1 bg-slate-100 px-1.5 py-0.5 rounded">
+                                          {item.product.className}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {subjects && (
+                                      <p className="text-[10px] text-slate-500 font-normal mt-0.5 leading-tight">
+                                        {subjects}
+                                      </p>
                                     )}
                                   </td>
                                   <td className="py-2.5 px-3 text-center">

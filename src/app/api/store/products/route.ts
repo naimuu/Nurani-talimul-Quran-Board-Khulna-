@@ -17,6 +17,9 @@ async function verifyAdmin() {
   }
 }
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const products = await (prisma as any).storeProduct.findMany({

@@ -1325,7 +1325,7 @@ export default function OrderTab({
                 <table className="w-full text-left text-xs sm:text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-500 font-bold">
-                      <th className="py-2">পণ্য</th>
+                      <th className="py-2">{isQuestionOrder(selectedOrder) ? "প্রশ্ন ও বিষয়সমূহ" : "পণ্য"}</th>
                       <th className="py-2 text-center">মজুদ</th>
                       <th className="py-2 text-center">পরিমাণ</th>
                       <th className="py-2 text-right">মূল্য</th>

@@ -844,7 +844,7 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
           <thead>
             <tr>
               <th class="text-center" style="width: 45px;">ক্র.নং</th>
-              <th>পণ্যের নাম</th>
+              <th>${isQuestionOrder(sale) ? 'প্রশ্ন ও বিষয়সমূহ' : 'পণ্যের নাম'}</th>
               <th class="text-center" style="width: 75px;">পরিমাণ</th>
               <th class="text-right" style="width: 95px;">একক মূল্য</th>
               <th class="text-right" style="width: 105px;">মোট মূল্য</th>

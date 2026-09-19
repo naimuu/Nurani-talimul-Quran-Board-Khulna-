@@ -5,6 +5,9 @@ import { generateExamCode, getCanonicalClassId, generateItemCode } from "@/lib/c
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "nurani_board_khulna_secret_key_2024"
 );

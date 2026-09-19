@@ -217,9 +217,16 @@ export default function QuestionOrderPage() {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
+      const cacheBust = `?t=${Date.now()}`;
       const [productsRes, examsRes] = await Promise.allSettled([
-        fetch("/api/store/products").then((r) => r.json()),
-        fetch("/api/exams").then((r) => r.json()),
+        fetch(`/api/store/products${cacheBust}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+        }).then((r) => r.json()),
+        fetch(`/api/exams${cacheBust}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+        }).then((r) => r.json()),
       ]);
 
       if (productsRes.status === "fulfilled" && Array.isArray(productsRes.value)) {
@@ -312,6 +319,9 @@ export default function QuestionOrderPage() {
           const itemCode = qs.itemCode || generateItemCode(cId, exCode, qs.setName);
           // GUARANTEED IMMUTABLE ID:
           const itemId = qs._id ? String(qs._id) : itemCode;
+          const subjectsText = Array.isArray(qs.subjects) && qs.subjects.length > 0 ? qs.subjects.join(", ") : "";
+          const effectiveDesc = subjectsText || qs.details || "প্রশ্নপত্র সেট";
+
           list.push({
             id: itemId,
             itemCode,
@@ -322,14 +332,14 @@ export default function QuestionOrderPage() {
             classId: cId,
             className: qs.className || "সাধারণ",
             examTerm: exam.name || exam.examTerm || "সাধারণ",
-            pricePerSet: qs.pricePerSet || 0,
-            description: qs.details || (qs.subjects && qs.subjects.length > 0 ? qs.subjects.join(", ") : "প্রশ্নপত্র সেট"),
+            pricePerSet: Number(qs.pricePerSet) || 0,
+            description: effectiveDesc,
             sessionId: String(session._id),
             sessionYear: session.sessionYear,
             sessionName: (session.title || session.sessionYear || "").trim(),
             attachmentUrl: qs.attachmentUrl,
             attachmentName: qs.attachmentName,
-            subjects: qs.subjects,
+            subjects: Array.isArray(qs.subjects) ? qs.subjects : [],
             instructions: qs.instructions,
           });
         });
@@ -339,6 +349,9 @@ export default function QuestionOrderPage() {
     dbProducts.forEach((p) => {
       // Exclude auto-created sales bookkeeping products
       if (p.visibility === "academic" || p.visibility === "archived") return;
+      const alreadyExists = list.some(item => item.name === p.name);
+      if (alreadyExists) return;
+
       const cId = getCanonicalClassId(p.classId || p.className || "অন্যান্য");
       list.push({
         id: `db_${p.id}`,
