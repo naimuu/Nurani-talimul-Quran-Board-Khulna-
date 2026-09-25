@@ -16,6 +16,7 @@ import BatchManagementView from "@/components/admin/BatchManagementView";
 import ExamQuestionManagementView from "@/components/admin/ExamQuestionManagementView";
 import MuallimManagementView from "@/components/admin/MuallimManagementView";
 import EditUserModal from "@/components/admin/EditUserModal";
+import AdminInspectionView from "@/components/admin/AdminInspectionView";
 import { FileCheck } from "lucide-react";
 
 type UserType = {
@@ -2913,6 +2914,7 @@ function AdminDashboardContent() {
         <nav className="flex-1 space-y-2 overflow-y-auto pr-1">
           {[
             { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
+            { id: "inspection", icon: FileCheck, label: "মাদরাসা পরিদর্শন" },
             { id: "exams", icon: FileCheck, label: "পরীক্ষা ও প্রশ্নপত্র" },
             { id: "batches", icon: GraduationCap, label: "প্রশিক্ষণ ব্যাচ" },
             { id: "muallim", icon: UserCheck, label: "মুয়াল্লিম পরিচালনা" },
@@ -2975,6 +2977,7 @@ function AdminDashboardContent() {
         {activeTab === "muallim" && <MuallimManagementView />}
         {activeTab === "store" && renderStoreManagement()}
         {activeTab === "curriculum" && <CurriculumManagementView />}
+        {activeTab === "inspection" && <AdminInspectionView />}
         {activeTab === "dashboard" && renderDashboard()}
         {activeTab === "settings" && <SettingsTab />}
 

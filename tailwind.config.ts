@@ -9,7 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-solaiman-lipi)', 'sans-serif'],
+        sans: ['var(--font-solaiman-lipi)', 'SolaimanLipi', 'Hind Siliguri', 'Noto Sans Bengali', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        serif: ['var(--font-solaiman-lipi)', 'SolaimanLipi', 'Hind Siliguri', 'serif'],
       },
       colors: {
         primary: {

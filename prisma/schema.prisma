@@ -16,8 +16,10 @@ model User {
   role      String   @default("GENERAL")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  madrasaId String?  @db.ObjectId
-  madrasa   Madrasa? @relation(fields: [madrasaId], references: [id])
+  madrasaId            String?                 @db.ObjectId
+  madrasa              Madrasa?                @relation(fields: [madrasaId], references: [id])
+  assignedInspections  InspectionApplication[] @relation("AssignedInspector")
+  applicantInspections InspectionApplication[] @relation("ApplicantUser")
 }
 
 model Madrasa {
@@ -26,10 +28,11 @@ model Madrasa {
   address     String
   code        String   @unique
   contactNo   String?
-  isApproved  Boolean  @default(false)
+  isApproved  Boolean                 @default(false)
   users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  inspections InspectionApplication[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
 }
 
 model Notice {
@@ -300,4 +303,99 @@ model TrainingBatch {
   order        Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model InspectionApplication {
+  id                    String              @id @default(auto()) @map("_id") @db.ObjectId
+  trackingNo            String              @unique
+  madrasaId             String?             @db.ObjectId
+  madrasa               Madrasa?            @relation(fields: [madrasaId], references: [id])
+  applicantUserId       String?             @db.ObjectId
+  applicantUser         User?               @relation("ApplicantUser", fields: [applicantUserId], references: [id])
+  
+  madrasahName          String
+  madrasahCode          String?             
+  aCode                 String?             
+  mCode                 String?             
+  division              String              @default("খুলনা")
+  district              String              
+  upazila               String              
+  postOffice            String?
+  village               String?
+  directorName          String
+  directorMobile        String
+  headTeacherName       String?
+  headTeacherMobile     String?
+  academicYearCe        String              @default("2026")
+  academicYearHijri     String?
+  
+  inspectionType        String              @default("new_elhak") 
+  status                String              @default("SUBMITTED") 
+  targetDate            DateTime?
+  
+  registeredLat         Float?
+  registeredLng         Float?
+  
+  feeAmount             Float               @default(0)
+  paymentStatus         String              @default("PENDING") 
+  paymentTrxId          String?
+  paymentMethod         String?             
+  
+  assignedInspectorId   String?             @db.ObjectId
+  assignedInspector     User?               @relation("AssignedInspector", fields: [assignedInspectorId], references: [id])
+  
+  reports               InspectionReport[]
+  schedules             InspectionSchedule[]
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+}
+
+model InspectionSchedule {
+  id             String                @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId  String                @db.ObjectId
+  application    InspectionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  inspectorId    String                @db.ObjectId
+  scheduledDate  DateTime
+  phase          String                @default("phase_1")
+  status         String                @default("SCHEDULED")
+  createdAt      DateTime              @default(now())
+}
+
+model InspectionReport {
+  id                     String                @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId          String                @db.ObjectId
+  application            InspectionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  inspectorId            String                @db.ObjectId
+  inspectorName          String
+  phase                  String                @default("phase_1")
+  inspectionDate         DateTime              @default(now())
+  
+  generalChecklist       Json
+  subjectMatrix          Json
+  teacherStats           Json
+  studentStats           Json
+
+  totalScore             Float                 @default(0)
+  grade                  String                @default("PENDING")
+  
+  inspectorRemarks       String?
+  signatureUrl           String?
+  
+  submissionLat          Float?
+  submissionLng          Float?
+  gpsDistanceMeters      Float?
+  isGeofenceBreached     Boolean               @default(false)
+  geofenceBreachReason   String?
+  photos                 Json?                 
+  
+  isLocked               Boolean               @default(true)
+  adminReviewStatus      String                @default("PENDING")
+  adminRemarks           String?
+  issuedMadrasahCode     String?               
+  
+  verificationHash       String?               @unique
+  
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 }
