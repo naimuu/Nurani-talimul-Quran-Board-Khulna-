@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import InspectionReport from "@/lib/models/InspectionReport";
 import InspectionApplication from "@/lib/models/InspectionApplication";
+import InspectionConfig from "@/lib/models/InspectionConfig";
 import {
   calculateInspectionScore,
   haversineDistance,
   generateInspectionToken,
+  GENERAL_CHECKLIST_ITEMS,
+  STANDARD_INSPECTION_CLASSES,
+  STANDARD_INSPECTION_SUBJECTS,
 } from "@/lib/inspectionUtils";
 
 export async function GET(request: Request) {
@@ -17,11 +21,28 @@ export async function GET(request: Request) {
     const trackingNo = searchParams.get("trackingNo");
     const inspectorId = searchParams.get("inspectorId");
 
+    const mCode = searchParams.get("mCode") || searchParams.get("madrasahCode");
+
     const query: any = {};
     if (reportId) query._id = reportId;
     if (applicationId) query.applicationId = applicationId;
     if (trackingNo) query.trackingNo = trackingNo;
     if (inspectorId) query.inspectorId = inspectorId;
+
+    if (mCode && !query.applicationId && !query.trackingNo) {
+      const apps = await InspectionApplication.find({
+        $or: [{ mCode: mCode.trim() }, { madrasahCode: mCode.trim() }],
+      })
+        .select("_id trackingNo")
+        .lean();
+
+      const appIds = apps.map((a: any) => a._id);
+      const trackingNos = apps.map((a: any) => a.trackingNo);
+      query.$or = [
+        { applicationId: { $in: appIds } },
+        { trackingNo: { $in: trackingNos } },
+      ];
+    }
 
     const reports = await InspectionReport.find(query)
       .populate("applicationId")
@@ -47,6 +68,8 @@ export async function POST(request: Request) {
       inspectorPhone,
       phase = "phase_1",
       inspectionDate = new Date(),
+      academicYearCe,
+      academicYearHijri,
       generalChecklist,
       subjectMatrix,
       teacherStats,
@@ -57,6 +80,8 @@ export async function POST(request: Request) {
       submissionLng,
       geofenceBreachReason,
       photos = [],
+      classesSnapshot,
+      subjectSnapshot,
     } = body;
 
     if (!applicationId || !inspectorId || !generalChecklist) {
@@ -71,15 +96,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "সংশ্লিষ্ট আবেদনটি পাওয়া যায়নি" }, { status: 404 });
     }
 
-    // 1. Calculate Score & Grade
+    // Verify if this phase already has a submitted report (Strict Immutability - No re-edit)
+    const existingPhaseReport = await InspectionReport.findOne({
+      applicationId: application._id,
+      phase,
+    });
+    if (existingPhaseReport) {
+      return NextResponse.json(
+        {
+          error: `এই মাদরাসার ${phase === "phase_1" ? "১ম" : phase === "phase_2" ? "২য়" : "৩য়"} পরিদর্শনের প্রতিবেদন ইতিমধ্যে সংরক্ষিত আছে এবং এটি অপরিবর্তনীয় (লকড)।`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // 1. Fetch Active Inspection Criteria Config (Snapshotting for Immutability)
+    const activeConfig = await InspectionConfig.findOne({ isActive: true })
+      .sort({ version: -1 })
+      .lean();
+    const activeChecklist =
+      activeConfig?.checklistItems && activeConfig.checklistItems.length > 0
+        ? activeConfig.checklistItems
+        : GENERAL_CHECKLIST_ITEMS;
+    const activeSubjects = activeConfig?.subjects || null;
+    const configVersion = activeConfig?.version || 1;
+
+    // 2. Calculate Score & Grade based on Active Criteria & Option Marks (supporting positive & negative marks)
     const scoreResult = calculateInspectionScore(
       generalChecklist,
       subjectMatrix || {},
       teacherStats,
-      studentStats
+      studentStats,
+      activeChecklist as any
     );
 
-    // 2. Geofence distance calculation (< 100 meters verification)
+    // 3. Geofence distance calculation (< 100 meters verification)
     let gpsDistanceMeters = 0;
     let isGeofenceBreached = false;
 
@@ -100,12 +151,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Cryptographic Token Generation
+    // 4. Cryptographic Token Generation
     const madrasahCode = application.mCode || application.madrasahCode || application.trackingNo;
     const dateStr = new Date(inspectionDate).toISOString().split("T")[0];
     const verificationHash = generateInspectionToken(application.trackingNo, madrasahCode, dateStr);
 
-    // 4. Save Report
+    // 5. Save Report with Permanent Immutable Snapshot
     const newReport = await InspectionReport.create({
       applicationId: application._id,
       trackingNo: application.trackingNo,
@@ -114,6 +165,8 @@ export async function POST(request: Request) {
       inspectorPhone: inspectorPhone || application.assignedInspectorPhone || "",
       phase,
       inspectionDate: new Date(inspectionDate),
+      academicYearCe: academicYearCe || application.academicYearCe || "2026",
+      academicYearHijri: academicYearHijri || application.academicYearHijri || "১৪৪৭-৪৮",
       generalChecklist,
       subjectMatrix: subjectMatrix || {},
       teacherStats: {
@@ -144,10 +197,18 @@ export async function POST(request: Request) {
       isLocked: true,
       adminReviewStatus: "PENDING",
       verificationHash,
+      
+      // Permanent immutable snapshots (future criteria updates will NEVER touch this report)
+      configVersion,
+      checklistSnapshot: activeChecklist,
+      subjectSnapshot: Array.isArray(subjectSnapshot) && subjectSnapshot.length > 0 ? subjectSnapshot : (activeSubjects || STANDARD_INSPECTION_SUBJECTS),
+      classesSnapshot: Array.isArray(classesSnapshot) && classesSnapshot.length > 0 ? classesSnapshot : STANDARD_INSPECTION_CLASSES,
     });
 
-    // 5. Update Application Status to INSPECTED
+    // 5. Update Application Status to INSPECTED & Sync Academic Years
     application.status = "INSPECTED";
+    if (academicYearCe) application.academicYearCe = academicYearCe;
+    if (academicYearHijri) application.academicYearHijri = academicYearHijri;
     await application.save();
 
     return NextResponse.json(

@@ -152,7 +152,30 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // Security check: strictly block VISITOR or non-admin users from admin panel
+    fetch("/api/auth/me")
+      .then((res) => {
+        if (!res.ok) {
+          router.replace("/admin/login");
+          return null;
+        }
+        return res.json();
+      })
+      .then((user) => {
+        if (!user) return;
+        const role = (user.role || "").toUpperCase();
+        if (role !== "ADMIN") {
+          if (role === "VISITOR") {
+            router.replace("/visitor");
+          } else {
+            router.replace("/");
+          }
+        }
+      })
+      .catch(() => {
+        router.replace("/admin/login");
+      });
+  }, [router]);
 
   useEffect(() => {
     const updateHeight = () => {

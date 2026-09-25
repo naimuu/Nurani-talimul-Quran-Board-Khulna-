@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 interface Settings {
   coverUrl?: string;
@@ -33,6 +34,7 @@ const COVER_H = 100; // px
 
 // ─── 1. Cover bar — hides on scroll, reappears at top ────────────────────────
 export function CoverTopBar() {
+  const pathname = usePathname();
   const settings = useSettings();
   const [scrollY, setScrollY] = useState(0);
 
@@ -54,6 +56,8 @@ export function CoverTopBar() {
       clearTimeout(timer);
     };
   }, []);
+
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/visitor')) return null;
 
   // Un-collapse if the user pulls down (overscroll)
   useEffect(() => {
@@ -115,8 +119,10 @@ export function CoverTopBar() {
 
 // ─── 2. Horizontally scrolling sliding banner for page headers ───────────────
 export function PageCoverHeader() {
+  const pathname = usePathname();
   const settings = useSettings();
 
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/visitor')) return null;
   if (!settings?.coverUrl || !settings?.showCoverInPageHeader) return null;
 
   return (

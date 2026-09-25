@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   Menu,
   X,
@@ -18,6 +18,7 @@ import {
   Users,
   FileText,
   Settings,
+  PlusCircle,
   Search,
   Phone,
   CalendarDays,
@@ -128,6 +129,8 @@ function IslamicLogoIcon({ className = "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11"
 
 export default function Navbar({ user, initialSettings }: { user?: UserPayload, initialSettings?: BoardSettings | null }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isVisitorPage = pathname === '/visitor' || pathname?.startsWith('/visitor');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"admin" | "user">("admin");
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
@@ -608,15 +611,18 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-slate-100 z-50 p-1.5">
                   <div className="px-3.5 py-2.5 border-b border-slate-100 mb-1">
                     <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
-                    <p className="text-xs text-emerald-700 font-bold uppercase truncate">{user.role}</p>
+                    <p className="text-xs text-emerald-700 font-bold uppercase truncate">
+                      {user.role === 'VISITOR' ? 'মাঠ পরিদর্শক (VISITOR)' : user.role}
+                    </p>
                   </div>
 
                   {user.role !== 'GENERAL' && (
                     <Link
-                      href={`/${user.role.toLowerCase()}`}
+                      href={user.role === 'VISITOR' ? '/visitor' : `/${user.role.toLowerCase()}`}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-[#095738] rounded-lg transition-colors"
                     >
-                      <LayoutDashboard className="w-4 h-4 text-emerald-600" /> ড্যাশবোর্ড
+                      <LayoutDashboard className="w-4 h-4 text-emerald-600" />
+                      {user.role === 'VISITOR' ? 'পরিদর্শক প্যানেল' : 'ড্যাশবোর্ড'}
                     </Link>
                   )}
 
@@ -673,61 +679,92 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
         }`}
       >
         <div ref={mobileScrollRef} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth px-1">
-          {navItems.map((item, idx) => {
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-            const ItemIcon = item.icon;
+          {isVisitorPage ? (
+            /* Visitor mobile quick scroll pills */
+            [
+              { id: "dashboard", title: "ড্যাশবোর্ড", href: "/visitor?tab=dashboard", icon: LayoutDashboard },
+              { id: "reports", title: "দাখিলকৃত রিপোর্ট", href: "/visitor?tab=reports", icon: ClipboardList },
+              { id: "madrasas", title: "বরাদ্দকৃত মাদরাসা", href: "/visitor?tab=madrasas", icon: Building2 },
+              { id: "new_report", title: "নতুন এন্ট্রি", href: "/visitor?tab=new_report", icon: PlusCircle },
+            ].map((item, idx) => {
+              const currentTab = searchParams?.get("tab") || "dashboard";
+              const isActive = (item.id === "dashboard" && (!searchParams?.get("tab") || currentTab === "dashboard")) || currentTab === item.id;
+              const ItemIcon = item.icon;
 
-            if (item.subItems) {
               return (
-                <button
+                <Link
                   key={idx}
+                  href={item.href}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${
+                    isActive
+                      ? "bg-amber-400 text-slate-950 shadow-md font-extrabold"
+                      : "bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15"
+                  }`}
+                >
+                  <ItemIcon className="w-3.5 h-3.5 opacity-90" />
+                  <span>{item.title}</span>
+                </Link>
+              );
+            })
+          ) : (
+            navItems.map((item, idx) => {
+              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+              const ItemIcon = item.icon;
+
+              if (item.subItems) {
+                return (
+                  <button
+                    key={idx}
+                    data-active={isActive}
+                    onClick={(e) => {
+                      scrollButtonToCenter(e.currentTarget);
+                      openMobileDropdown(item);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${activeMobileDropdown?.title === item.title || isActive
+                        ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
+                        : 'bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15'
+                      }`}
+                  >
+                    <ItemIcon className="w-3.5 h-3.5 opacity-90" />
+                    <span>{item.title}</span>
+                    <ChevronDown className="w-3 h-3 opacity-70" />
+                  </button>
+                );
+              }
+
+              return (
+                <Link
+                  key={idx}
+                  href={item.href}
                   data-active={isActive}
                   onClick={(e) => {
                     scrollButtonToCenter(e.currentTarget);
-                    openMobileDropdown(item);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${activeMobileDropdown?.title === item.title || isActive
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${isActive
                       ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
                       : 'bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15'
                     }`}
                 >
                   <ItemIcon className="w-3.5 h-3.5 opacity-90" />
                   <span>{item.title}</span>
-                  <ChevronDown className="w-3 h-3 opacity-70" />
-                </button>
+                </Link>
               );
-            }
-
-            return (
-              <Link
-                key={idx}
-                href={item.href}
-                data-active={isActive}
-                onClick={(e) => {
-                  scrollButtonToCenter(e.currentTarget);
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${isActive
-                    ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                    : 'bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15'
-                  }`}
-              >
-                <ItemIcon className="w-3.5 h-3.5 opacity-90" />
-                <span>{item.title}</span>
-              </Link>
-            );
-          })}
+            })
+          )}
 
           {/* Quick Track Pill */}
-          <button
-            onClick={(e) => {
-              scrollButtonToCenter(e.currentTarget);
-              setIsTrackModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap bg-amber-400 text-slate-950 shadow-sm flex-shrink-0 active:scale-95"
-          >
-            <Search className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>অর্ডার ট্র্যাক</span>
-          </button>
+          {!isVisitorPage && (
+            <button
+              onClick={(e) => {
+                scrollButtonToCenter(e.currentTarget);
+                setIsTrackModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap bg-amber-400 text-slate-950 shadow-sm flex-shrink-0 active:scale-95"
+            >
+              <Search className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>অর্ডার ট্র্যাক</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -910,7 +947,8 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
             </button>
           </div>
 
-          {user?.role === 'ADMIN' && (
+          {/* If NOT visitor page, show Admin tab switcher if user is ADMIN */}
+          {!isVisitorPage && user?.role === 'ADMIN' && (
             <div className="flex bg-white/10 backdrop-blur-md p-1 m-3 rounded-2xl border border-white/15 shadow-inner flex-shrink-0">
               <button
                 onClick={() => setMobileTab("admin")}
@@ -927,12 +965,111 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
             </div>
           )}
 
+          {!isVisitorPage && user?.role === 'VISITOR' && (
+            <div className="m-3 flex-shrink-0">
+              <Link
+                href="/visitor"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full py-2.5 px-4 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 shadow-md transition"
+              >
+                <FileCheck className="w-4 h-4 text-emerald-200" />
+                <span>পরিদর্শক প্যানেল ড্যাশবোর্ড</span>
+              </Link>
+            </div>
+          )}
+
+          {/* On visitor page, show clean header banner in drawer */}
+          {isVisitorPage && (
+            <div className="mx-3 mt-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-900/90 to-teal-900/90 border border-emerald-400/30 text-white shadow-lg flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-xs font-black tracking-wide text-amber-300">পরিদর্শক পোর্টাল মেনু</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-200 border border-emerald-500/30 font-bold">
+                  {user?.role === 'ADMIN' ? 'অ্যাডমিন এক্সেস' : 'মাঠ পরিদর্শক'}
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-100/90 mt-1 truncate font-medium">
+                {user?.name || "সম্মানিত পরিদর্শক"}
+              </p>
+            </div>
+          )}
+
           {/* Scrollable Menu Items Container */}
           <div
             className="px-3.5 py-3 flex flex-col gap-2.5 flex-1 min-h-0 drawer-scroll pb-28 touch-pan-y"
             style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
           >
-            {user?.role === 'ADMIN' && mobileTab === 'admin' ? (
+            {isVisitorPage ? (
+              /* Visitor Sidebar Options in Hamburger Drawer */
+              <div className="flex flex-col gap-2 mt-1">
+                {[
+                  { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড", desc: "সারসংক্ষেপ ও তথ্য পরিসংখ্যান" },
+                  { id: "new_report", icon: PlusCircle, label: "নতুন পরিদর্শন এন্ট্রি", desc: "সরেজমিন মূল্যায়ন ফরম পূরণ", highlight: true },
+                  { id: "reports", icon: ClipboardList, label: "দাখিলকৃত রিপোর্টসমূহ", desc: "সকল পরিদর্শন রিপোর্ট ও প্রিন্ট" },
+                  { id: "madrasas", icon: Building2, label: "বরাদ্দকৃত মাদরাসা", desc: "পরিদর্শনের জন্য নির্ধারিত মাদরাসা" },
+                ].map((item) => {
+                  const currentTab = searchParams?.get("tab") || "dashboard";
+                  const isActive = (item.id === "dashboard" && (!searchParams?.get("tab") || currentTab === "dashboard")) || currentTab === item.id;
+                  const ItemIcon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/visitor?tab=${item.id}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
+                        item.highlight
+                          ? "bg-gradient-to-r from-emerald-500 to-teal-600 border-emerald-400/50 text-white shadow-md active:scale-98"
+                          : isActive
+                          ? "bg-amber-400 text-slate-950 font-black border-amber-300 shadow-md"
+                          : "bg-white/[0.08] hover:bg-emerald-500/20 border-white/10 text-emerald-100 font-bold"
+                      }`}
+                    >
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        item.highlight
+                          ? "bg-white/20 text-white"
+                          : isActive
+                          ? "bg-slate-950/15 text-slate-950"
+                          : "bg-emerald-500/20 text-amber-300"
+                      }`}>
+                        <ItemIcon className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className={`text-sm ${isActive ? "font-black" : "font-bold"}`}>{item.label}</span>
+                        <span className={`text-[11px] truncate ${isActive ? "text-slate-800 font-medium" : "text-emerald-200/80"}`}>{item.desc}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
+
+                {user?.role === 'ADMIN' && (
+                  <Link
+                    href="/admin?tab=inspection"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-3 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-200 font-bold text-xs transition mt-2 shadow-xs"
+                  >
+                    <Settings className="w-4 h-4 text-amber-300 shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="font-bold text-amber-200">কেন্দ্রীয় অ্যাডমিন প্যানেলে ফিরুন</span>
+                      <span className="text-[10px] text-amber-300/70">অ্যাডমিন ড্যাশবোর্ড ও নিয়ন্ত্রণ</span>
+                    </div>
+                  </Link>
+                )}
+
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/login/visitor';
+                  }}
+                  className="flex items-center gap-3 py-2.5 px-3 bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 rounded-2xl transition-colors mt-3 text-sm font-bold shadow-xs cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>লগআউট</span>
+                </button>
+              </div>
+            ) : user?.role === 'ADMIN' && mobileTab === 'admin' ? (
               <div className="flex flex-col gap-1.5 mt-1">
                 {[
                   { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },

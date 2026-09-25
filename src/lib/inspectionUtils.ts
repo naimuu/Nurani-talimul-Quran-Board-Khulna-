@@ -64,7 +64,7 @@ export interface GeneralChecklistItem {
   id: string; // Unique English ID handler
   sl: string;
   label: string;
-  type: "yes_no_partial" | "good_moderate_weak" | "numeric";
+  type: "yes_no_partial" | "good_moderate_weak" | "numeric" | "custom_select";
   options?: { value: string; label: string; points: number }[];
 }
 
@@ -231,7 +231,8 @@ export function calculateInspectionScore(
   generalChecklist: Record<string, any>,
   subjectMatrix: Record<string, Record<string, string>>,
   teacherStats?: { total?: number; present?: number },
-  studentStats?: Record<string, number>
+  studentStats?: Record<string, number>,
+  checklistConfig?: GeneralChecklistItem[]
 ): {
   totalScore: number;
   grade: "GRADE_A" | "GRADE_B" | "GRADE_C" | "UNAPPROVED";
@@ -240,29 +241,39 @@ export function calculateInspectionScore(
   generalPoints: number;
   subjectPoints: number;
 } {
-  // 1. General Checklist Points (Max 100 points, 50% weight)
+  // 1. General Checklist Points with Dynamic Config & Negative Marks support
+  const items = checklistConfig && checklistConfig.length > 0 ? checklistConfig : GENERAL_CHECKLIST_ITEMS;
   let generalObtained = 0;
   let generalMax = 0;
 
-  for (const item of GENERAL_CHECKLIST_ITEMS) {
-    if (item.options) {
-      generalMax += 10;
+  for (const item of items) {
+    if (item.options && item.options.length > 0) {
+      // Find highest positive points possible for denominator
+      const maxOpt = Math.max(0, ...item.options.map((o) => Number(o.points) || 0));
+      generalMax += maxOpt > 0 ? maxOpt : 10;
+
       const val = generalChecklist?.[item.id];
       const opt = item.options.find((o) => o.value === val);
       if (opt) {
-        generalObtained += opt.points;
+        // Can be positive (e.g. +10, +5) or negative (e.g. -5, -2, -10 penalty)
+        generalObtained += Number(opt.points) || 0;
       }
     }
   }
 
-  // Attendance in Moallem Jore (bonus 10 max)
-  const joreCount = Number(generalChecklist?.moallem_jore_attendance || 0);
-  if (joreCount > 0) {
-    generalObtained += Math.min(10, joreCount * 2.5);
-    generalMax += 10;
+  // Attendance in Moallem Jore (bonus 10 max if present in criteria)
+  const hasJore = items.some((i) => i.id === "moallem_jore_attendance");
+  if (hasJore) {
+    const joreCount = Number(generalChecklist?.moallem_jore_attendance || 0);
+    if (joreCount > 0) {
+      generalObtained += Math.min(10, joreCount * 2.5);
+      generalMax += 10;
+    }
   }
 
-  const generalScorePercent = generalMax > 0 ? (generalObtained / generalMax) * 100 : 0;
+  // Floor at 0 to avoid negative percentage if penalties are severe
+  const effectiveGeneralObtained = Math.max(0, generalObtained);
+  const generalScorePercent = generalMax > 0 ? Math.min(100, (effectiveGeneralObtained / generalMax) * 100) : 0;
 
   // 2. Subject Matrix Points (50% weight)
   let subjectObtained = 0;

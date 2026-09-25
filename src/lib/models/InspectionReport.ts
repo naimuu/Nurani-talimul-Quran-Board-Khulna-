@@ -8,6 +8,8 @@ export interface IInspectionReport extends Document {
   inspectorPhone?: string;
   phase: "phase_1" | "phase_2" | "phase_3"; // ১ম, ২য়, ৩য় পর্যায়
   inspectionDate: Date;
+  academicYearCe?: string;
+  academicYearHijri?: string;
   
   // 11 General Checklist Points
   generalChecklist: Record<string, any>;
@@ -59,6 +61,12 @@ export interface IInspectionReport extends Document {
   
   verificationHash?: string;
   
+  // Immutable Criteria Versioning & Snapshot
+  configVersion?: number;
+  checklistSnapshot?: any[];
+  subjectSnapshot?: any[];
+  classesSnapshot?: any[];
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +80,8 @@ const InspectionReportSchema = new Schema<IInspectionReport>(
     inspectorPhone: { type: String },
     phase: { type: String, enum: ["phase_1", "phase_2", "phase_3"], default: "phase_1" },
     inspectionDate: { type: Date, default: Date.now },
+    academicYearCe: { type: String },
+    academicYearHijri: { type: String },
     
     generalChecklist: { type: Schema.Types.Mixed, required: true },
     subjectMatrix: { type: Schema.Types.Mixed, required: true },
@@ -121,9 +131,19 @@ const InspectionReportSchema = new Schema<IInspectionReport>(
     issuedMadrasahCode: { type: String },
     
     verificationHash: { type: String, unique: true, sparse: true, index: true },
+    
+    // Immutable snapshot of criteria configuration at time of submission
+    configVersion: { type: Number, default: 1 },
+    checklistSnapshot: { type: Array as any, default: null },
+    subjectSnapshot: { type: Array as any, default: null },
+    classesSnapshot: { type: Array as any, default: null },
   },
   { timestamps: true }
 );
+
+if (process.env.NODE_ENV === "development" && mongoose.models.InspectionReport) {
+  delete (mongoose.models as any).InspectionReport;
+}
 
 const InspectionReport: Model<IInspectionReport> =
   mongoose.models.InspectionReport ||

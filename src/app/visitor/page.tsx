@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -19,6 +19,16 @@ import {
   MapPin,
   Phone,
   ShieldCheck,
+  Menu,
+  X,
+  ChevronRight,
+  Plus,
+  RefreshCw,
+  Copy,
+  PhoneCall,
+  Calendar,
+  Sparkles,
+  Filter,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
@@ -35,6 +45,18 @@ export default function VisitorDashboard() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Search & Filter States
+  const [reportSearch, setReportSearch] = useState("");
+  const [reportGradeFilter, setReportGradeFilter] = useState("ALL");
+  const [madrasaSearch, setMadrasaSearch] = useState("");
+
+  const handleCopyTracking = (tracking: string) => {
+    if (typeof window !== "undefined" && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(tracking);
+      toast.success(`ট্র্যাকিং নম্বর ${tracking} কপি হয়েছে!`, { id: "copy-tracking" });
+    }
+  };
+
   // Selected report for printable view
   const [selectedReportForPrint, setSelectedReportForPrint] = useState<any | null>(null);
 
@@ -42,12 +64,58 @@ export default function VisitorDashboard() {
   const [selectedApplicationForForm, setSelectedApplicationForForm] = useState<any | null>(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
-  // Inspector user state (can be fetched from session or default)
-  const inspectorUser = {
+  // Sync activeTab with URL search params (e.g. from top Navbar hamburger menu or pills)
+  useEffect(() => {
+    if (urlTab) {
+      if (urlTab === "new_report") {
+        setSelectedApplicationForForm(null);
+        setIsFormModalOpen(true);
+      } else {
+        setActiveTab(urlTab);
+        setSelectedReportForPrint(null);
+      }
+    } else {
+      setActiveTab("dashboard");
+    }
+  }, [urlTab]);
+
+  // Current inspector user state
+  const [inspectorUser, setInspectorUser] = useState({
     id: "64b7f8c12345678901234567",
     name: "মাওলানা মোহাম্মাদ আলী",
     phone: "০১৭১১-XXXXXX",
-  };
+    role: "VISITOR",
+  });
+
+  // Strict Authentication & RBAC Check
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => {
+        if (!res.ok) {
+          router.replace("/login/visitor");
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        const role = (data.role || "").toUpperCase();
+        // If not VISITOR and not ADMIN, redirect away to their respective portal
+        if (role !== "VISITOR" && role !== "ADMIN") {
+          router.replace("/");
+        } else {
+          setInspectorUser({
+            id: data.id || data.userId || "default_id",
+            name: data.name || "মাওলানা মোহাম্মাদ আলী",
+            phone: data.phone || "০১৭১১-XXXXXX",
+            role: data.role || "VISITOR",
+          });
+        }
+      })
+      .catch(() => {
+        router.replace("/login/visitor");
+      });
+  }, [router]);
 
   const handleTabChange = (tabId: string) => {
     if (tabId === "new_report") {
@@ -60,8 +128,11 @@ export default function VisitorDashboard() {
     router.replace(`?tab=${tabId}`, { scroll: false });
   };
 
-  const handleLogout = () => {
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {}
+    router.push("/login/visitor");
   };
 
   // Fetch applications and reports
@@ -106,32 +177,35 @@ export default function VisitorDashboard() {
   const completedInspections = reports.length;
   const gradeACount = reports.filter((r) => r.grade === "GRADE_A").length;
 
+  const navItems = [
+    { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
+    { id: "new_report", icon: PlusCircle, label: "নতুন পরিদর্শন এন্ট্রি" },
+    { id: "reports", icon: ClipboardList, label: "পরিদর্শন রিপোর্টসমূহ" },
+    { id: "madrasas", icon: Building2, label: "বরাদ্দকৃত মাদরাসা" },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 min-h-screen p-4 flex flex-col shrink-0">
-        <div className="mb-6 p-3 bg-slate-900 rounded-2xl text-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+      
+      {/* ─── Desktop Sidebar (Hidden on mobile < md, visible on md+) ─── */}
+      <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200 min-h-screen p-4 flex-col shrink-0">
+        <div className="mb-6 p-3.5 bg-slate-900 rounded-2xl text-white">
           <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider block">
             কেন্দ্রীয় ইআরপি
           </span>
           <h2 className="text-base font-bold text-white mt-0.5">পরিদর্শক প্যানেল</h2>
-          <p className="text-[11px] text-slate-300 mt-1 flex items-center gap-1">
+          <p className="text-[11px] text-slate-300 mt-1 flex items-center gap-1.5 font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
             মাঠ পরিদর্শক সক্রিয়
           </p>
         </div>
 
         <nav className="flex-1 space-y-1.5">
-          {[
-            { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
-            { id: "new_report", icon: PlusCircle, label: "নতুন পরিদর্শন এন্ট্রি" },
-            { id: "reports", icon: ClipboardList, label: "পরিদর্শন রিপোর্টসমূহ" },
-            { id: "madrasas", icon: Building2, label: "বরাদ্দকৃত মাদরাসা" },
-          ].map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => handleTabChange(item.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-full text-xs font-semibold transition-all ${
+              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === item.id
                   ? "bg-slate-900 text-white shadow-sm"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -146,7 +220,7 @@ export default function VisitorDashboard() {
         <div className="pt-4 border-t border-slate-100 mt-auto">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-4 py-2 rounded-full text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
+            className="w-full flex items-center space-x-3 px-4 py-2 rounded-full text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>লগআউট</span>
@@ -154,88 +228,270 @@ export default function VisitorDashboard() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
-        {/* Top Bar */}
-        <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* ─── 4. Main Content Area (Full 100% Width on Mobile) ─── */}
+      <main className="flex-1 w-full min-w-0 p-3.5 sm:p-6 md:p-8 pb-8 md:pb-8 overflow-y-auto">
+        {/* Top Header */}
+        <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-              {activeTab === "dashboard" && "স্বাগতম, মাওলানা মোহাম্মাদ আলী!"}
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">
+              {activeTab === "dashboard" && `স্বাগতম, ${inspectorUser.name}!`}
               {activeTab === "new_report" && "নতুন সরেজমিন পরিদর্শন প্রতিবেদন"}
               {activeTab === "reports" && "দাখিলকৃত পরিদর্শন রিপোর্ট তালিকা"}
               {activeTab === "madrasas" && "বরাদ্দকৃত মাদরাসা তালিকা"}
             </h1>
-            <p className="text-xs text-slate-500">
-              নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ — কেন্দ্রীয় মাদরাসা পরিদর্শন ও অডিট সিস্টেম
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+              নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ — কেন্দ্রীয় পরিদর্শন ও অডিট সিস্টেম
             </p>
           </div>
 
-            <button
-              onClick={() => {
-                setSelectedApplicationForForm(null);
-                setIsFormModalOpen(true);
-              }}
-              className="px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4" />
-              নতুন পরিদর্শন শুরু করুন (পপআপ ফর্ম)
-            </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedApplicationForForm(null);
+              setIsFormModalOpen(true);
+            }}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition cursor-pointer"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>নতুন পরিদর্শন শুরু করুন (পপআপ ফর্ম)</span>
+          </button>
         </header>
+
+        {/* Mobile Quick Tab Switcher (Replaces bottom nav cleanly at the top of the content) */}
+        <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-2.5 mb-4 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => handleTabChange("dashboard")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeTab === "dashboard"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-white text-slate-700 border border-slate-200"
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>ড্যাশবোর্ড</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("reports")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeTab === "reports"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-white text-slate-700 border border-slate-200"
+            }`}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>রিপোর্ট তালিকা ({reports.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("madrasas")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeTab === "madrasas"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-white text-slate-700 border border-slate-200"
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>বরাদ্দকৃত মাদরাসা ({applications.length})</span>
+          </button>
+        </div>
 
         {/* Tab 1: Dashboard */}
         {activeTab === "dashboard" && (
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6">
             {/* 4 Stats Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
               {[
                 { label: "মোট বরাদ্দকৃত", value: totalAssigned, color: "text-slate-800", bg: "bg-white", icon: Building2 },
                 { label: "অপেক্ষমান পরিদর্শন", value: pendingInspections, color: "text-amber-700", bg: "bg-white", icon: Clock },
                 { label: "সম্পন্ন রিপোর্ট", value: completedInspections, color: "text-emerald-700", bg: "bg-white", icon: CheckCircle2 },
                 { label: "গ্রেড 'এ' মাদরাসা", value: gradeACount, color: "text-blue-700", bg: "bg-white", icon: Award },
               ].map((stat, idx) => (
-                <div key={idx} className={`${stat.bg} p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between`}>
+                <div key={idx} className={`${stat.bg} p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between`}>
                   <div>
-                    <span className="text-[11px] font-medium text-slate-500 block">{stat.label}</span>
-                    <span className={`text-2xl font-bold mt-1 block ${stat.color}`}>{stat.value}</span>
+                    <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 block">{stat.label}</span>
+                    <span className={`text-xl sm:text-2xl font-bold mt-0.5 block ${stat.color}`}>{stat.value}</span>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
-                    <stat.icon className="w-5 h-5" />
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+                    <stat.icon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* Recent Completed Reports (Organized Cards) */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h2 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <ClipboardList className="w-4 h-4 text-emerald-600" />
+                  সম্প্রতি দাখিলকৃত পরিদর্শন রিপোর্টসমূহ
+                </h2>
+                <button
+                  onClick={() => setActiveTab("reports")}
+                  className="text-xs font-semibold text-emerald-600 hover:underline cursor-pointer"
+                >
+                  সকল রিপোর্ট দেখুন ({reports.length})
+                </button>
+              </div>
+
+              {reports.length === 0 ? (
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                  এখনো কোনো রিপোর্ট দাখিল করা হয়নি।
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  {reports.slice(0, 3).map((rep) => {
+                    const madrasahName = rep.applicationId?.madrasahName || "মাদরাসা";
+                    const mCode = rep.issuedMadrasahCode || rep.applicationId?.mCode || rep.applicationId?.madrasahCode || "৭৫০";
+                    const location = [rep.applicationId?.upazila, rep.applicationId?.district].filter(Boolean).join(", ");
+                    const directorMobile = rep.applicationId?.directorMobile;
+                    const isGradeA = rep.grade === "GRADE_A";
+                    const isGradeB = rep.grade === "GRADE_B";
+                    const isGradeC = rep.grade === "GRADE_C";
+                    const gradeBadgeClass = isGradeA
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                      : isGradeB
+                      ? "bg-blue-50 text-blue-800 border-blue-300"
+                      : isGradeC
+                      ? "bg-amber-50 text-amber-800 border-amber-300"
+                      : "bg-slate-100 text-slate-800 border-slate-300";
+
+                    return (
+                      <div
+                        key={rep._id}
+                        className="bg-white rounded-2xl border border-slate-200/90 hover:border-emerald-300 p-4 sm:p-4.5 shadow-2xs hover:shadow-xs transition-all flex flex-col gap-3"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                                {madrasahName}
+                              </h3>
+                              {location && (
+                                <p className="text-[10.5px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>{location}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                            <span className={`inline-flex items-center gap-1 text-[10.5px] px-2.5 py-0.5 rounded-full font-bold border ${gradeBadgeClass}`}>
+                              <Award className="w-3 h-3" />
+                              <span>{rep.gradeLabel || rep.grade} ({rep.totalScore}%)</span>
+                            </span>
+                            {rep.adminReviewStatus === "APPROVED" && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                                <ShieldCheck className="w-3 h-3" />
+                                <span>বোর্ড অনুমোদিত</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Supportive Chips */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-[11px]">
+                          <div>
+                            <span className="text-[9.5px] font-medium text-slate-400 block">ট্র্যাকিং নং</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyTracking(rep.trackingNo)}
+                              className="font-mono font-bold text-slate-800 hover:text-emerald-700 flex items-center gap-1 transition cursor-pointer"
+                              title="কপি করতে ক্লিক করুন"
+                            >
+                              <span className="truncate">{rep.trackingNo}</span>
+                              <Copy className="w-2.5 h-2.5 text-slate-400" />
+                            </button>
+                          </div>
+                          <div>
+                            <span className="text-[9.5px] font-medium text-slate-400 block">মাদরাসা কোড (M)</span>
+                            <span className="font-bold text-slate-800">{mCode}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9.5px] font-medium text-slate-400 block">পরিদর্শন তারিখ</span>
+                            <span className="font-semibold text-slate-700">
+                              {new Date(rep.inspectionDate).toLocaleDateString("bn-BD")}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9.5px] font-medium text-slate-400 block">পরিচালক</span>
+                            {directorMobile ? (
+                              <a href={`tel:${directorMobile}`} className="font-semibold text-emerald-700 hover:underline truncate block">
+                                {rep.applicationId?.directorName || directorMobile}
+                              </a>
+                            ) : (
+                              <span className="text-slate-600">{rep.applicationId?.directorName || "—"}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedReportForPrint(rep)}
+                            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>অফিসিয়াল রিপোর্ট প্রিন্ট</span>
+                          </button>
+
+                          {directorMobile && (
+                            <a
+                              href={`tel:${directorMobile}`}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition"
+                            >
+                              <PhoneCall className="w-3 h-3 text-slate-500" />
+                              <span className="hidden sm:inline">কল করুন</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Recent Assigned Madrasas */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h2 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
                   <Building2 className="w-4 h-4 text-emerald-600" />
                   চলমান ও অপেক্ষমান পরিদর্শন তালিকা
                 </h2>
                 <button
                   onClick={() => setActiveTab("madrasas")}
-                  className="text-xs font-semibold text-emerald-600 hover:underline"
+                  className="text-xs font-semibold text-emerald-600 hover:underline cursor-pointer"
                 >
-                  সবগুলো দেখুন
+                  সবগুলো দেখুন ({applications.length})
                 </button>
               </div>
 
               {applications.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs">
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
                   কোনো বরাদ্দকৃত মাদরাসা নেই।
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100 text-xs">
-                  {applications.slice(0, 5).map((app) => (
-                    <div key={app._id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
-                      <div>
+                <div className="grid grid-cols-1 gap-3">
+                  {applications.slice(0, 3).map((app) => (
+                    <div
+                      key={app._id}
+                      className="bg-white rounded-2xl border border-slate-200/90 hover:border-emerald-300 p-4 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 text-sm">{app.madrasahName}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">{app.madrasahName}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold">
                             M: {app.mCode || app.madrasahCode || "৭৫০"}
                           </span>
                         </div>
-                        <div className="text-slate-500 text-[11px] mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                        <div className="text-slate-500 text-[10.5px] flex flex-wrap gap-x-3 gap-y-0.5">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-slate-400" />
                             {app.upazila}, {app.district}
@@ -247,65 +503,14 @@ export default function VisitorDashboard() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleStartInspection(app)}
-                          className="px-4 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1 transition shadow-xs"
-                        >
-                          <FileCheck className="w-3.5 h-3.5" />
-                          পরিদর্শন শুরু করুন
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Recent Completed Reports */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-emerald-600" />
-                  সম্প্রতি দাখিলকৃত পরিদর্শন রিপোর্টসমূহ
-                </h2>
-                <button
-                  onClick={() => setActiveTab("reports")}
-                  className="text-xs font-semibold text-emerald-600 hover:underline"
-                >
-                  সকল রিপোর্ট ({reports.length})
-                </button>
-              </div>
-
-              {reports.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs">
-                  এখনো কোনো রিপোর্ট দাখিল করা হয়নি।
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100 text-xs">
-                  {reports.slice(0, 5).map((rep) => (
-                    <div key={rep._id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">{rep.applicationId?.madrasahName || "মাদরাসা"}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">
-                            {rep.gradeLabel || rep.grade} ({rep.totalScore}%)
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-1">
-                          তারিখ: {new Date(rep.inspectionDate).toLocaleDateString("bn-BD")} | ট্র্যাকিং: {rep.trackingNo}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSelectedReportForPrint(rep)}
-                          className="px-4 py-1.5 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold flex items-center gap-1 transition"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          প্রিন্ট / ভিউ
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleStartInspection(app)}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer self-start sm:self-center"
+                      >
+                        <FileCheck className="w-3.5 h-3.5" />
+                        <span>পরিদর্শন শুরু করুন</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -317,15 +522,15 @@ export default function VisitorDashboard() {
         {/* Tab 2: New Report Form */}
         {activeTab === "new_report" && (
           <div className="space-y-4">
-            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between">
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-emerald-900">ডিজিটাল পরিদর্শন ফর্ম</h3>
-                <p className="text-xs text-emerald-700">আপনি ফুলস্ক্রিন পপআপ ডায়ালগ মোডালেও ফর্মটি পূরণ করতে পারেন।</p>
+                <p className="text-xs text-emerald-700 mt-0.5">আপনি মোবাইল ফ্রেন্ডলি পপআপ ডায়ালগ মোডালেও ফর্মটি পূরণ করতে পারেন।</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsFormModalOpen(true)}
-                className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition cursor-pointer"
+                className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition cursor-pointer shrink-0"
               >
                 পপআপ মোডালে খুলুন
               </button>
@@ -339,108 +544,409 @@ export default function VisitorDashboard() {
           </div>
         )}
 
-        {/* Tab 3: All Reports */}
+        {/* Tab 3: All Reports (Organized, Supportive Cards with Search & Filters) */}
         {activeTab === "reports" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-sm font-bold text-slate-800">দাখিলকৃত সকল পরিদর্শন রিপোর্ট</h2>
-              <span className="text-xs text-slate-500 font-medium">মোট: {reports.length} টি</span>
+          <div className="space-y-4">
+            {/* Search and Grade Filter Bar */}
+            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <h2 className="text-xs sm:text-sm font-bold text-slate-800">দাখিলকৃত পরিদর্শন রিপোর্টসমূহ</h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">মোট রিপোর্ট: {reports.length} টি</p>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative w-full sm:w-72">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={reportSearch}
+                    onChange={(e) => setReportSearch(e.target.value)}
+                    placeholder="মাদরাসার নাম, ট্র্যাকিং বা M কোড..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-emerald-600 transition"
+                  />
+                  {reportSearch && (
+                    <button
+                      onClick={() => setReportSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Filter Badges */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-0.5 scrollbar-none text-xs">
+                <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1 shrink-0 mr-1">
+                  <Filter className="w-3 h-3" />
+                  ফিল্টার:
+                </span>
+                {[
+                  { id: "ALL", label: `সকল (${reports.length})` },
+                  { id: "GRADE_A", label: `গ্রেড এ (${reports.filter((r) => r.grade === "GRADE_A").length})` },
+                  { id: "GRADE_B", label: `গ্রেড বি (${reports.filter((r) => r.grade === "GRADE_B").length})` },
+                  { id: "GRADE_C", label: `গ্রেড সি (${reports.filter((r) => r.grade === "GRADE_C").length})` },
+                  { id: "APPROVED", label: `অনুমোদিত (${reports.filter((r) => r.adminReviewStatus === "APPROVED").length})` },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setReportGradeFilter(f.id)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-semibold transition shrink-0 cursor-pointer ${
+                      reportGradeFilter === f.id
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
+            {/* Reports List */}
             {reports.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 text-xs">
+              <div className="bg-white p-12 text-center text-slate-400 text-xs rounded-2xl border border-slate-200">
                 কোনো রিপোর্ট পাওয়া যায়নি।
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 text-xs">
-                {reports.map((rep) => (
-                  <div key={rep._id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">
-                          {rep.applicationId?.madrasahName || "মাদরাসা"}
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">
-                          {rep.gradeLabel || rep.grade} ({rep.totalScore}%)
-                        </span>
-                        {rep.adminReviewStatus === "APPROVED" && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">
-                            বোর্ড অনুমোদিত
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-slate-500 text-[11px] flex flex-wrap gap-x-4">
-                        <span>ট্র্যাকিং নং: {rep.trackingNo}</span>
-                        <span>M কোড: {rep.issuedMadrasahCode || rep.applicationId?.mCode || "৭৫০"}</span>
-                        <span>তারিখ: {new Date(rep.inspectionDate).toLocaleDateString("bn-BD")}</span>
-                      </div>
-                    </div>
+              <div className="space-y-3.5">
+                {reports
+                  .filter((rep) => {
+                    const q = reportSearch.toLowerCase().trim();
+                    const name = (rep.applicationId?.madrasahName || "").toLowerCase();
+                    const tracking = (rep.trackingNo || "").toLowerCase();
+                    const m = (rep.issuedMadrasahCode || rep.applicationId?.mCode || rep.applicationId?.madrasahCode || "").toLowerCase();
+                    const loc = `${rep.applicationId?.upazila || ""} ${rep.applicationId?.district || ""}`.toLowerCase();
+                    const matchesSearch = !q || name.includes(q) || tracking.includes(q) || m.includes(q) || loc.includes(q);
+                    if (!matchesSearch) return false;
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setSelectedReportForPrint(rep)}
-                        className="px-4 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1 transition shadow-xs"
+                    if (reportGradeFilter === "GRADE_A") return rep.grade === "GRADE_A";
+                    if (reportGradeFilter === "GRADE_B") return rep.grade === "GRADE_B";
+                    if (reportGradeFilter === "GRADE_C") return rep.grade === "GRADE_C";
+                    if (reportGradeFilter === "APPROVED") return rep.adminReviewStatus === "APPROVED";
+                    return true;
+                  })
+                  .map((rep) => {
+                    const madrasahName = rep.applicationId?.madrasahName || "মাদরাসা";
+                    const mCode = rep.issuedMadrasahCode || rep.applicationId?.mCode || rep.applicationId?.madrasahCode || "৭৫০";
+                    const location = [rep.applicationId?.upazila, rep.applicationId?.district].filter(Boolean).join(", ");
+                    const directorName = rep.applicationId?.directorName;
+                    const directorMobile = rep.applicationId?.directorMobile;
+                    const phaseLabel = rep.phase === "phase_2" ? "২য় পরিদর্শন" : rep.phase === "phase_3" ? "৩য় পরিদর্শন" : "১ম পরিদর্শন";
+
+                    const isGradeA = rep.grade === "GRADE_A";
+                    const isGradeB = rep.grade === "GRADE_B";
+                    const isGradeC = rep.grade === "GRADE_C";
+                    const gradeBadgeClass = isGradeA
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                      : isGradeB
+                      ? "bg-blue-50 text-blue-800 border-blue-300"
+                      : isGradeC
+                      ? "bg-amber-50 text-amber-800 border-amber-300"
+                      : "bg-slate-100 text-slate-800 border-slate-300";
+
+                    return (
+                      <div
+                        key={rep._id}
+                        className="bg-white rounded-2xl border border-slate-200/90 hover:border-emerald-400 p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col gap-3.5"
                       >
-                        <Printer className="w-3.5 h-3.5" />
-                        অফিসিয়াল রিপোর্ট প্রিন্ট
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                        {/* Top: Madrasah Name, Phase & Badges */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-700 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                              <Building2 className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center flex-wrap gap-2">
+                                <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+                                  {madrasahName}
+                                </h3>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                  {phaseLabel}
+                                </span>
+                              </div>
+                              {location && (
+                                <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>{location}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-auto">
+                            <span className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-bold border ${gradeBadgeClass}`}>
+                              <Award className="w-3.5 h-3.5" />
+                              <span>{rep.gradeLabel || rep.grade} ({rep.totalScore}%)</span>
+                            </span>
+                            {rep.adminReviewStatus === "APPROVED" ? (
+                              <span className="inline-flex items-center gap-1 text-[10.5px] px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>বোর্ড অনুমোদিত</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10.5px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 font-semibold border border-amber-200">
+                                <Clock className="w-3 h-3" />
+                                <span>পর্যালোচনায়</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Middle: Structured Supportive Chips Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50/90 p-3 rounded-xl border border-slate-100 text-xs">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-medium text-slate-400">ট্র্যাকিং নম্বর</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyTracking(rep.trackingNo)}
+                              className="font-mono font-bold text-slate-800 text-[11px] hover:text-emerald-700 flex items-center gap-1 text-left transition cursor-pointer group mt-0.5"
+                              title="কপি করতে ক্লিক করুন"
+                            >
+                              <span className="truncate">{rep.trackingNo}</span>
+                              <Copy className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                            </button>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-medium text-slate-400">মাদরাসা কোড (M)</span>
+                            <span className="font-bold text-slate-800 text-[11px] mt-0.5">
+                              {mCode}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-medium text-slate-400">পরিদর্শন তারিখ</span>
+                            <span className="font-semibold text-slate-700 text-[11px] flex items-center gap-1 mt-0.5">
+                              <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{new Date(rep.inspectionDate).toLocaleDateString("bn-BD")}</span>
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-medium text-slate-400">মুহতামিম / পরিচালক</span>
+                            {directorMobile ? (
+                              <a
+                                href={`tel:${directorMobile}`}
+                                className="text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1 mt-0.5 truncate"
+                              >
+                                <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>{directorName || directorMobile}</span>
+                              </a>
+                            ) : (
+                              <span className="text-[11px] text-slate-600 mt-0.5">{directorName || "—"}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Stats summary row */}
+                        {(rep.teacherStats?.total > 0 || rep.studentStats?.total > 0) && (
+                          <div className="flex items-center flex-wrap gap-3 text-[11px] text-slate-600 px-1">
+                            {rep.teacherStats?.total > 0 && (
+                              <span>
+                                👨‍🏫 শিক্ষক: <strong className="text-slate-800 font-bold">{rep.teacherStats.present}/{rep.teacherStats.total}</strong> উপস্থিত
+                              </span>
+                            )}
+                            {rep.studentStats?.total > 0 && (
+                              <span>
+                                🎒 শিক্ষার্থী: <strong className="text-slate-800 font-bold">{rep.studentStats.total}</strong> জন
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Action Footer: Supportive Action Buttons */}
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 mt-0.5">
+                          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedReportForPrint(rep)}
+                              className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
+                            >
+                              <Printer className="w-4 h-4 text-emerald-400" />
+                              <span>অফিসিয়াল রিপোর্ট ভিউ ও প্রিন্ট</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedApplicationForForm(rep.applicationId || { _id: rep.applicationId, trackingNo: rep.trackingNo });
+                                setIsFormModalOpen(true);
+                              }}
+                              className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 active:scale-95 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                              title="রিপোর্টের পূর্ণ তথ্য পর্যালোচনা"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="hidden sm:inline">পূর্ণাঙ্গ বিবরণ</span>
+                            </button>
+                          </div>
+
+                          {directorMobile && (
+                            <a
+                              href={`tel:${directorMobile}`}
+                              className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition border border-emerald-200"
+                              title="মুহতামিমকে কল করুন"
+                            >
+                              <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="hidden sm:inline">কল করুন</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
         )}
 
-        {/* Tab 4: Assigned Madrasas */}
+        {/* Tab 4: Assigned Madrasas (Organized & Supportive Cards) */}
         {activeTab === "madrasas" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-sm font-bold text-slate-800">বরাদ্দকৃত মাদরাসা তালিকা</h2>
-              <span className="text-xs text-slate-500 font-medium">মোট: {applications.length} টি</span>
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xs sm:text-sm font-bold text-slate-800">বরাদ্দকৃত মাদরাসা তালিকা</h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">মোট বরাদ্দকৃত মাদরাসা: {applications.length} টি</p>
+              </div>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={madrasaSearch}
+                  onChange={(e) => setMadrasaSearch(e.target.value)}
+                  placeholder="মাদরাসার নাম বা উপজেলা দিয়ে খুঁজুন..."
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-emerald-600 transition"
+                />
+                {madrasaSearch && (
+                  <button
+                    onClick={() => setMadrasaSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {applications.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 text-xs">
+              <div className="bg-white p-12 text-center text-slate-400 text-xs rounded-2xl border border-slate-200">
                 আপনাকে এখনো কোনো মাদরাসা পরিদর্শনের জন্য বরাদ্দ করা হয়নি।
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 text-xs">
-                {applications.map((app) => (
-                  <div key={app._id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{app.madrasahName}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                          M: {app.mCode || app.madrasahCode || "৭৫০"}
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">
-                          {app.status === "ASSIGNED" ? "অ্যাসাইনকৃত" : app.status}
-                        </span>
-                      </div>
-                      <div className="text-slate-500 text-[11px] flex flex-wrap gap-x-4">
-                        <span>ঠিকানা: {app.upazila}, {app.district}</span>
-                        <span>পরিচালক: {app.directorName} ({app.directorMobile})</span>
-                      </div>
-                    </div>
+              <div className="space-y-3.5">
+                {applications
+                  .filter((app) => {
+                    const q = madrasaSearch.toLowerCase().trim();
+                    const name = (app.madrasahName || "").toLowerCase();
+                    const tracking = (app.trackingNo || "").toLowerCase();
+                    const m = (app.mCode || app.madrasahCode || "").toLowerCase();
+                    const loc = `${app.upazila || ""} ${app.district || ""}`.toLowerCase();
+                    return !q || name.includes(q) || tracking.includes(q) || m.includes(q) || loc.includes(q);
+                  })
+                  .map((app) => {
+                    const mCode = app.mCode || app.madrasahCode || "—";
+                    const location = [app.upazila, app.district].filter(Boolean).join(", ");
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleStartInspection(app)}
-                        className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1 transition shadow-xs"
+                    return (
+                      <div
+                        key={app._id}
+                        className="bg-white rounded-2xl border border-slate-200/90 hover:border-emerald-400 p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col gap-3.5"
                       >
-                        <FileCheck className="w-3.5 h-3.5" />
-                        সরেজমিন পরিদর্শন শুরু
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-700 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                              <Building2 className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center flex-wrap gap-2">
+                                <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+                                  {app.madrasahName}
+                                </h3>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                  M: {mCode}
+                                </span>
+                              </div>
+                              {location && (
+                                <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>{location}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <span className="inline-flex items-center gap-1 text-[10.5px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 font-semibold border border-amber-200 self-start sm:self-auto">
+                            <Clock className="w-3 h-3" />
+                            <span>পরিদর্শনের জন্য বরাদ্দকৃত</span>
+                          </span>
+                        </div>
+
+                        {/* Supportive Info Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50/90 p-3 rounded-xl border border-slate-100 text-xs">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-medium text-slate-400">ট্র্যাকিং নম্বর</span>
+                            <span className="font-mono font-bold text-slate-800 text-[11px] mt-0.5">
+                              {app.trackingNo}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-medium text-slate-400">পরিচালক / মুহতামিম</span>
+                            <span className="font-semibold text-slate-800 text-[11px] mt-0.5">
+                              {app.directorName || "—"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col col-span-2 sm:col-span-1">
+                            <span className="text-[10px] font-medium text-slate-400">মোবাইল নম্বর</span>
+                            {app.directorMobile ? (
+                              <a
+                                href={`tel:${app.directorMobile}`}
+                                className="text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1 mt-0.5"
+                              >
+                                <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>{app.directorMobile}</span>
+                              </a>
+                            ) : (
+                              <span className="text-[11px] text-slate-600 mt-0.5">—</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Footer */}
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => handleStartInspection(app)}
+                            className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
+                          >
+                            <FileCheck className="w-4 h-4" />
+                            <span>সরেজমিন পরিদর্শন শুরু করুন</span>
+                          </button>
+
+                          {app.directorMobile && (
+                            <a
+                              href={`tel:${app.directorMobile}`}
+                              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
+                              title="কল করুন"
+                            >
+                              <PhoneCall className="w-3.5 h-3.5 text-slate-600" />
+                              <span className="hidden sm:inline">কল করুন</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
         )}
       </main>
 
+      {/* ─── 6. Popups & Modals ─── */}
       {/* Modal 1: Inspection Entry Form Popup Modal */}
       {isFormModalOpen && (
         <InspectionForm
@@ -454,7 +960,7 @@ export default function VisitorDashboard() {
         />
       )}
 
-      {/* Modal 2: Inspection Report Preview & Print */}
+      {/* Modal 2: Inspection Report Preview & Print Modal */}
       {selectedReportForPrint && (
         <PrintableInspectionReport
           report={selectedReportForPrint}

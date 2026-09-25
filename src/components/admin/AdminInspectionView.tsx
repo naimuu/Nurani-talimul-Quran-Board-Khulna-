@@ -19,11 +19,24 @@ import {
   XCircle,
   Navigation,
   PlusCircle,
+  Sliders,
+  Trash2,
+  Edit3,
+  Save,
+  RotateCcw,
+  Plus,
+  X,
+  Minus,
+  Info,
+  Sparkles,
+  BookOpen,
+  GraduationCap,
+  ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import PrintableInspectionReport from "@/components/inspection/PrintableInspectionReport";
 import InspectionForm from "@/components/inspection/InspectionForm";
-import { INSPECTION_TYPES } from "@/lib/inspectionUtils";
+import { INSPECTION_TYPES, GENERAL_CHECKLIST_ITEMS, STANDARD_INSPECTION_SUBJECTS } from "@/lib/inspectionUtils";
 
 export default function AdminInspectionView() {
   const [applications, setApplications] = useState<any[]>([]);
@@ -48,6 +61,243 @@ export default function AdminInspectionView() {
   const [adminRemarks, setAdminRemarks] = useState("");
   const [customMadrasahCode, setCustomMadrasahCode] = useState("");
   const [reviewing, setReviewing] = useState(false);
+
+  // Criteria & Marks Config Manager State
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [configActiveTab, setConfigActiveTab] = useState<"criteria" | "subjects" | "classes">("criteria");
+  const [configLoading, setConfigLoading] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [criteriaConfig, setCriteriaConfig] = useState<any[]>([]);
+  const [subjectsConfig, setSubjectsConfig] = useState<any[]>([]);
+  const [configVersion, setConfigVersion] = useState<number>(1);
+  const [configNotes, setConfigNotes] = useState("");
+
+  // Curriculum Classes Management in Admin Inspection
+  const [curriculumClasses, setCurriculumClasses] = useState<any[]>([]);
+  const [loadingCurriculumClasses, setLoadingCurriculumClasses] = useState(false);
+  const [newClassName, setNewClassName] = useState("");
+  const [isAddingClass, setIsAddingClass] = useState(false);
+
+  // Sub-modal for Add/Edit Criteria Item
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+
+  // Sub-modal for Add/Edit Subject Item
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<{ id?: string; sl: string; name: string } | null>(null);
+
+  const fetchCriteriaConfig = async () => {
+    setConfigLoading(true);
+    try {
+      const res = await fetch("/api/inspection/config");
+      const data = await res.json();
+      if (data.success && data.config) {
+        setCriteriaConfig(data.config.checklistItems || []);
+        setSubjectsConfig(data.config.subjects || STANDARD_INSPECTION_SUBJECTS);
+        setConfigVersion(data.config.version || 1);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("মানদণ্ড কনফিগারেশন লোড করা সম্ভব হয়নি");
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const fetchCurriculumClasses = async () => {
+    setLoadingCurriculumClasses(true);
+    try {
+      const res = await fetch("/api/curriculum/classes");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCurriculumClasses(data);
+      }
+    } catch (e) {
+      console.error("Failed to load curriculum classes:", e);
+    } finally {
+      setLoadingCurriculumClasses(false);
+    }
+  };
+
+  const openConfigManager = () => {
+    fetchCriteriaConfig();
+    fetchCurriculumClasses();
+    setIsConfigModalOpen(true);
+  };
+
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      const res = await fetch("/api/inspection/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          checklistItems: criteriaConfig,
+          subjects: subjectsConfig,
+          notes: configNotes || `Admin update v${configVersion + 1}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "সংরক্ষণ ব্যর্থ হয়েছে");
+      toast.success(data.message || "কনফিগারেশন সফলভাবে আপডেট হয়েছে");
+      setConfigVersion(data.config?.version || configVersion + 1);
+      setIsConfigModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "ত্রুটি দেখা দিয়েছে");
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  // Class Management Handlers
+  const handleAddCurriculumClass = async () => {
+    if (!newClassName.trim()) {
+      toast.error("শ্রেণির নাম লিখুন");
+      return;
+    }
+    setIsAddingClass(true);
+    try {
+      const res = await fetch("/api/curriculum/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newClassName.trim(),
+          order: curriculumClasses.length + 1,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "শ্রেণি যোগ করা সম্ভব হয়নি");
+      toast.success(`'${newClassName.trim()}' শ্রেণি সফলভাবে যুক্ত হয়েছে!`);
+      setNewClassName("");
+      fetchCurriculumClasses();
+    } catch (err: any) {
+      toast.error(err.message || "ত্রুটি দেখা দিয়েছে");
+    } finally {
+      setIsAddingClass(false);
+    }
+  };
+
+  const handleDeleteCurriculumClass = async (classId: string, className: string) => {
+    if (!window.confirm(`আপনি কি নিশ্চিত যে '${className}' শ্রেণিটি মুছে ফেলতে চান?`)) return;
+    try {
+      const res = await fetch(`/api/curriculum/classes/${classId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("শ্রেণি মুছে ফেলা যায়নি");
+      toast.success(`'${className}' শ্রেণিটি সফলভাবে মুছে ফেলা হয়েছে!`);
+      fetchCurriculumClasses();
+    } catch (err: any) {
+      toast.error(err.message || "ত্রুটি দেখা দিয়েছে");
+    }
+  };
+
+  // Subjects Management Handlers
+  const handleOpenAddSubject = () => {
+    const slMap = ["ক", "খ", "গ", "ঘ", "ঙ", "চ", "ছ", "জ", "ঝ", "ঞ", "ট", "ঠ", "ড", "ঢ", "ণ", "ত", "থ", "দ", "ধ", "ন"];
+    const nextSl = slMap[subjectsConfig.length] || `${subjectsConfig.length + 1}`;
+    setEditingSubject({
+      id: `subj_${Date.now()}`,
+      sl: nextSl,
+      name: "",
+    });
+    setIsSubjectModalOpen(true);
+  };
+
+  const handleOpenEditSubject = (subj: any) => {
+    setEditingSubject({ ...subj });
+    setIsSubjectModalOpen(true);
+  };
+
+  const handleSaveSubject = () => {
+    if (!editingSubject || !editingSubject.name.trim()) {
+      toast.error("বিষয়ের নাম আবশ্যক");
+      return;
+    }
+    const cleanSubj = {
+      id: editingSubject.id || `subj_${Date.now()}`,
+      sl: editingSubject.sl || `${subjectsConfig.length + 1}`,
+      name: editingSubject.name.trim(),
+    };
+    setSubjectsConfig((prev) => {
+      const idx = prev.findIndex((s) => s.id === cleanSubj.id);
+      if (idx !== -1) {
+        const next = [...prev];
+        next[idx] = cleanSubj;
+        return next;
+      }
+      return [...prev, cleanSubj];
+    });
+    toast.success("বিষয় তালিকায় আপডেট হয়েছে (সংরক্ষণ করে প্রকাশ করুন)");
+    setIsSubjectModalOpen(false);
+    setEditingSubject(null);
+  };
+
+  const handleDeleteSubject = (subjId: string) => {
+    if (subjectsConfig.length <= 1) {
+      toast.error("অন্তত একটি বিষয় অবশ্যই থাকতে হবে");
+      return;
+    }
+    setSubjectsConfig((prev) => prev.filter((s) => s.id !== subjId));
+    toast.success("বিষয়টি তালিকা থেকে সরানো হয়েছে (সংরক্ষণ করে প্রকাশ করুন)");
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    if (criteriaConfig.length <= 1) {
+      toast.error("অন্তত একটি নিরীক্ষা মানদণ্ড অবশ্যই থাকতে হবে");
+      return;
+    }
+    setCriteriaConfig((prev) => prev.filter((i) => i.id !== itemId));
+    toast.success("মানদণ্ডটি তালিকা থেকে সরানো হয়েছে (সংরক্ষণ বাটনে চাপ দিলে নতুন সংস্করণে প্রযোজ্য হবে)");
+  };
+
+  const handleOpenAddItem = () => {
+    const nextNum = criteriaConfig.length + 1;
+    const nextSl = nextNum < 10 ? `০${nextNum}` : `${nextNum}`;
+    setEditingItem({
+      id: `crit_${Date.now()}`,
+      sl: nextSl,
+      label: "",
+      type: "yes_no_partial",
+      options: [
+        { value: "yes", label: "হ্যাঁ", points: 10 },
+        { value: "partial", label: "আংশিক", points: 5 },
+        { value: "no", label: "না", points: 0 },
+      ],
+    });
+    setIsItemModalOpen(true);
+  };
+
+  const handleOpenEditItem = (item: any) => {
+    setEditingItem(JSON.parse(JSON.stringify(item)));
+    setIsItemModalOpen(true);
+  };
+
+  const handleSaveItem = () => {
+    if (!editingItem || !editingItem.label.trim()) {
+      toast.error("অনুগ্রহ করে মানদণ্ড বা প্রশ্নের বিবরণ লিখুন");
+      return;
+    }
+    setCriteriaConfig((prev) => {
+      const existingIdx = prev.findIndex((i) => i.id === editingItem.id);
+      if (existingIdx !== -1) {
+        const next = [...prev];
+        next[existingIdx] = editingItem;
+        return next;
+      } else {
+        return [...prev, editingItem];
+      }
+    });
+    setIsItemModalOpen(false);
+    setEditingItem(null);
+    toast.success("মানদণ্ডটি তালিকায় হালনাগাদ করা হয়েছে");
+  };
+
+  const handleResetToDefault = () => {
+    if (window.confirm("আপনি কি সকল মানদণ্ড পূর্বনির্ধারিত ১১টি মূল মানদণ্ডে ফিরিয়ে নিতে চান?")) {
+      setCriteriaConfig(JSON.parse(JSON.stringify(GENERAL_CHECKLIST_ITEMS)));
+      toast.success("ডিফল্ট মানদণ্ড লোড করা হয়েছে");
+    }
+  };
 
   // Fetch all data
   const fetchData = async () => {
@@ -173,11 +423,20 @@ export default function AdminInspectionView() {
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <button
             type="button"
+            onClick={openConfigManager}
+            className="px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer active:scale-95"
+            title="মানদণ্ড যোগ/বিয়োজন ও পজিটিভ/নেগেটিভ মার্কস নির্ধারণ"
+          >
+            <Sliders className="w-4 h-4 text-emerald-400" />
+            <span>মানদণ্ড ও মার্কিং কনফিগারেশন</span>
+          </button>
+          <button
+            type="button"
             onClick={() => {
               setSelectedAppForForm(null);
               setIsFormModalOpen(true);
             }}
-            className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+            className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer active:scale-95"
           >
             <PlusCircle className="w-4 h-4" />
             <span>নতুন পরিদর্শন এন্ট্রি (পপআপ ফর্ম)</span>
@@ -587,6 +846,645 @@ export default function AdminInspectionView() {
           onClose={() => setIsFormModalOpen(false)}
           onCancel={() => setIsFormModalOpen(false)}
         />
+      )}
+
+      {/* Modal 5: Inspection Criteria & Negative Marks Manager Modal */}
+      {isConfigModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <Sliders className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>পরিদর্শন মানদণ্ড ও মার্কিং নিয়ন্ত্রণ প্যানেল</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-mono font-bold">
+                      সংস্করণ: v{configVersion}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    প্রশ্ন সংযোজন, বিয়োজন এবং প্রতিটি অপশনের জন্য ধনাত্মক (+পয়েন্ট) বা ঋণাত্মক (-মার্কস) নির্ধারণ
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfigModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition text-sm cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Top Navigation Tabs */}
+            <div className="bg-slate-800 px-5 pt-2.5 border-b border-slate-700 flex gap-1.5 overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setConfigActiveTab("criteria")}
+                className={`px-4 py-2 text-xs font-bold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 ${
+                  configActiveTab === "criteria"
+                    ? "bg-slate-50 text-slate-900 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5 text-emerald-500" />
+                <span>সার্বিক মানদণ্ড ও মার্কস ({criteriaConfig.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConfigActiveTab("subjects")}
+                className={`px-4 py-2 text-xs font-bold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 ${
+                  configActiveTab === "subjects"
+                    ? "bg-slate-50 text-slate-900 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+                <span>মূল্যায়ন বিষয়সমূহ ({subjectsConfig.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConfigActiveTab("classes")}
+                className={`px-4 py-2 text-xs font-bold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 ${
+                  configActiveTab === "classes"
+                    ? "bg-slate-50 text-slate-900 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+                }`}
+              >
+                <GraduationCap className="w-3.5 h-3.5 text-amber-400" />
+                <span>কারিকুলাম শ্রেণি ব্যবস্থাপনা ({curriculumClasses.length})</span>
+              </button>
+            </div>
+
+            {/* Immutability & Safety Banner */}
+            <div className="bg-emerald-50/90 border-b border-emerald-200/80 px-5 py-2.5 text-xs text-emerald-950 flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="leading-relaxed text-[11px]">
+                <strong className="font-bold text-emerald-900">রিয়েল-টাইম সিঙ্ক ও অপরিবর্তনশীলতা রুল:</strong>{" "}
+                কারিকুলামে শ্রেণি যোগ বা মুছে ফেললে তা সরাসরি পরিদর্শন ফর্মে আপডেট হবে। মানদণ্ড ও বিষয়সমূহ পরিবর্তন করে 'সংরক্ষণ' চাপলে নতুন সংস্করণ কার্যকর হবে।
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto flex-1 space-y-4 bg-slate-50">
+              {/* TAB 1: সার্বিক মানদণ্ড ও মার্কস */}
+              {configActiveTab === "criteria" && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleOpenAddItem}
+                        className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>নতুন মানদণ্ড যোগ করুন</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResetToDefault}
+                        className="px-3.5 py-2 rounded-full bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-1 transition cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3 text-slate-500" />
+                        <span>ডিফল্ট মানদণ্ডে রিসেট</span>
+                      </button>
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium">
+                      মোট সক্রিয় মানদণ্ড: <strong className="text-slate-800">{criteriaConfig.length}</strong> টি
+                    </div>
+                  </div>
+
+                  {configLoading ? (
+                    <div className="py-12 text-center text-slate-400 flex items-center justify-center gap-2 text-xs">
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                      <span>কনফিগারেশন লোড হচ্ছে...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {criteriaConfig.map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 font-bold text-xs shrink-0">
+                              {item.sl}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                                {item.label}
+                              </h4>
+                              {/* Option Pills with Positive & Negative Marks */}
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                {item.options && item.options.length > 0 ? (
+                                  item.options.map((opt: any) => {
+                                    const pts = Number(opt.points) || 0;
+                                    const isNeg = pts < 0;
+                                    return (
+                                      <span
+                                        key={opt.value}
+                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                          isNeg
+                                            ? "bg-rose-50 text-rose-700 border-rose-200 font-bold"
+                                            : pts > 0
+                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
+                                            : "bg-slate-100 text-slate-600 border-slate-200"
+                                        }`}
+                                      >
+                                        <span>{opt.label}:</span>
+                                        <span className="font-mono">
+                                          {pts > 0 ? `+${pts}` : pts} মার্কস
+                                        </span>
+                                      </span>
+                                    );
+                                  })
+                                ) : (
+                                  <span className="text-[11px] text-slate-500 italic">
+                                    সংখ্যাগত মান (স্টেপার ইনপুট)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditItem(item)}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                              title="সম্পাদনা করুন"
+                            >
+                              <Edit3 className="w-3 h-3 text-slate-600" />
+                              <span>সম্পাদনা</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: বিষয়ভিত্তিক মূল্যায়ন বিষয়সমূহ */}
+              {configActiveTab === "subjects" && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={handleOpenAddSubject}
+                      className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>নতুন মূল্যায়ন বিষয় যোগ করুন</span>
+                    </button>
+                    <div className="text-xs text-slate-500 font-medium">
+                      মোট সক্রিয় বিষয়: <strong className="text-slate-800">{subjectsConfig.length}</strong> টি
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {subjectsConfig.map((sub, idx) => (
+                      <div
+                        key={sub.id || idx}
+                        className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs hover:shadow-xs transition flex items-center justify-between gap-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center justify-center shrink-0">
+                            {sub.sl}
+                          </span>
+                          <span className="text-xs font-bold text-slate-800 truncate" title={sub.name}>
+                            {sub.name}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditSubject(sub)}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                            title="সম্পাদনা"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubject(sub.id)}
+                            className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                            title="মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: কারিকুলাম ও শ্রেণি ব্যবস্থাপনা */}
+              {configActiveTab === "classes" && (
+                <div className="space-y-4">
+                  {/* Quick Add Class Bar */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                    <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <GraduationCap className="w-4 h-4 text-emerald-600" />
+                      <span>কারিকুলামে নতুন শ্রেণি যোগ করুন</span>
+                    </h4>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="যেমন: প্লে শ্রেণি, ৬ষ্ঠ শ্রেণি বা হিফজুল কুরআন বিভাগ"
+                        value={newClassName}
+                        onChange={(e) => setNewClassName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddCurriculumClass()}
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-emerald-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCurriculumClass}
+                        disabled={isAddingClass || !newClassName.trim()}
+                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
+                      >
+                        {isAddingClass ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        <span>শ্রেণি যোগ করুন</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      * এখানে নতুন শ্রেণি যোগ বা মুছে ফেললে তা কারিকুলাম ও পরিদর্শন ফর্মে তাৎক্ষণিকভাবে হালনাগাদ হবে।
+                    </p>
+                  </div>
+
+                  {/* Classes List */}
+                  {loadingCurriculumClasses ? (
+                    <div className="py-8 text-center text-slate-400 flex items-center justify-center gap-2 text-xs">
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                      <span>শ্রেণির তথ্য লোড হচ্ছে...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {curriculumClasses.map((cls, idx) => (
+                        <div
+                          key={cls.id || idx}
+                          className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs hover:shadow-xs transition flex items-center justify-between gap-2"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <h5 className="text-xs font-bold text-slate-900 truncate">{cls.name}</h5>
+                              <p className="text-[10px] text-slate-400">{cls.books?.length || 0} টি পাঠ্যবই যুক্ত</p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCurriculumClass(cls.id, cls.name)}
+                            className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                            title={`${cls.name} মুছে ফেলুন`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-white px-5 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                <Info className="w-3.5 h-3.5 text-slate-400" />
+                <span>সংরক্ষণ বাটনে চাপ দিলে একটি নতুন সংস্করণ তৈরি হবে যা ভবিষ্যতের সকল নতুন রিপোর্টে সক্রিয় থাকবে।</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsConfigModalOpen(false)}
+                  className="px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                >
+                  বন্ধ করুন
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveConfig}
+                  disabled={savingConfig}
+                  className="px-6 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {savingConfig ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  <span>সংরক্ষণ ও নতুন সংস্করণ প্রকাশ (Publish)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-Modal: Add / Edit Single Criteria Item */}
+      {isItemModalOpen && editingItem && (
+        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-2xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto my-auto animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-emerald-600" />
+                <span>মানদণ্ড সম্পাদনা ও মার্কস কনফিগারেশন</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsItemModalOpen(false);
+                  setEditingItem(null);
+                }}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-slate-700 font-semibold mb-1 block">ক্রমিক নং *</label>
+                  <input
+                    type="text"
+                    value={editingItem.sl || ""}
+                    onChange={(e) => setEditingItem({ ...editingItem, sl: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-600"
+                    placeholder="যেমন: ১২"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-slate-700 font-semibold mb-1 block">মানদণ্ডের ধরণ *</label>
+                  <select
+                    value={editingItem.type}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      let defaultOptions = editingItem.options;
+                      if (newType === "yes_no_partial") {
+                        defaultOptions = [
+                          { value: "yes", label: "হ্যাঁ", points: 10 },
+                          { value: "partial", label: "আংশিক", points: 5 },
+                          { value: "no", label: "না", points: 0 },
+                        ];
+                      } else if (newType === "good_moderate_weak") {
+                        defaultOptions = [
+                          { value: "good", label: "ভাল", points: 10 },
+                          { value: "moderate", label: "মধ্যম", points: 6 },
+                          { value: "weak", label: "দুর্বল", points: 2 },
+                        ];
+                      } else if (newType === "numeric") {
+                        defaultOptions = [];
+                      } else if (newType === "custom_select" && (!defaultOptions || defaultOptions.length === 0)) {
+                        defaultOptions = [
+                          { value: "opt_1", label: "সন্তোষজনক", points: 10 },
+                          { value: "opt_2", label: "অসন্তোষজনক", points: -5 },
+                        ];
+                      }
+                      setEditingItem({
+                        ...editingItem,
+                        type: newType,
+                        options: defaultOptions,
+                      });
+                    }}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="yes_no_partial">হ্যাঁ / আংশিক / না</option>
+                    <option value="good_moderate_weak">ভাল / মধ্যম / দুর্বল</option>
+                    <option value="custom_select">কাস্টম অপশন নির্বাচন</option>
+                    <option value="numeric">সংখ্যাগত মান (জন / সংখ্যা)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-semibold mb-1 block">
+                  মানদণ্ড / প্রশ্নের পূর্ণ বিবরণ *
+                </label>
+                <textarea
+                  rows={2}
+                  value={editingItem.label}
+                  onChange={(e) => setEditingItem({ ...editingItem, label: e.target.value })}
+                  placeholder="যেমন: শিক্ষার্থীদের বিশুদ্ধ কুরআন তিলাওয়াতের মান কেমন?"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-emerald-600 leading-relaxed font-medium"
+                />
+              </div>
+
+              {/* Option Marks Configurator (Supports Positive +marks & Negative -marks) */}
+              {editingItem.type !== "numeric" && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-800 font-bold block">
+                      অপশন ও পয়েন্ট কনফিগারেশন (পজিটিভ ও নেগেটিভ মার্কস)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextOptIdx = (editingItem.options?.length || 0) + 1;
+                        setEditingItem({
+                          ...editingItem,
+                          options: [
+                            ...(editingItem.options || []),
+                            {
+                              value: `opt_${Date.now()}`,
+                              label: `অপশন ${nextOptIdx}`,
+                              points: 0,
+                            },
+                          ],
+                        });
+                      }}
+                      className="px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>অপশন যোগ করুন</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    * নেগেটিভ মার্কিংয়ের ক্ষেত্রে ঋণাত্মক সংখ্যা (যেমন: -৫, -১০) লিখুন।
+                  </p>
+
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {(editingItem.options || []).map((opt: any, optIdx: number) => {
+                      const pts = Number(opt.points) || 0;
+                      return (
+                        <div
+                          key={optIdx}
+                          className="flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                        >
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={opt.label}
+                              onChange={(e) => {
+                                const newOpts = [...editingItem.options];
+                                newOpts[optIdx] = { ...newOpts[optIdx], label: e.target.value };
+                                setEditingItem({ ...editingItem, options: newOpts });
+                              }}
+                              placeholder="অপশনের লেবেল (বাংলা)"
+                              className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-emerald-600"
+                            />
+                          </div>
+
+                          <div className="w-28 flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={opt.points}
+                              onChange={(e) => {
+                                const newOpts = [...editingItem.options];
+                                newOpts[optIdx] = {
+                                  ...newOpts[optIdx],
+                                  points: Number(e.target.value),
+                                };
+                                setEditingItem({ ...editingItem, options: newOpts });
+                              }}
+                              placeholder="মার্কস"
+                              className={`w-full px-2.5 py-1 bg-white border rounded-lg text-xs font-mono font-bold text-center focus:outline-none ${
+                                pts < 0
+                                  ? "border-rose-400 text-rose-700 bg-rose-50/50"
+                                  : pts > 0
+                                  ? "border-emerald-400 text-emerald-700 bg-emerald-50/50"
+                                  : "border-slate-200 text-slate-700"
+                              }`}
+                            />
+                            <span className="text-[10px] text-slate-400 font-mono">pts</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if ((editingItem.options || []).length <= 1) {
+                                toast.error("কমপক্ষে একটি অপশন থাকতে হবে");
+                                return;
+                              }
+                              const newOpts = editingItem.options.filter((_: any, i: number) => i !== optIdx);
+                              setEditingItem({ ...editingItem, options: newOpts });
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                            title="অপশন মুছুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsItemModalOpen(false);
+                  setEditingItem(null);
+                }}
+                className="px-4 py-2 rounded-full border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveItem}
+                className="px-6 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+              >
+                মানদণ্ডে সংরক্ষণ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subject Edit / Add Modal */}
+      {isSubjectModalOpen && editingSubject && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <h4 className="font-bold text-slate-800 text-sm">
+                  {editingSubject.id && subjectsConfig.some((s) => s.id === editingSubject.id)
+                    ? "বিষয় সম্পাদনা করুন"
+                    : "নতুন নিরীক্ষা বিষয় যোগ করুন"}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSubjectModalOpen(false);
+                  setEditingSubject(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-slate-700 font-semibold mb-1 block">ক্রমিক প্রতীক বা নম্বর *</label>
+                <input
+                  type="text"
+                  value={editingSubject.sl || ""}
+                  onChange={(e) => setEditingSubject({ ...editingSubject, sl: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-600"
+                  placeholder="যেমন: ১, ২, বা ক, খ"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-semibold mb-1 block">বিষয়ের নাম (বাংলা) *</label>
+                <input
+                  type="text"
+                  value={editingSubject.name || ""}
+                  onChange={(e) => setEditingSubject({ ...editingSubject, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-600"
+                  placeholder="যেমন: কুরআন মাজীদ, নাজেরা, তাজবীদ, হস্তলিপি"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSubjectModalOpen(false);
+                  setEditingSubject(null);
+                }}
+                className="px-4 py-2 rounded-full border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSubject}
+                className="px-6 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+              >
+                বিষয় সংরক্ষণ করুন
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
