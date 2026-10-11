@@ -26,9 +26,11 @@ export const metadata: Metadata = {
   description: "নূরানী বোর্ড খুলনার অফিসিয়াল ওয়েবসাইট। বিশুদ্ধ ইসলামি শিক্ষা এবং প্রশাসন প্রদান।",
   manifest: "/manifest.json",
   appleWebApp: {
-    capable: true,
     statusBarStyle: "default",
     title: "নূরানী বোর্ড",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -55,6 +57,9 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
       <body className={`${solaimanLipi.variable} font-sans`}>
         <DialogProvider>
           <div className="min-h-screen flex flex-col bg-slate-50">

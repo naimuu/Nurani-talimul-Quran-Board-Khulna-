@@ -55,7 +55,9 @@ export default function AdminInspectionView() {
   const [selectedAppForForm, setSelectedAppForForm] = useState<any | null>(null);
   const [assignModalApp, setAssignModalApp] = useState<any | null>(null);
   const [selectedInspectorId, setSelectedInspectorId] = useState("");
+  const [assignDate, setAssignDate] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [selectedAppForDetails, setSelectedAppForDetails] = useState<any | null>(null);
 
   // Review Actions
   const [adminRemarks, setAdminRemarks] = useState("");
@@ -341,6 +343,7 @@ export default function AdminInspectionView() {
         body: JSON.stringify({
           applicationId: assignModalApp._id,
           inspectorId: selectedInspectorId,
+          scheduledDate: assignDate || undefined,
         }),
       });
       const data = await res.json();
@@ -349,12 +352,25 @@ export default function AdminInspectionView() {
       toast.success("পরিদর্শক সফলভাবে নিযুক্ত হয়েছেন!");
       setAssignModalApp(null);
       setSelectedInspectorId("");
+      setAssignDate("");
       fetchData();
     } catch (err: any) {
       toast.error(err.message || "ত্রুটি দেখা দিয়েছে");
     } finally {
       setAssigning(false);
     }
+  };
+
+  // Smart Auto Assign (lowest active workload)
+  const handleAutoAssign = () => {
+    if (!inspectors || inspectors.length === 0) {
+      toast.error("কোনো সক্রিয় পরিদর্শক পাওয়া যায়নি");
+      return;
+    }
+    const sorted = [...inspectors].sort((a, b) => (a.activeWorkload || 0) - (b.activeWorkload || 0));
+    const best = sorted[0];
+    setSelectedInspectorId(best._id);
+    toast.success(`অটো-সিলেক্ট করা হয়েছে: ${best.name} (চলতি কাজ: ${best.activeWorkload || 0}টি)`);
   };
 
   // Handle Admin Review Action (APPROVE, REVISION_REQUIRED, REJECT)
@@ -519,30 +535,49 @@ export default function AdminInspectionView() {
                   );
 
                   return (
-                    <tr key={app._id} className="hover:bg-slate-50/60">
-                      <td className="p-3 font-mono font-semibold text-slate-700">
-                        {app.trackingNo}
+                    <tr key={app._id} className="hover:bg-slate-50/60 transition">
+                      <td className="p-3 font-mono font-semibold text-slate-700 text-xs">
+                        <div className="font-bold text-slate-800">{app.trackingNo}</div>
+                        <div className="text-[10px] text-slate-400 font-sans mt-0.5">
+                          {app.createdAt ? new Date(app.createdAt).toLocaleDateString("bn-BD") : "—"}
+                        </div>
                       </td>
                       <td className="p-3">
                         <span className="font-bold text-slate-900 block">{app.madrasahName}</span>
-                        <span className="text-[11px] text-slate-400">M কোড: {app.mCode || "—"}</span>
+                        <div className="text-[11px] text-slate-500 flex flex-wrap gap-x-2 mt-0.5">
+                          <span>পরিচালক: {app.directorName} ({app.directorMobile})</span>
+                          {app.mCode && <span>| কোড: {app.mCode}</span>}
+                        </div>
                       </td>
-                      <td className="p-3 text-slate-600">
-                        {app.upazila}, {app.district}
+                      <td className="p-3 text-slate-600 text-xs">
+                        <div className="font-medium text-slate-800">{app.upazila}, {app.district}</div>
+                        {app.union && <div className="text-[10px] text-slate-400">ইউনিয়ন: {app.union}</div>}
                       </td>
                       <td className="p-3">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium block w-fit mb-1">
                           {INSPECTION_TYPES.find((t) => t.id === app.inspectionType)?.badge || app.inspectionType}
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold inline-block ${
+                          app.paymentStatus === "PAID"
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-amber-50 text-amber-800 border border-amber-200"
+                        }`}>
+                          {app.paymentStatus === "PAID" ? "ফি পরিশোধিত" : "ফি বাকি"} (৳ {app.feeAmount || 0})
                         </span>
                       </td>
                       <td className="p-3">
                         {app.assignedInspectorName ? (
-                          <div className="text-slate-800 font-medium">
-                            {app.assignedInspectorName}
+                          <div className="text-slate-800 font-medium text-xs">
+                            <span className="font-bold block">{app.assignedInspectorName}</span>
                             <span className="text-[10px] text-slate-400 block">{app.assignedInspectorPhone}</span>
+                            {app.targetDate && (
+                              <span className="text-[10px] text-indigo-600 font-semibold block mt-0.5">
+                                তারিখ: {new Date(app.targetDate).toLocaleDateString("bn-BD")}
+                              </span>
+                            )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic">নিযুক্ত করা হয়নি</span>
+                          <span className="text-slate-400 italic text-xs">নিযুক্ত করা হয়নি</span>
                         )}
                       </td>
                       <td className="p-3">
@@ -552,7 +587,7 @@ export default function AdminInspectionView() {
                               ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                               : app.status === "INSPECTED"
                               ? "bg-blue-50 text-blue-700 border border-blue-200"
-                              : app.status === "ASSIGNED"
+                              : app.status === "ASSIGNED" || app.status === "SCHEDULED"
                               ? "bg-purple-50 text-purple-700 border border-purple-200"
                               : app.status === "REVISION_REQUIRED"
                               ? "bg-amber-50 text-amber-700 border border-amber-200"
@@ -562,13 +597,23 @@ export default function AdminInspectionView() {
                           {app.status}
                         </span>
                       </td>
-                      <td className="p-3 text-right space-x-1.5">
+                      <td className="p-3 text-right space-x-1.5 whitespace-nowrap">
+                        <button
+                          onClick={() => setSelectedAppForDetails(app)}
+                          className="px-2.5 py-1 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-100 text-[11px] font-semibold transition inline-flex items-center gap-1 cursor-pointer"
+                          title="আবেদনের পূর্ণাঙ্গ বিবরণ"
+                        >
+                          <Eye className="w-3 h-3 text-slate-500" />
+                          <span>বিবরণ</span>
+                        </button>
+
                         <button
                           onClick={() => {
                             setAssignModalApp(app);
                             setSelectedInspectorId(app.assignedInspectorId || "");
+                            setAssignDate(app.targetDate ? new Date(app.targetDate).toISOString().split("T")[0] : "");
                           }}
-                          className="px-3 py-1 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-100 text-[11px] font-semibold transition"
+                          className="px-3 py-1 rounded-full border border-emerald-600 bg-emerald-50/50 text-emerald-800 hover:bg-emerald-100 text-[11px] font-bold transition cursor-pointer"
                         >
                           {app.assignedInspectorId ? "পরিদর্শক পরিবর্তন" : "পরিদর্শক নিয়োগ"}
                         </button>
@@ -613,17 +658,46 @@ export default function AdminInspectionView() {
               পরিদর্শক নিয়োগ ও কর্মভার বণ্টন
             </h3>
 
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1">
-              <div className="font-bold text-slate-800">{assignModalApp.madrasahName}</div>
-              <div className="text-slate-500">
-                অবস্থান: {assignModalApp.upazila}, {assignModalApp.district} | ট্র্যাকিং: {assignModalApp.trackingNo}
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
+              <div className="font-bold text-slate-800 text-sm">{assignModalApp.madrasahName}</div>
+              <div className="text-slate-600 flex flex-wrap gap-x-2">
+                <span>অবস্থান: {assignModalApp.upazila}, {assignModalApp.district}</span>
+                <span>| ট্র্যাকিং: {assignModalApp.trackingNo}</span>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                পরিচালক: {assignModalApp.directorName} ({assignModalApp.directorMobile}) | ফি: ৳{assignModalApp.feeAmount} ({assignModalApp.paymentStatus === "PAID" ? "পরিশোধিত" : "বাকি"})
               </div>
             </div>
 
+            {/* Scheduled Date Field */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
-                সক্রিয় মাঠ পরিদর্শক নির্বাচন করুন (চলতি কার্যভার সহ):
+              <label className="text-xs font-semibold text-slate-700 mb-1 block">
+                পরিদর্শনের সম্ভাব্য তারিখ নির্ধারণ করুন (ঐচ্ছিক):
               </label>
+              <input
+                type="date"
+                value={assignDate}
+                onChange={(e) => setAssignDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-700 block">
+                  সক্রিয় মাঠ পরিদর্শক নির্বাচন করুন:
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoAssign}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                  title="সর্বনিম্ন চলতি কার্যভারযুক্ত পরিদর্শক নির্বাচন করুন"
+                >
+                  <Sparkles className="w-3 h-3 text-emerald-600" />
+                  <span>স্মার্ট অটো-অ্যাসাইন</span>
+                </button>
+              </div>
+
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1 text-xs">
                 {inspectors.map((insp) => (
                   <label
@@ -667,9 +741,136 @@ export default function AdminInspectionView() {
                 type="button"
                 onClick={handleAssignInspector}
                 disabled={assigning}
-                className="px-6 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-50"
+                className="px-6 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 {assigning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "নিযুক্তি নিশ্চিত করুন"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 1.5: Application Full Details Modal */}
+      {selectedAppForDetails && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
+                  আবেদন বিবরণী
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-1">
+                  {selectedAppForDetails.madrasahName}
+                </h3>
+                <span className="text-xs text-slate-400">ট্র্যাকিং নম্বর: {selectedAppForDetails.trackingNo}</span>
+              </div>
+              <button
+                onClick={() => setSelectedAppForDetails(null)}
+                className="text-slate-400 hover:text-slate-600 text-base font-bold w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Institution & Address */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                <span className="font-bold text-slate-800 text-xs block border-b border-slate-200/60 pb-1.5">
+                  প্রতিষ্ঠান ও ভৌগোলিক পরিচিতি
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[11px]">
+                  <div><span className="text-slate-400 block">ধরন:</span> <strong className="text-slate-800">{selectedAppForDetails.madrasaType || "সাধারণ"}</strong></div>
+                  <div><span className="text-slate-400 block">প্রতিষ্ঠার সাল:</span> <strong className="text-slate-800">{selectedAppForDetails.establishedYear || "—"}</strong></div>
+                  <div><span className="text-slate-400 block">মাদরাসা কোড:</span> <strong className="text-slate-800">{selectedAppForDetails.mCode || selectedAppForDetails.madrasahCode || "—"}</strong></div>
+                  <div><span className="text-slate-400 block">বিভাগ:</span> <span className="text-slate-800">{selectedAppForDetails.division || "খুলনা"}</span></div>
+                  <div><span className="text-slate-400 block">জেলা ও উপজেলা:</span> <span className="text-slate-800">{selectedAppForDetails.district}, {selectedAppForDetails.upazila}</span></div>
+                  <div><span className="text-slate-400 block">ইউনিয়ন ও গ্রাম:</span> <span className="text-slate-800">{selectedAppForDetails.union || "—"}, {selectedAppForDetails.village || "—"}</span></div>
+                  <div className="sm:col-span-3"><span className="text-slate-400 block">পূর্ণ ঠিকানা:</span> <span className="text-slate-800">{selectedAppForDetails.fullAddress || "—"}</span></div>
+                </div>
+              </div>
+
+              {/* Leadership & Contacts */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                <span className="font-bold text-slate-800 text-xs block border-b border-slate-200/60 pb-1.5">
+                  প্রশাসনিক ও শিক্ষক যোগাযোগ
+                </span>
+                <div className="grid grid-cols-2 gap-2.5 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 block">পরিচালক / মুহতামিম:</span>
+                    <strong className="text-slate-800">{selectedAppForDetails.directorName}</strong>
+                    <div className="text-emerald-700 font-semibold">{selectedAppForDetails.directorMobile}</div>
+                    {selectedAppForDetails.altMobile && <div className="text-slate-400 text-[10px]">বিকল্প: {selectedAppForDetails.altMobile}</div>}
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">প্রধান শিক্ষক / শিক্ষাসচিব:</span>
+                    <strong className="text-slate-800">{selectedAppForDetails.headTeacherName || "—"}</strong>
+                    <div className="text-emerald-700 font-semibold">{selectedAppForDetails.headTeacherMobile || "—"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Academic & Stats */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                <span className="font-bold text-slate-800 text-xs block border-b border-slate-200/60 pb-1.5">
+                  শিক্ষার্থী ও একাডেমিক তথ্য
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px]">
+                  <div><span className="text-slate-400 block">মোট শিক্ষার্থী:</span> <strong className="text-slate-800">{selectedAppForDetails.totalStudents || 0} জন</strong></div>
+                  <div><span className="text-slate-400 block">মোট শিক্ষক:</span> <strong className="text-slate-800">{selectedAppForDetails.totalTeachers || 0} জন</strong></div>
+                  <div><span className="text-slate-400 block">সর্বোচ্চ শ্রেণি:</span> <strong className="text-slate-800">{selectedAppForDetails.highestClass || "—"}</strong></div>
+                  <div><span className="text-slate-400 block">পূর্বে পরিদর্শিত:</span> <strong className="text-slate-800">{selectedAppForDetails.isPreviouslyInspected ? "হ্যাঁ" : "না"}</strong></div>
+                </div>
+                {selectedAppForDetails.inspectionReason && (
+                  <div className="pt-1 text-[11px]">
+                    <span className="text-slate-400 block">পরিদর্শনের কারণ / উদ্দেশ্য:</span>
+                    <span className="text-slate-800">{selectedAppForDetails.inspectionReason}</span>
+                  </div>
+                )}
+                {selectedAppForDetails.applicantRemarks && (
+                  <div className="pt-1 text-[11px]">
+                    <span className="text-slate-400 block">আবেদনকারীর বিশেষ বক্তব্য:</span>
+                    <span className="text-slate-800 italic bg-white p-2 rounded-xl border border-slate-200 block mt-0.5">
+                      {selectedAppForDetails.applicantRemarks}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Details */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                <span className="font-bold text-slate-800 text-xs block border-b border-slate-200/60 pb-1.5">
+                  পরিদর্শন ফি ও পেমেন্ট বিবরণী
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px]">
+                  <div><span className="text-slate-400 block">পরিদর্শনের ধরন:</span> <strong className="text-slate-800">{INSPECTION_TYPES.find((t) => t.id === selectedAppForDetails.inspectionType)?.label || selectedAppForDetails.inspectionType}</strong></div>
+                  <div><span className="text-slate-400 block">নির্ধারিত ফি:</span> <strong className="text-emerald-700">৳ {selectedAppForDetails.feeAmount || 0}</strong></div>
+                  <div><span className="text-slate-400 block">পেমেন্ট মাধ্যম:</span> <span className="text-slate-800 uppercase font-bold">{selectedAppForDetails.paymentMethod || "bKash"}</span></div>
+                  <div><span className="text-slate-400 block">ট্রানজেকশন TrxID:</span> <span className="text-indigo-700 font-mono font-bold">{selectedAppForDetails.paymentTrxId || "—"}</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSelectedAppForDetails(null)}
+                className="px-4 py-2 rounded-full border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition"
+              >
+                বন্ধ করুন
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAssignModalApp(selectedAppForDetails);
+                  setSelectedInspectorId(selectedAppForDetails.assignedInspectorId || "");
+                  setAssignDate(selectedAppForDetails.targetDate ? new Date(selectedAppForDetails.targetDate).toISOString().split("T")[0] : "");
+                  setSelectedAppForDetails(null);
+                }}
+                className="px-5 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>পরিদর্শক নিয়োগ প্যানেল খুলুন</span>
               </button>
             </div>
           </div>

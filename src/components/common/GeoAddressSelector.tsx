@@ -82,7 +82,7 @@ export default function GeoAddressSelector({
 
   // 1. Fetch Divisions on mount
   useEffect(() => {
-    fetch("/api/admin/locations?type=DIVISION")
+    fetch("/api/locations?type=DIVISION")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.locations) && data.locations.length > 0) {
@@ -111,7 +111,7 @@ export default function GeoAddressSelector({
     );
     const parentParam = selectedDivObj ? `&parentId=${selectedDivObj._id}` : `&parentId=${encodeURIComponent(value.division)}`;
     setLoadingDistricts(true);
-    fetch(`/api/admin/locations?type=DISTRICT${parentParam}`)
+    fetch(`/api/locations?type=DISTRICT${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDistricts(Array.isArray(data.locations) ? data.locations : []);
@@ -132,7 +132,7 @@ export default function GeoAddressSelector({
     );
     const parentParam = selectedDistObj ? `&parentId=${selectedDistObj._id}` : `&parentId=${encodeURIComponent(value.district)}`;
     setLoadingUpazilas(true);
-    fetch(`/api/admin/locations?type=UPAZILA${parentParam}`)
+    fetch(`/api/locations?type=UPAZILA${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setUpazilas(Array.isArray(data.locations) ? data.locations : []);
@@ -153,7 +153,7 @@ export default function GeoAddressSelector({
     );
     const parentParam = selectedUpzObj ? `&parentId=${selectedUpzObj._id}` : `&parentId=${encodeURIComponent(value.upazila)}`;
     setLoadingUnions(true);
-    fetch(`/api/admin/locations?type=UNION${parentParam}`)
+    fetch(`/api/locations?type=UNION${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setUnions(Array.isArray(data.locations) ? data.locations : []);
@@ -174,7 +174,7 @@ export default function GeoAddressSelector({
     );
     const parentParam = selectedDivObj ? `&parentId=${selectedDivObj._id}` : `&parentId=${encodeURIComponent(deliveryValue.division)}`;
     setLoadingDelDistricts(true);
-    fetch(`/api/admin/locations?type=DISTRICT${parentParam}`)
+    fetch(`/api/locations?type=DISTRICT${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDelDistricts(Array.isArray(data.locations) ? data.locations : []);
@@ -195,7 +195,7 @@ export default function GeoAddressSelector({
     );
     const parentParam = selectedDistObj ? `&parentId=${selectedDistObj._id}` : `&parentId=${encodeURIComponent(deliveryValue.district)}`;
     setLoadingDelUpazilas(true);
-    fetch(`/api/admin/locations?type=UPAZILA${parentParam}`)
+    fetch(`/api/locations?type=UPAZILA${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDelUpazilas(Array.isArray(data.locations) ? data.locations : []);
@@ -216,7 +216,7 @@ export default function GeoAddressSelector({
     );
     const parentParam = selectedUpzObj ? `&parentId=${selectedUpzObj._id}` : `&parentId=${encodeURIComponent(deliveryValue.upazila)}`;
     setLoadingDelUnions(true);
-    fetch(`/api/admin/locations?type=UNION${parentParam}`)
+    fetch(`/api/locations?type=UNION${parentParam}`)
       .then((res) => res.json())
       .then((data) => {
         setDelUnions(Array.isArray(data.locations) ? data.locations : []);

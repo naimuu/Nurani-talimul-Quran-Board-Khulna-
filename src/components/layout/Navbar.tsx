@@ -13,6 +13,8 @@ import {
   ShoppingBag,
   BookOpen,
   ClipboardList,
+  ClipboardCheck,
+  HelpCircle,
   MapPin,
   Building2,
   Users,
@@ -402,7 +404,23 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
         { title: "ফরম ডাউনলোড", href: "/training/download-registration", icon: Download },
       ]
     },
-    { title: "পরিদর্শন", subtitle: "মাদরাসা পরিদর্শন ও নিরীক্ষা", href: "/audit", icon: Calculator },
+    {
+      title: "মাদরাসা পরিদর্শন",
+      subtitle: "আবেদন, প্রক্রিয়া, ফি ও রিপোর্ট",
+      href: "/audit",
+      icon: ClipboardCheck,
+      subItems: [
+        { title: "অনলাইনে পরিদর্শন আবেদন", href: "/madrasa/inspection", icon: FilePlus, subtitle: "নতুন ও নিয়মিত পরিদর্শনের আবেদন ফরম" },
+        { title: "আবেদন স্ট্যাটাস ট্র্যাকিং", href: "/track", icon: Search, subtitle: "আবেদন নম্বর দিয়ে অগ্রগতি যাচাই" },
+        { title: "পরিদর্শন প্রক্রিয়া ও নির্দেশিকা", href: "/audit#process", icon: BookOpen, subtitle: "বোর্ডের পরিদর্শনের ১৪ ধাপের নিয়মাবলী" },
+        { title: "পরিদর্শনের ধরন ও ফি", href: "/audit#types", icon: Layers, subtitle: "৭টি পরিদর্শন পর্যায় ও ফি কাঠামো" },
+        { title: "প্রয়োজনীয় কাগজপত্র", href: "/audit#documents", icon: FileText, subtitle: "দাখিলযোগ্য শর্ত ও নথিপত্র" },
+        { title: "পরিদর্শন ফি ও পেমেন্ট", href: "/audit#payment", icon: CreditCard, subtitle: "বিকাশ, নগদ, ব্যাংক ও চালান ফি পরিশোধ" },
+        { title: "পরিদর্শন রিপোর্ট যাচাই (QR)", href: "/verify/inspection", icon: ShieldCheck, subtitle: "অনুমোদিত সনদ ও রিপোর্ট সত্যায়ন" },
+        { title: "সাধারণ জিজ্ঞাসা (FAQ)", href: "/audit#faq", icon: HelpCircle, subtitle: "পরিদর্শন সংক্রান্ত প্রশ্নোত্তর" },
+        { title: "পরিদর্শক প্যানেল লগইন", href: "/visitor", icon: Users, subtitle: "দায়িত্বপ্রাপ্ত পরিদর্শকদের লগইন" },
+      ]
+    },
     { title: "যোগাযোগ", subtitle: "হেল্পলাইন ও ঠিকানা", href: "/contact", icon: PhoneCall },
   ];
 

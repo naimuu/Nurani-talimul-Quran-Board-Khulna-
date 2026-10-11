@@ -57,14 +57,14 @@ export function CoverTopBar() {
     };
   }, []);
 
-  if (pathname?.startsWith('/admin') || pathname?.startsWith('/visitor')) return null;
-
   // Un-collapse if the user pulls down (overscroll)
   useEffect(() => {
     if (scrollY < 0 && collapsed) {
       setCollapsed(false);
     }
   }, [scrollY, collapsed]);
+
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/visitor')) return null;
 
   if (!settings?.coverUrl || !settings?.showCoverAboveNavbar) return null;
 

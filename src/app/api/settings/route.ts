@@ -72,6 +72,10 @@ async function getCoverFlags(): Promise<{
   scrollingNotice: string;
   showScrollingNotice: boolean;
   heroSlides: HeroSlide[];
+  zimadarCommissionPercent: number;
+  zimadarMinMadrasas: number;
+  zimadarMinOrderAmount: number;
+  zimadarCommissionEnabled: boolean;
 }> {
   try {
     const record = await prisma.pageContent.findUnique({ where: { slug: FLAGS_SLUG } });
@@ -82,6 +86,10 @@ async function getCoverFlags(): Promise<{
         scrollingNotice: "",
         showScrollingNotice: false,
         heroSlides: DEFAULT_HERO_SLIDES,
+        zimadarCommissionPercent: 15,
+        zimadarMinMadrasas: 5,
+        zimadarMinOrderAmount: 5000,
+        zimadarCommissionEnabled: true,
       };
       await prisma.pageContent.create({
         data: { slug: FLAGS_SLUG, content: JSON.stringify(initial) }
@@ -103,14 +111,28 @@ async function getCoverFlags(): Promise<{
     }
 
     return {
-      showCoverAboveNavbar:  parsed.showCoverAboveNavbar  ?? false,
-      showCoverInPageHeader: parsed.showCoverInPageHeader ?? false,
-      scrollingNotice:       parsed.scrollingNotice ?? "",
-      showScrollingNotice:   parsed.showScrollingNotice ?? false,
-      heroSlides:            sanitizeHeroSlides(slides),
+      showCoverAboveNavbar:      parsed.showCoverAboveNavbar  ?? false,
+      showCoverInPageHeader:     parsed.showCoverInPageHeader ?? false,
+      scrollingNotice:           parsed.scrollingNotice ?? "",
+      showScrollingNotice:       parsed.showScrollingNotice ?? false,
+      heroSlides:                sanitizeHeroSlides(slides),
+      zimadarCommissionPercent:  typeof parsed.zimadarCommissionPercent === 'number' ? parsed.zimadarCommissionPercent : 15,
+      zimadarMinMadrasas:        typeof parsed.zimadarMinMadrasas === 'number' ? parsed.zimadarMinMadrasas : 5,
+      zimadarMinOrderAmount:     typeof parsed.zimadarMinOrderAmount === 'number' ? parsed.zimadarMinOrderAmount : 5000,
+      zimadarCommissionEnabled:  parsed.zimadarCommissionEnabled !== undefined ? Boolean(parsed.zimadarCommissionEnabled) : true,
     };
   } catch {
-    return { showCoverAboveNavbar: false, showCoverInPageHeader: false, scrollingNotice: "", showScrollingNotice: false, heroSlides: sanitizeHeroSlides(DEFAULT_HERO_SLIDES) };
+    return {
+      showCoverAboveNavbar: false,
+      showCoverInPageHeader: false,
+      scrollingNotice: "",
+      showScrollingNotice: false,
+      heroSlides: sanitizeHeroSlides(DEFAULT_HERO_SLIDES),
+      zimadarCommissionPercent: 15,
+      zimadarMinMadrasas: 5,
+      zimadarMinOrderAmount: 5000,
+      zimadarCommissionEnabled: true,
+    };
   }
 }
 
@@ -120,14 +142,22 @@ async function setCoverFlags(flags: {
   scrollingNotice?: string;
   showScrollingNotice?: boolean;
   heroSlides?: HeroSlide[];
+  zimadarCommissionPercent?: number;
+  zimadarMinMadrasas?: number;
+  zimadarMinOrderAmount?: number;
+  zimadarCommissionEnabled?: boolean;
 }) {
   const current = await getCoverFlags();
   const merged = {
-    showCoverAboveNavbar:  flags.showCoverAboveNavbar  ?? current.showCoverAboveNavbar,
-    showCoverInPageHeader: flags.showCoverInPageHeader ?? current.showCoverInPageHeader,
-    scrollingNotice:       flags.scrollingNotice ?? current.scrollingNotice,
-    showScrollingNotice:   flags.showScrollingNotice ?? current.showScrollingNotice,
-    heroSlides:            flags.heroSlides !== undefined ? sanitizeHeroSlides(flags.heroSlides) : current.heroSlides,
+    showCoverAboveNavbar:      flags.showCoverAboveNavbar      ?? current.showCoverAboveNavbar,
+    showCoverInPageHeader:     flags.showCoverInPageHeader     ?? current.showCoverInPageHeader,
+    scrollingNotice:           flags.scrollingNotice           ?? current.scrollingNotice,
+    showScrollingNotice:       flags.showScrollingNotice       ?? current.showScrollingNotice,
+    heroSlides:                flags.heroSlides !== undefined ? sanitizeHeroSlides(flags.heroSlides) : current.heroSlides,
+    zimadarCommissionPercent:  flags.zimadarCommissionPercent !== undefined ? Number(flags.zimadarCommissionPercent) : current.zimadarCommissionPercent,
+    zimadarMinMadrasas:        flags.zimadarMinMadrasas !== undefined ? Number(flags.zimadarMinMadrasas) : current.zimadarMinMadrasas,
+    zimadarMinOrderAmount:     flags.zimadarMinOrderAmount !== undefined ? Number(flags.zimadarMinOrderAmount) : current.zimadarMinOrderAmount,
+    zimadarCommissionEnabled:  flags.zimadarCommissionEnabled !== undefined ? Boolean(flags.zimadarCommissionEnabled) : current.zimadarCommissionEnabled,
   };
   await prisma.pageContent.upsert({
     where:  { slug: FLAGS_SLUG },
@@ -214,13 +244,17 @@ export async function PUT(request: Request) {
       });
     }
 
-    // Persist cover-display flags via PageContent (no prisma generate needed)
+    // Persist cover-display flags and zimadar commission settings via PageContent
     const flags = await setCoverFlags({
-      showCoverAboveNavbar:  data.showCoverAboveNavbar,
-      showCoverInPageHeader: data.showCoverInPageHeader,
-      scrollingNotice:       data.scrollingNotice,
-      showScrollingNotice:   data.showScrollingNotice,
-      heroSlides:            data.heroSlides,
+      showCoverAboveNavbar:      data.showCoverAboveNavbar,
+      showCoverInPageHeader:     data.showCoverInPageHeader,
+      scrollingNotice:           data.scrollingNotice,
+      showScrollingNotice:       data.showScrollingNotice,
+      heroSlides:                data.heroSlides,
+      zimadarCommissionPercent:  data.zimadarCommissionPercent,
+      zimadarMinMadrasas:        data.zimadarMinMadrasas,
+      zimadarMinOrderAmount:     data.zimadarMinOrderAmount,
+      zimadarCommissionEnabled:  data.zimadarCommissionEnabled,
     });
 
     return NextResponse.json({ ...settings, ...flags });

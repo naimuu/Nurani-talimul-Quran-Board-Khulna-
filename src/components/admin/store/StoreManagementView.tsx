@@ -1,22 +1,23 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, CreditCard, ClipboardList, Layers, FileText } from 'lucide-react';
+import { ShoppingCart, Package, CreditCard, ClipboardList, Layers, FileText, BookOpen } from 'lucide-react';
 import SaleTab from './SaleTab';
 import StockTab from './StockTab';
 import PaymentTab from './PaymentTab';
 import OrderTab from './OrderTab';
 import ReceiptTab from './ReceiptTab';
+import LedgerTab from './LedgerTab';
 
 export type StoreCategory = 'all' | 'stationary' | 'question';
 
 export default function StoreManagementView() {
-  const [activeTab, setActiveTab] = useState<'sale' | 'stock' | 'payment' | 'order' | 'receipt'>('sale');
+  const [activeTab, setActiveTab] = useState<'sale' | 'stock' | 'payment' | 'order' | 'receipt' | 'ledger'>('sale');
   const [storeCategory, setStoreCategory] = useState<StoreCategory>('all');
 
   useEffect(() => {
     const savedTab = localStorage.getItem('store_active_tab');
-    if (savedTab === 'sale' || savedTab === 'stock' || savedTab === 'payment' || savedTab === 'order' || savedTab === 'receipt') {
-      setActiveTab(savedTab);
+    if (savedTab === 'sale' || savedTab === 'stock' || savedTab === 'payment' || savedTab === 'order' || savedTab === 'receipt' || savedTab === 'ledger') {
+      setActiveTab(savedTab as any);
     }
     const savedCat = localStorage.getItem('store_category_filter');
     if (savedCat === 'all' || savedCat === 'stationary' || savedCat === 'question') {
@@ -24,7 +25,7 @@ export default function StoreManagementView() {
     }
   }, []);
 
-  const handleTabChange = (tab: 'sale' | 'stock' | 'payment' | 'order' | 'receipt') => {
+  const handleTabChange = (tab: 'sale' | 'stock' | 'payment' | 'order' | 'receipt' | 'ledger') => {
     setActiveTab(tab);
     localStorage.setItem('store_active_tab', tab);
   };
@@ -34,7 +35,7 @@ export default function StoreManagementView() {
     localStorage.setItem('store_category_filter', cat);
   };
 
-  const handleTabClick = (e: React.MouseEvent<HTMLButtonElement>, tab: 'sale' | 'stock' | 'payment' | 'order' | 'receipt') => {
+  const handleTabClick = (e: React.MouseEvent<HTMLButtonElement>, tab: 'sale' | 'stock' | 'payment' | 'order' | 'receipt' | 'ledger') => {
     handleTabChange(tab);
     e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   };
@@ -151,6 +152,18 @@ export default function StoreManagementView() {
             <ClipboardList className="w-4 h-4" />
             <span>রিসিট</span>
           </button>
+
+          <button
+            onClick={(e) => handleTabClick(e, 'ledger')}
+            className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'ledger' 
+                ? 'border-indigo-600 text-indigo-600 font-bold' 
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>ইনভয়েস লেজার</span>
+          </button>
         </div>
       </div>
 
@@ -161,6 +174,7 @@ export default function StoreManagementView() {
         {activeTab === 'stock' && <StockTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
         {activeTab === 'payment' && <PaymentTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
         {activeTab === 'receipt' && <ReceiptTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === 'ledger' && <LedgerTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
       </div>
     </div>
   );

@@ -109,6 +109,23 @@ export default function InspectionReportModal({
     };
   }, [isOpen, onClose]);
 
+  const trackingNo = report?.trackingNo || "";
+  const verificationHash = report?.verificationHash || "";
+
+  const verificationUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/verify/inspection?ref=${encodeURIComponent(
+          trackingNo
+        )}&token=${encodeURIComponent(verificationHash)}`
+      : `https://nooraniboardkhulna.com/verify/inspection?ref=${trackingNo}`;
+
+  useEffect(() => {
+    if (!isOpen || !report) return;
+    QRCode.toDataURL(verificationUrl, { width: 140, margin: 1 })
+      .then(setQrDataUrl)
+      .catch((err) => console.error(err));
+  }, [isOpen, report, verificationUrl]);
+
   if (!isOpen || !report) return null;
 
   const app = report?.applicationId || {};
@@ -130,19 +147,6 @@ export default function InspectionReportModal({
     Array.isArray(report?.classesSnapshot) && report.classesSnapshot.length > 0
       ? report.classesSnapshot
       : STANDARD_INSPECTION_CLASSES;
-
-  const verificationUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/verify/inspection?ref=${encodeURIComponent(
-          report?.trackingNo || ""
-        )}&token=${encodeURIComponent(report?.verificationHash || "")}`
-      : `https://nooraniboardkhulna.com/verify/inspection?ref=${report?.trackingNo || ""}`;
-
-  useEffect(() => {
-    QRCode.toDataURL(verificationUrl, { width: 140, margin: 1 })
-      .then(setQrDataUrl)
-      .catch((err) => console.error(err));
-  }, [verificationUrl]);
 
   // Isolated Print Handler: Prints strictly the form sheet, zero outer UI/navbar/sidebar
   // Pure High-Fidelity Print Handler:

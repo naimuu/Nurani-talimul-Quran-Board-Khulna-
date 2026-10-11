@@ -119,6 +119,35 @@ export default function QuestionOrderPage() {
   const [remainingCopied, setRemainingCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Kendro Zimadar Commission Settings & State
+  const [zimadarConfig, setZimadarConfig] = useState({
+    percent: 15,
+    minMadrasas: 5,
+    minOrderAmount: 5000,
+    enabled: true,
+  });
+  const [isZimadar, setIsZimadar] = useState(false);
+  const [zimadarName, setZimadarName] = useState("");
+  const [zimadarPhone, setZimadarPhone] = useState("");
+  const [zimadarMadrasasList, setZimadarMadrasasList] = useState<string[]>([""]);
+
+  // Fetch dynamic Zimadar commission configuration from settings
+  useEffect(() => {
+    fetch(`/api/settings?t=${Date.now()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && typeof data.zimadarCommissionPercent === "number") {
+          setZimadarConfig({
+            percent: data.zimadarCommissionPercent,
+            minMadrasas: data.zimadarMinMadrasas ?? 5,
+            minOrderAmount: data.zimadarMinOrderAmount ?? 5000,
+            enabled: data.zimadarCommissionEnabled ?? true,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // UI & Submission state
   const [selectedDetailItem, setSelectedDetailItem] = useState<QuestionItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -505,12 +534,53 @@ export default function QuestionOrderPage() {
     return Object.values(cart).reduce((sum, entry) => sum + entry.qty * entry.item.pricePerSet, 0);
   }, [cart]);
 
-  const searchIlhak = async () => {
-    if (!ilhak.trim()) return;
-    setSearchStatus("loading");
-    setAutoFilledFields({});
+  // Kendro Zimadar Commission Calculation & Helpers
+  const validMadrasasCount = useMemo(() => {
+    return zimadarMadrasasList.map((m) => m.trim()).filter(Boolean).length;
+  }, [zimadarMadrasasList]);
+
+  const isCommissionQualified = useMemo(() => {
+    if (!isZimadar || !zimadarConfig.enabled) return false;
+    return validMadrasasCount >= zimadarConfig.minMadrasas && totalAmount > zimadarConfig.minOrderAmount;
+  }, [isZimadar, zimadarConfig, validMadrasasCount, totalAmount]);
+
+  const commissionDiscount = useMemo(() => {
+    if (!isCommissionQualified) return 0;
+    return Math.round(totalAmount * (zimadarConfig.percent / 100));
+  }, [isCommissionQualified, totalAmount, zimadarConfig.percent]);
+
+  const finalPayableAmount = useMemo(() => {
+    return Math.max(0, totalAmount - commissionDiscount);
+  }, [totalAmount, commissionDiscount]);
+
+  const addZimadarMadrasa = () => {
+    setZimadarMadrasasList((prev) => [...prev, ""]);
+  };
+
+  const updateZimadarMadrasa = (idx: number, val: string) => {
+    setZimadarMadrasasList((prev) => {
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  };
+
+  const removeZimadarMadrasa = (idx: number) => {
+    setZimadarMadrasasList((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // Pathao-style Madrasa & Customer auto lookup by Ilhak or Mobile number
+  const lookupMadrasaInfo = async (queryCode?: string, isPhoneAuto = false) => {
+    const codeToSearch = (queryCode || ilhak || "").trim();
+    if (!codeToSearch) return;
+
+    if (!isPhoneAuto) {
+      setSearchStatus("loading");
+      setAutoFilledFields({});
+    }
+
     try {
-      const res = await fetch(`/api/madrasa/by-code?code=${encodeURIComponent(ilhak.trim())}`);
+      const res = await fetch(`/api/madrasa/by-code?code=${encodeURIComponent(codeToSearch)}`);
       if (res.ok) {
         const data = await res.json();
         const autoFilled: {
@@ -523,6 +593,13 @@ export default function QuestionOrderPage() {
         if (data.name?.trim()) {
           setInstituteName(data.name.trim());
           autoFilled.instituteName = true;
+          // Also set first zimadar madrasa if empty
+          setZimadarMadrasasList((prev) => {
+            if (prev.length === 0 || (prev.length === 1 && !prev[0])) {
+              return [data.name.trim()];
+            }
+            return prev;
+          });
         }
         if (data.ownerName?.trim()) {
           setOwnerName(data.ownerName.trim());
@@ -549,27 +626,38 @@ export default function QuestionOrderPage() {
 
         setAutoFilledFields(autoFilled);
         setSearchStatus("found");
-        const missingFields = [];
-        if (!data.name?.trim()) missingFields.push("মাদরাসার নাম");
-        if (!data.ownerName?.trim()) missingFields.push("মুহতামিমের নাম");
-        if (!data.contactNo?.trim()) missingFields.push("মোবাইল নম্বর");
-        if (!newGeo.division || !newGeo.district) missingFields.push("ঠিকানা");
 
-        if (missingFields.length > 0) {
-          toast.success(`মাদরাসা পাওয়া গেছে! অনুগ্রহ করে অনুপস্থিত (${missingFields.join(", ")}) পূরণ করুন।`, { duration: 4000 });
+        if (isPhoneAuto) {
+          toast.success("পাঠাও স্টাইলে পূর্ববর্তী ঠিকানা ও মাদরাসার তথ্য লোড হয়েছে!");
         } else {
-          toast.success("মাদরাসার সকল তথ্য স্বয়ংক্রিয়ভাবে যুক্ত হয়েছে!");
+          const missingFields = [];
+          if (!data.name?.trim()) missingFields.push("মাদরাসার নাম");
+          if (!data.ownerName?.trim()) missingFields.push("মুহতামিমের নাম");
+          if (!data.contactNo?.trim()) missingFields.push("মোবাইল নম্বর");
+          if (!newGeo.division || !newGeo.district) missingFields.push("ঠিকানা");
+
+          if (missingFields.length > 0) {
+            toast.success(`মাদরাসা পাওয়া গেছে! অনুগ্রহ করে অনুপস্থিত (${missingFields.join(", ")}) পূরণ করুন।`, { duration: 4000 });
+          } else {
+            toast.success("মাদরাসার সকল তথ্য স্বয়ংক্রিয়ভাবে যুক্ত হয়েছে!");
+          }
         }
       } else {
-        setSearchStatus("not_found");
-        setAutoFilledFields({});
-        toast.error("ইলহাক বা নম্বর পাওয়া যায়নি, অনুগ্রহ করে তথ্য ম্যানুয়ালি লিখুন");
+        if (!isPhoneAuto) {
+          setSearchStatus("not_found");
+          setAutoFilledFields({});
+          toast.error("ইলহাক বা নম্বর পাওয়া যায়নি, অনুগ্রহ করে তথ্য ম্যানুয়ালি লিখুন");
+        }
       }
     } catch {
-      setSearchStatus("error");
-      setAutoFilledFields({});
+      if (!isPhoneAuto) {
+        setSearchStatus("error");
+        setAutoFilledFields({});
+      }
     }
   };
+
+  const searchIlhak = () => lookupMadrasaInfo();
 
   const verifyReceipt = async () => {
     if (!receiptNumber.trim()) return;
@@ -655,7 +743,7 @@ export default function QuestionOrderPage() {
       return;
     }
 
-    const isPartialReceipt = paymentOption === "money_receipt" && receiptVerifyStatus === "valid" && receiptBalance < totalAmount;
+    const isPartialReceipt = paymentOption === "money_receipt" && receiptVerifyStatus === "valid" && receiptBalance < finalPayableAmount;
     const effectivePaymentOption = (paymentOption === "money_receipt" && isPartialReceipt && remainingOption === "skip_receipt") ? "pay_later" : paymentOption;
 
     if (effectivePaymentOption === "pay_now" && !trxId.trim()) {
@@ -719,7 +807,11 @@ export default function QuestionOrderPage() {
         })
         .join(", ");
 
-      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}`;
+      const zimadarNote = isZimadar
+        ? ` | [কেন্দ্র জিম্মাদার: ${zimadarName.trim() || ownerName.trim()} (ফোন: ${zimadarPhone.trim() || contactNo.trim()}) | মাদরাসা তালিকা (${validMadrasasCount}টি): ${zimadarMadrasasList.map((m) => m.trim()).filter(Boolean).join(", ")}${isCommissionQualified ? ` | কমিশন: ৳${commissionDiscount} (${zimadarConfig.percent}%)` : ""}]`
+        : "";
+
+      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}${zimadarNote}`;
 
       const effectiveTrxId = effectivePaymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt && remainingOption === "pay_now" ? remainingTrxId.trim() : undefined);
       const effectiveProvider = effectivePaymentOption === "pay_now" ? paymentProvider : (isPartialReceipt && remainingOption === "pay_now" ? remainingProvider : undefined);
@@ -738,7 +830,9 @@ export default function QuestionOrderPage() {
           paymentProvider: effectiveProvider,
           trxId: effectiveTrxId,
           receiptNumber: paymentOption === "money_receipt" && remainingOption !== "skip_receipt" ? receiptNumber.trim() : undefined,
-          promiseDate: effectivePromiseDate
+          promiseDate: effectivePromiseDate,
+          discount: isCommissionQualified ? commissionDiscount : 0,
+          totalAmount: finalPayableAmount,
         })
       });
 
@@ -759,7 +853,7 @@ export default function QuestionOrderPage() {
 
   const printInvoice = async (order = orderSuccessData) => {
     if (!order) return;
-    await printOrderInvoice(order);
+    await printOrderInvoice(order, { mode: "customer" });
   };
 
   return (
@@ -1616,7 +1710,20 @@ export default function QuestionOrderPage() {
                         type="tel"
                         required
                         value={contactNo}
-                        onChange={(e) => setContactNo(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setContactNo(val);
+                          const clean = val.replace(/\D/g, "");
+                          if (clean.length === 11 && clean.startsWith("01")) {
+                            lookupMadrasaInfo(clean, true);
+                          }
+                        }}
+                        onBlur={() => {
+                          const clean = contactNo.replace(/\D/g, "");
+                          if (clean.length === 11 && clean.startsWith("01")) {
+                            lookupMadrasaInfo(clean, true);
+                          }
+                        }}
                         readOnly={!!autoFilledFields.contactNo}
                         disabled={!!autoFilledFields.contactNo}
                         placeholder="01XXXXXXXXX"
@@ -1645,15 +1752,140 @@ export default function QuestionOrderPage() {
                     />
                   </div>
 
+                  {/* ─── KENDRO ZIMADAR SECTION ────────────────────────────── */}
+                  <div className="pt-3 border-t border-slate-200 space-y-2.5">
+                    <label className="flex items-start gap-2.5 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-100/60 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={isZimadar}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setIsZimadar(checked);
+                          if (checked) {
+                            if (!zimadarName) setZimadarName(ownerName);
+                            if (!zimadarPhone) setZimadarPhone(contactNo);
+                            if (zimadarMadrasasList.length === 0 || (zimadarMadrasasList.length === 1 && !zimadarMadrasasList[0])) {
+                              setZimadarMadrasasList([instituteName || ""]);
+                            }
+                          }
+                        }}
+                        className="mt-0.5 w-4 h-4 text-emerald-700 rounded focus:ring-emerald-600 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm block">
+                          আমি কেন্দ্র জিম্মাদার (একাধিক মাদরাসার প্রশ্ন একসাথে অর্ডার করছি)
+                        </span>
+                        <span className="text-[11px] text-emerald-800">
+                          কমপক্ষে {zimadarConfig.minMadrasas}টি মাদরাসা এবং ৳{zimadarConfig.minOrderAmount.toLocaleString()}-এর বেশি অর্ডারে {zimadarConfig.percent}% বিশেষ কমিশন সুবিধা
+                        </span>
+                      </div>
+                    </label>
+
+                    {isZimadar && (
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-in fade-in duration-200">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">কেন্দ্র জিম্মাদারের নাম</label>
+                            <input
+                              type="text"
+                              value={zimadarName}
+                              onChange={(e) => setZimadarName(e.target.value)}
+                              placeholder={ownerName || "জিম্মাদারের নাম"}
+                              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">জিম্মাদারের মোবাইল নম্বর</label>
+                            <input
+                              type="tel"
+                              value={zimadarPhone}
+                              onChange={(e) => setZimadarPhone(e.target.value)}
+                              placeholder={contactNo || "01XXXXXXXXX"}
+                              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-[11px] font-bold text-slate-700">
+                              অন্তর্ভুক্ত মাদরাসার তালিকা ({validMadrasasCount}টি মাদরাসা এন্ট্রি)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={addZimadarMadrasa}
+                              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-100 hover:bg-emerald-200/80 px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>মাদরাসা যোগ করুন</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            {zimadarMadrasasList.map((mName, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-bold text-slate-400 w-5 text-center">{idx + 1}.</span>
+                                <input
+                                  type="text"
+                                  value={mName}
+                                  onChange={(e) => updateZimadarMadrasa(idx, e.target.value)}
+                                  placeholder={`মাদরাসা ${idx + 1}-এর নাম লিখুন`}
+                                  className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600"
+                                />
+                                {zimadarMadrasasList.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeZimadarMadrasa(idx)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                                    title="মুছুন"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Commission status badge */}
+                        {isCommissionQualified ? (
+                          <div className="p-2.5 bg-emerald-100 border border-emerald-300 rounded-lg text-emerald-900 text-xs font-bold flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+                              <span>🎉 {zimadarConfig.percent}% কেন্দ্র জিম্মাদার কমিশন প্রযোজ্য!</span>
+                            </div>
+                            <span className="bg-emerald-800 text-white text-[11px] px-2 py-0.5 rounded-md font-black">
+                              -৳{commissionDiscount}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-[11px] font-medium leading-relaxed">
+                            ℹ️ <strong>কমিশন শর্ত:</strong> কমপক্ষে {zimadarConfig.minMadrasas}টি মাদরাসার নাম (বর্তমান: {validMadrasasCount}টি) এবং সর্বমোট বিল ৳{zimadarConfig.minOrderAmount.toLocaleString()}-এর বেশি (বর্তমান: ৳{totalAmount.toLocaleString()}) হলে স্বয়ংক্রিয়ভাবে {zimadarConfig.percent}% কমিশন ছাড় পাবেন।
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Order Bill Summary */}
                   <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
                     <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
                       <span>মোট নির্বাচিত প্রশ্ন:</span>
                       <span className="font-bold text-slate-800">{totalItemCount} সেট</span>
                     </div>
+                    <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
+                      <span>প্রশ্নপত্রের মূল বিল:</span>
+                      <span className="font-bold text-slate-800">৳{totalAmount.toFixed(2)}</span>
+                    </div>
+                    {isCommissionQualified && (
+                      <div className="flex items-center justify-between text-xs sm:text-sm text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                        <span>কেন্দ্র জিম্মাদার কমিশন ({zimadarConfig.percent}%):</span>
+                        <span>-৳{commissionDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                       <span className="font-bold text-slate-700 text-sm sm:text-base">সর্বমোট প্রদেয় বিল:</span>
-                      <span className="text-xl sm:text-2xl font-black text-[#095738]">৳{totalAmount.toFixed(2)}</span>
+                      <span className="text-xl sm:text-2xl font-black text-[#095738]">৳{finalPayableAmount.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -1821,13 +2053,13 @@ export default function QuestionOrderPage() {
                         </div>
 
                         {/* Partial Balance Panel */}
-                        {receiptVerifyStatus === "valid" && receiptBalance < totalAmount && (
+                        {receiptVerifyStatus === "valid" && receiptBalance < finalPayableAmount && (
                           <div className="border border-amber-200 rounded-xl overflow-hidden">
                             <div className="bg-amber-50 p-3 space-y-1.5">
                               <p className="text-xs font-bold text-amber-800">ব্যালান্স বিবরণ:</p>
                               <div className="flex justify-between text-xs">
                                 <span className="text-slate-600">মোট বিল:</span>
-                                <span className="font-bold text-slate-800">৳{totalAmount.toFixed(2)}</span>
+                                <span className="font-bold text-slate-800">৳{finalPayableAmount.toFixed(2)}</span>
                               </div>
                               <div className="flex justify-between text-xs">
                                 <span className="text-emerald-700">রিসিট ব্যালান্স:</span>
@@ -1835,7 +2067,7 @@ export default function QuestionOrderPage() {
                               </div>
                               <div className="flex justify-between text-xs border-t border-amber-200 pt-1.5">
                                 <span className="text-red-600 font-bold">বাকি পরিশোধ করতে হবে:</span>
-                                <span className="font-black text-red-600">৳{(totalAmount - receiptBalance).toFixed(2)}</span>
+                                <span className="font-black text-red-600">৳{(finalPayableAmount - receiptBalance).toFixed(2)}</span>
                               </div>
                             </div>
 
@@ -1870,7 +2102,7 @@ export default function QuestionOrderPage() {
                                   </div>
                                   <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
                                     <div>
-                                      <p className="text-[11px] text-blue-700 font-medium">বাকি ৳{(totalAmount - receiptBalance).toFixed(2)} পাঠান:</p>
+                                      <p className="text-[11px] text-blue-700 font-medium">বাকি ৳{(finalPayableAmount - receiptBalance).toFixed(2)} পাঠান:</p>
                                       <p className="text-xs font-black text-blue-900">
                                         {remainingProvider === "Bank" ? "A/C: 123456789" : `01700000000 (${remainingProvider})`}
                                       </p>
@@ -1957,8 +2189,13 @@ export default function QuestionOrderPage() {
                   {/* Summary & Submit Buttons in Step 2 */}
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <span className="text-[11px] text-slate-500 block">সর্বমোট বিল</span>
-                      <span className="text-base font-black text-emerald-900">৳{totalAmount.toFixed(2)}</span>
+                      <span className="text-[11px] text-slate-500 block">সর্বমোট প্রদেয় বিল</span>
+                      <span className="text-base font-black text-emerald-900">৳{finalPayableAmount.toFixed(2)}</span>
+                      {isCommissionQualified && (
+                        <span className="text-[10px] text-emerald-700 font-bold block">
+                          (কমিশন ছাড়: -৳{commissionDiscount})
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -1993,8 +2230,11 @@ export default function QuestionOrderPage() {
               <CheckCircle className="w-6 h-6 text-emerald-700" />
             </div>
             <h3 className="text-base font-bold text-slate-800">প্রশ্নের অর্ডার সম্পন্ন হয়েছে!</h3>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-slate-500 mb-1">
               ইনভয়েস: <strong className="text-emerald-800 font-bold">{orderSuccessData.invoiceId}</strong>
+            </p>
+            <p className="text-[11px] text-slate-400 mb-3">
+              গ্রাহক ইনভয়েসে বাকির কোনো অপশন নেই, সরাসরি পিডিএফ হিসেবে সেভ বা প্রিন্ট করা যাবে।
             </p>
             <div className="flex flex-col gap-2">
               <button
@@ -2003,7 +2243,7 @@ export default function QuestionOrderPage() {
                 className="w-full py-2.5 bg-[#095738] hover:bg-[#07472d] text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 cursor-pointer transition-all"
               >
                 <Printer className="w-4 h-4" />
-                <span>ইনভয়েস প্রিন্ট করুন</span>
+                <span>গ্রাহক ইনভয়েস প্রিন্ট / PDF</span>
               </button>
               <button
                 type="button"

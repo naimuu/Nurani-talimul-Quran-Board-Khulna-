@@ -192,7 +192,7 @@ export default function RegisterMadrasaModal({
     // Fetch all divisions on mount (or you could fallback to a hardcoded list if DB is empty)
     const fetchDivisions = async () => {
       try {
-        const res = await fetch("/api/admin/locations?type=DIVISION");
+        const res = await fetch("/api/locations?type=DIVISION");
         if (res.ok) {
           const data = await res.json();
           // If DB has divisions, use them. Otherwise, you can provide a static list, 
@@ -217,8 +217,8 @@ export default function RegisterMadrasaModal({
         // If DB doesn't have divisions yet and we're using a fallback, just fetch all districts
         // to prevent the form from completely breaking.
         const url = selectedDivision.includes('_fallback')
-          ? '/api/admin/locations?type=DISTRICT'
-          : `/api/admin/locations?type=DISTRICT&parentId=${selectedDivision}`;
+          ? '/api/locations?type=DISTRICT'
+          : `/api/locations?type=DISTRICT&parentId=${selectedDivision}`;
           
         const res = await fetch(url);
         if (res.ok) {
@@ -240,7 +240,7 @@ export default function RegisterMadrasaModal({
         return;
       }
       try {
-        const res = await fetch(`/api/admin/locations?type=UPAZILA&parentId=${selectedDistrict}`);
+        const res = await fetch(`/api/locations?type=UPAZILA&parentId=${selectedDistrict}`);
         if (res.ok) {
           const data = await res.json();
           setUpazilas(data.locations || []);

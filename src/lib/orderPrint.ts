@@ -3,6 +3,11 @@ import { cleanAddressNotes, parseQuestionItemsFromNotes } from "@/lib/orderTimel
 
 export interface PrintInvoiceOptions {
   printBW?: boolean;
+  mode?: 'admin' | 'customer';
+  paymentMethod?: string;
+  paidAmount?: number;
+  dueAmount?: number;
+  customNotes?: string;
 }
 
 export async function printOrderInvoice(
@@ -81,6 +86,8 @@ export async function printOrderInvoice(
       return pName.includes('প্রশ্ন') || pCat.includes('প্রশ্ন') || pCat.includes('question');
     }))
   );
+
+  const isCustomer = options.mode === 'customer';
 
   const trackingUrl =
     typeof window !== "undefined"
@@ -453,7 +460,13 @@ export async function printOrderInvoice(
               <h1 class="board-title">${boardSettings?.siteTitle || "নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ"}</h1>
               <p class="sub-title">কেন্দ্রীয় কার্যালয় ও পরীক্ষা নিয়ন্ত্রণ বিভাগ — অফিসিয়াল ইনভয়েস</p>
               <p class="board-address">${boardSettings?.address || "প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।"} | হেল্পলাইন: ${boardSettings?.contactPhone || "০১৮২০-৫৮০৫৬০"}</p>
-              <span class="invoice-pill">${isQuestion ? "অফিসিয়াল প্রশ্নপত্র অর্ডার ইনভয়েস ও ক্যাশ মেমো" : "অফিসিয়াল অর্ডার ইনভয়েস ও ক্যাশ মেমো"}</span>
+              <span class="invoice-pill">${
+                isCustomer
+                  ? "গ্রাহক কপি — অফিশিয়াল ক্যাশ মেমো ও পরিশোধ রসিদ (Customer Invoice)"
+                  : isQuestion
+                  ? "অফিসিয়াল প্রশ্নপত্র অর্ডার ইনভয়েস ও ক্যাশ মেমো (এডমিন কপি)"
+                  : "অফিসিয়াল অর্ডার ইনভয়েস ও ক্যাশ মেমো (এডমিন কপি)"
+              }</span>
             </div>
 
             <div class="grid-container">
@@ -494,8 +507,16 @@ export async function printOrderInvoice(
                   <span class="value">${new Date(order.createdAt).toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" })}</span>
                 </div>
                 <div class="info-item">
+                  <span class="label">পেমেন্ট মাধ্যম:</span>
+                  <span class="value" style="font-weight: 800;">${
+                    isCustomer
+                      ? (options.paymentMethod || "নগদ / বিকাশ / অনলাইন (পরিশোধিত)")
+                      : (options.paymentMethod || (totalDue > 0 ? (paidAmount > 0 ? "নগদ ও বাকি" : "বাকিতে (বকেয়া)") : "নগদে (পরিশোধিত)"))
+                  }</span>
+                </div>
+                <div class="info-item">
                   <span class="label">অর্ডার অবস্থা:</span>
-                  <span class="value" style="font-weight: 800;">${getStatusText(order.status)}</span>
+                  <span class="value" style="font-weight: 800;">${isCustomer ? "অনুমোদিত ও পরিশোধিত" : getStatusText(order.status)}</span>
                 </div>
                 <div class="info-item">
                   <span class="label">ডেলিভারি কুরিয়ার:</span>
@@ -544,6 +565,7 @@ export async function printOrderInvoice(
                 <strong>📌 নির্দেশনাবলী ও শর্তাবলী:</strong>
                 <p style="margin: 1.5px 0;">১. প্রশ্নপত্র বা পণ্য রিসিভ করার সময় প্যাকেট ও সিল ঠিক আছে কিনা যাচাই করুন।</p>
                 <p style="margin: 1.5px 0;">২. যেকোনো প্রয়োজনে ইনভয়েস নম্বরটি সংরক্ষণ করুন ও বোর্ডের হেল্পলাইনে যোগাযোগ করুন।</p>
+                ${options.customNotes ? `<p style="margin: 2px 0; font-weight: 700; border-top: 1px dashed #000; padding-top: 2px;">নোট: ${options.customNotes}</p>` : ''}
               </div>
 
               <div class="totals-box">
@@ -555,24 +577,40 @@ export async function printOrderInvoice(
                   <span>কুরিয়ার চার্জ (${courierName}):</span>
                   <span>${deliveryCharge > 0 ? `৳${deliveryCharge.toFixed(2)}` : "৳০.০০ (ফ্রি)"}</span>
                 </div>
-                ${order.discount ? `<div class="totals-row"><span>বিশেষ ছাড়:</span><span>-৳${order.discount.toFixed(2)}</span></div>` : ""}
-                <div class="totals-row" style="border-top: 1px dashed #000000; padding-top: 1.5px; font-weight: 700;">
-                  <span>বর্তমান অর্ডারের বিল:</span>
-                  <span>৳${order.totalAmount.toFixed(2)}</span>
-                </div>
-                ${dueListHtml}
-                <div class="totals-row grand">
-                  <span>সর্বমোট প্রদেয় বিল:</span>
-                  <span>৳${grandTotalBill.toFixed(2)}</span>
-                </div>
-                <div class="totals-row">
-                  <span>পরিশোধিত টাকা:</span>
-                  <span>৳${paidAmount.toFixed(2)}</span>
-                </div>
-                <div class="totals-row due">
-                  <span>সর্বমোট বর্তমান বকেয়া:</span>
-                  <span>${totalDue > 0 ? `৳${totalDue.toFixed(2)}` : "পরিশোধিত (০.০০)"}</span>
-                </div>
+                ${order.discount ? `<div class="totals-row"><span>বিশেষ ছাড় / কমিশন:</span><span>-৳${order.discount.toFixed(2)}</span></div>` : ""}
+                
+                ${
+                  isCustomer
+                    ? `
+                  <div class="totals-row grand" style="margin-top: 4px;">
+                    <span>সর্বমোট পরিশোধিত বিল:</span>
+                    <span>৳${order.totalAmount.toFixed(2)}</span>
+                  </div>
+                  <div class="totals-row" style="color: #000; font-weight: 700;">
+                    <span>পেমেন্ট স্ট্যাটাস:</span>
+                    <span>পরিশোধিত (PAID)</span>
+                  </div>
+                `
+                    : `
+                  <div class="totals-row" style="border-top: 1px dashed #000000; padding-top: 1.5px; font-weight: 700;">
+                    <span>বর্তমান অর্ডারের বিল:</span>
+                    <span>৳${order.totalAmount.toFixed(2)}</span>
+                  </div>
+                  ${dueListHtml}
+                  <div class="totals-row grand">
+                    <span>সর্বমোট প্রদেয় বিল:</span>
+                    <span>৳${grandTotalBill.toFixed(2)}</span>
+                  </div>
+                  <div class="totals-row">
+                    <span>পরিশোধিত টাকা (নগদ/অনলাইন):</span>
+                    <span>৳${paidAmount.toFixed(2)}</span>
+                  </div>
+                  <div class="totals-row due">
+                    <span>সর্বমোট বর্তমান বকেয়া (বাকিতে):</span>
+                    <span>${totalDue > 0 ? `৳${totalDue.toFixed(2)}` : "পরিশোধিত (০.০০)"}</span>
+                  </div>
+                `
+                }
               </div>
             </div>
 

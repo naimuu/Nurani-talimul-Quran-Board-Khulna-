@@ -224,7 +224,38 @@ export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean 
                 );
               }
 
-              // Priority 2: Book / Order slide (title or link)
+              // 2. Question / Exam Order Slide: title or link contains 'প্রশ্ন', 'পরীক্ষা', 'question'
+              const isQuestionOrder =
+                title.includes("প্রশ্ন") ||
+                title.includes("পরীক্ষা") ||
+                btnLink.includes("question") ||
+                btnText.includes("প্রশ্ন");
+
+              if (isQuestionOrder) {
+                const displayText =
+                  activeSlide.buttonText &&
+                  (activeSlide.buttonText.includes("প্রশ্ন") ||
+                   activeSlide.buttonText.includes("অর্ডার") ||
+                   activeSlide.buttonText.includes("অডার"))
+                    ? activeSlide.buttonText
+                    : "প্রশ্ন অর্ডার করুন";
+
+                const targetLink =
+                  activeSlide.buttonLink && !activeSlide.buttonLink.includes("register")
+                    ? activeSlide.buttonLink
+                    : "/academic/question-order";
+
+                return (
+                  <Link
+                    href={targetLink}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-full font-bold transition-all shadow-lg text-xs md:text-sm hover:scale-105 active:scale-95 flex items-center gap-1.5"
+                  >
+                    {displayText}
+                  </Link>
+                );
+              }
+
+              // 3. Book / Store Order slide (title or link)
               if (title.includes("বই") || title.includes("অর্ডার") || title.includes("অডার") || (isBookOrder && !title.includes("স্বাগতম"))) {
                 const displayText =
                   activeSlide.buttonText && (activeSlide.buttonText.includes("বই") || activeSlide.buttonText.includes("অর্ডার") || activeSlide.buttonText.includes("অডার"))

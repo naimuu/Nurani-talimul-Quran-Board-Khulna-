@@ -294,9 +294,25 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
     setOrderLoading(false);
   };
 
+  const lookupCustomerByPhone = async (phone: string) => {
+    try {
+      const res = await fetch(`/api/madrasa/by-code?code=${encodeURIComponent(phone)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ownerName?.trim()) setCustomerName(data.ownerName.trim());
+        else if (data.name?.trim() && !customerName) setCustomerName(data.name.trim());
+
+        const addressParts = [data.name, data.village, data.upazila, data.district].filter(Boolean).join(", ");
+        if (addressParts && !instituteId) {
+          setInstituteId(addressParts);
+        }
+      }
+    } catch {}
+  };
+
   const printInvoice = async (orderToPrint = successOrder) => {
     if (!orderToPrint) return;
-    await printOrderInvoice(orderToPrint);
+    await printOrderInvoice(orderToPrint, { mode: "customer" });
   };
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
@@ -849,7 +865,26 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">মোবাইল নাম্বার <span className="text-red-500">*</span></label>
-                    <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} type="text" placeholder="017..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
+                    <input
+                      value={customerPhone}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomerPhone(val);
+                        const clean = val.replace(/\D/g, "");
+                        if (clean.length === 11 && clean.startsWith("01")) {
+                          lookupCustomerByPhone(clean);
+                        }
+                      }}
+                      onBlur={() => {
+                        const clean = customerPhone.replace(/\D/g, "");
+                        if (clean.length === 11 && clean.startsWith("01")) {
+                          lookupCustomerByPhone(clean);
+                        }
+                      }}
+                      type="text"
+                      placeholder="017..."
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">ইমেইল <span className="text-slate-400 font-normal">(ঐচ্ছিক)</span></label>

@@ -43,6 +43,10 @@ interface BoardSettings {
   scrollingNotice?: string;
   showScrollingNotice?: boolean;
   heroSlides?: HeroSlide[];
+  zimadarCommissionPercent?: number;
+  zimadarMinMadrasas?: number;
+  zimadarMinOrderAmount?: number;
+  zimadarCommissionEnabled?: boolean;
   contacts: ContactInfo[];
   payments: PaymentMethod[];
 }
@@ -221,6 +225,10 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
     showCoverAboveNavbar: settings?.showCoverAboveNavbar ?? false,
     showCoverInPageHeader: settings?.showCoverInPageHeader ?? false,
     heroSlides: (settings?.heroSlides || []) as HeroSlide[],
+    zimadarCommissionPercent: settings?.zimadarCommissionPercent ?? 15,
+    zimadarMinMadrasas: settings?.zimadarMinMadrasas ?? 5,
+    zimadarMinOrderAmount: settings?.zimadarMinOrderAmount ?? 5000,
+    zimadarCommissionEnabled: settings?.zimadarCommissionEnabled ?? true,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -252,6 +260,10 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
             ...parsed,
             name: cleanEmojis(parsed.name),
             heroSlides: slides,
+            zimadarCommissionPercent: parsed.zimadarCommissionPercent ?? settings?.zimadarCommissionPercent ?? 15,
+            zimadarMinMadrasas: parsed.zimadarMinMadrasas ?? settings?.zimadarMinMadrasas ?? 5,
+            zimadarMinOrderAmount: parsed.zimadarMinOrderAmount ?? settings?.zimadarMinOrderAmount ?? 5000,
+            zimadarCommissionEnabled: parsed.zimadarCommissionEnabled ?? settings?.zimadarCommissionEnabled ?? true,
           });
         }
       } catch (e) {}
@@ -267,6 +279,10 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
         showCoverAboveNavbar: settings.showCoverAboveNavbar ?? false,
         showCoverInPageHeader: settings.showCoverInPageHeader ?? false,
         heroSlides: slides,
+        zimadarCommissionPercent: settings.zimadarCommissionPercent ?? 15,
+        zimadarMinMadrasas: settings.zimadarMinMadrasas ?? 5,
+        zimadarMinOrderAmount: settings.zimadarMinOrderAmount ?? 5000,
+        zimadarCommissionEnabled: settings.zimadarCommissionEnabled ?? true,
       });
     }
   }, [settings]);
@@ -285,6 +301,10 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
         body: JSON.stringify({
           ...formData,
           heroSlides: formData.heroSlides,
+          zimadarCommissionPercent: Number(formData.zimadarCommissionPercent),
+          zimadarMinMadrasas: Number(formData.zimadarMinMadrasas),
+          zimadarMinOrderAmount: Number(formData.zimadarMinOrderAmount),
+          zimadarCommissionEnabled: Boolean(formData.zimadarCommissionEnabled),
           scrollingNotice: settings?.scrollingNotice,
           showScrollingNotice: settings?.showScrollingNotice,
         }),
@@ -611,6 +631,87 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
             slides={formData.heroSlides || []}
             onUpdateSlides={(newSlides) => setFormData((prev) => ({ ...prev, heroSlides: newSlides }))}
           />
+        </div>
+
+        {/* 6. কেন্দ্র জিম্মাদার কমিশন সেটিংস (ডায়নামিক) */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+            <div>
+              <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <span className="p-1 rounded bg-amber-50 text-amber-600 border border-amber-200 text-xs">কমিশন</span>
+                কেন্দ্র জিম্মাদার কমিশন নীতিমালা সেটিংস
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                কেন্দ্র জিম্মাদারদের জন্য প্রযোজ্য কমিশন শতকরা হার, নূন্যতম মাদরাসা ও নূন্যতম অর্ডারের টাকার সীমা নির্ধারণ করুন।
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <input
+                type="checkbox"
+                checked={formData.zimadarCommissionEnabled}
+                onChange={(e) => setFormData((prev) => ({ ...prev, zimadarCommissionEnabled: e.target.checked }))}
+                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+              />
+              <span>কমিশন সুবিধা সক্রিয়</span>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">
+                কমিশন হার (%) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={formData.zimadarCommissionPercent}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, zimadarCommissionPercent: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-emerald-600 font-bold bg-white"
+                  placeholder="15"
+                />
+                <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">%</span>
+              </div>
+              <p className="text-[11px] text-slate-400">ডিফল্ট: ১৫% কমিশন</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">
+                নূন্যতম মাদরাসা সংখ্যা (টি) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={formData.zimadarMinMadrasas}
+                onChange={(e) => setFormData((prev) => ({ ...prev, zimadarMinMadrasas: Number(e.target.value) }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-emerald-600 font-bold bg-white"
+                placeholder="5"
+              />
+              <p className="text-[11px] text-slate-400">ডিফল্ট: কমপক্ষে ৫টি মাদরাসা বিল</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">
+                নূন্যতম অর্ডার মূল্য (টাকা) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={formData.zimadarMinOrderAmount}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, zimadarMinOrderAmount: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-emerald-600 font-bold bg-white"
+                  placeholder="5000"
+                />
+                <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">৳</span>
+              </div>
+              <p className="text-[11px] text-slate-400">ডিফল্ট: ৫,০০০ টাকার বেশি</p>
+            </div>
+          </div>
         </div>
 
       </div>
