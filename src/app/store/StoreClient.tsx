@@ -2,11 +2,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
-  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, UserCheck, KeyRound, Copy, Truck
+  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, UserCheck, KeyRound, Copy, Truck, Printer, Download
 } from "lucide-react";
 import { generateQRCodeDataUrl, generateBarcodeSVG } from "@/lib/qrHelper";
 import { calculateDeliveryCost, DELIVERY_CONSTANTS } from "@/lib/deliveryCost";
-import { printOrderInvoice } from "@/lib/orderPrint";
+import { printOrderInvoice, downloadOrderPdf } from "@/lib/orderPrint";
 
 export type Product = {
   id: string;
@@ -1005,8 +1005,19 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
             )}
 
             <div className="flex flex-col gap-2.5 w-full">
-              <button onClick={() => printInvoice(successOrder)} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 text-sm">
-                ইনভয়েস প্রিন্ট করুন
+              <button 
+                onClick={() => downloadOrderPdf(successOrder, { mode: "customer" })} 
+                className="w-full py-3 bg-gradient-to-r from-[#06422b] to-[#095738] hover:from-[#053724] hover:to-[#07472e] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-950/20 text-sm active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span>সরাসরি PDF ডাউনলোড</span>
+              </button>
+              <button 
+                onClick={() => printInvoice(successOrder)} 
+                className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors text-sm active:scale-95"
+              >
+                <Printer className="w-4 h-4 text-slate-600" />
+                <span>ইনভয়েস প্রিন্ট করুন</span>
               </button>
               <button
                 onClick={() => {
@@ -1014,7 +1025,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                   setCustomPasswordInput("");
                   setPasswordSaveStatus(null);
                 }}
-                className="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors text-sm"
+                className="w-full py-2 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors text-xs"
               >
                 বন্ধ করুন
               </button>

@@ -29,6 +29,7 @@ import {
   Calendar,
   Sparkles,
   Filter,
+  MoreVertical,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
@@ -49,6 +50,15 @@ export default function VisitorDashboard() {
   const [reportSearch, setReportSearch] = useState("");
   const [reportGradeFilter, setReportGradeFilter] = useState("ALL");
   const [madrasaSearch, setMadrasaSearch] = useState("");
+  const [openDropdown, setOpenDropdown] = useState<{ id: string; type: string } | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleDocClick = () => setOpenDropdown(null);
+    window.addEventListener("click", handleDocClick);
+    return () => window.removeEventListener("click", handleDocClick);
+  }, [openDropdown]);
 
   const handleCopyTracking = (tracking: string) => {
     if (typeof window !== "undefined" && navigator?.clipboard?.writeText) {
@@ -231,16 +241,16 @@ export default function VisitorDashboard() {
       {/* ─── 4. Main Content Area (Full 100% Width on Mobile) ─── */}
       <main className="flex-1 w-full min-w-0 p-3.5 sm:p-6 md:p-8 pb-8 md:pb-8 overflow-y-auto">
         {/* Top Header */}
-        <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <header className="mb-4 sm:mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900">
               {activeTab === "dashboard" && `স্বাগতম, ${inspectorUser.name}!`}
-              {activeTab === "new_report" && "নতুন সরেজমিন পরিদর্শন প্রতিবেদন"}
-              {activeTab === "reports" && "দাখিলকৃত পরিদর্শন রিপোর্ট তালিকা"}
-              {activeTab === "madrasas" && "বরাদ্দকৃত মাদরাসা তালিকা"}
+              {activeTab === "new_report" && "নতুন পরিদর্শন এন্ট্রি"}
+              {activeTab === "reports" && "পরিদর্শন রিপোর্টসমূহ"}
+              {activeTab === "madrasas" && "বরাদ্দকৃত মাদরাসা"}
             </h1>
-            <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-              নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ — কেন্দ্রীয় পরিদর্শন ও অডিট সিস্টেম
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              পরিদর্শন ও অডিট ব্যবস্থাপনা
             </p>
           </div>
 
@@ -250,19 +260,19 @@ export default function VisitorDashboard() {
               setSelectedApplicationForForm(null);
               setIsFormModalOpen(true);
             }}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition cursor-pointer"
+            className="w-full sm:w-auto h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
           >
-            <PlusCircle className="w-4 h-4" />
-            <span>নতুন পরিদর্শন শুরু করুন (পপআপ ফর্ম)</span>
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>নতুন পরিদর্শন</span>
           </button>
         </header>
 
-        {/* Mobile Quick Tab Switcher (Replaces bottom nav cleanly at the top of the content) */}
-        <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-2.5 mb-4 scrollbar-none">
+        {/* Mobile Quick Tab Switcher */}
+        <div className="md:hidden flex items-center gap-1.5 overflow-x-auto scroll-smooth no-scrollbar pb-1 mb-4">
           <button
             type="button"
             onClick={() => handleTabChange("dashboard")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === "dashboard"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white text-slate-700 border border-slate-200"
@@ -274,26 +284,26 @@ export default function VisitorDashboard() {
           <button
             type="button"
             onClick={() => handleTabChange("reports")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === "reports"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white text-slate-700 border border-slate-200"
             }`}
           >
             <ClipboardList className="w-3.5 h-3.5" />
-            <span>রিপোর্ট তালিকা ({reports.length})</span>
+            <span>রিপোর্ট ({reports.length})</span>
           </button>
           <button
             type="button"
             onClick={() => handleTabChange("madrasas")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === "madrasas"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white text-slate-700 border border-slate-200"
             }`}
           >
             <Building2 className="w-3.5 h-3.5" />
-            <span>বরাদ্দকৃত মাদরাসা ({applications.length})</span>
+            <span>মাদরাসা ({applications.length})</span>
           </button>
         </div>
 
@@ -431,25 +441,73 @@ export default function VisitorDashboard() {
                         </div>
 
                         {/* Action buttons */}
-                        <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
                           <button
                             type="button"
                             onClick={() => setSelectedReportForPrint(rep)}
-                            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                            className="h-8.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
                           >
                             <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>অফিসিয়াল রিপোর্ট প্রিন্ট</span>
+                            <span>রিপোর্ট প্রিন্ট</span>
                           </button>
 
-                          {directorMobile && (
-                            <a
-                              href={`tel:${directorMobile}`}
-                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition"
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdown(
+                                  openDropdown?.id === rep._id && openDropdown?.type === "dash-rep"
+                                    ? null
+                                    : { id: rep._id, type: "dash-rep" }
+                                );
+                              }}
+                              className={`h-8 w-8 rounded-xl border flex items-center justify-center transition cursor-pointer ${
+                                openDropdown?.id === rep._id && openDropdown?.type === "dash-rep"
+                                  ? "bg-slate-100 text-slate-800 border-slate-300"
+                                  : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200"
+                              }`}
+                              title="অতিরিক্ত অপশন"
                             >
-                              <PhoneCall className="w-3 h-3 text-slate-500" />
-                              <span className="hidden sm:inline">কল করুন</span>
-                            </a>
-                          )}
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            <AnimatePresence>
+                              {openDropdown?.id === rep._id && openDropdown?.type === "dash-rep" && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  transition={{ duration: 0.1 }}
+                                  className="absolute right-0 bottom-full mb-1.5 w-44 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden py-1 divide-y divide-slate-100"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdown(null);
+                                      handleCopyTracking(rep.trackingNo);
+                                    }}
+                                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 w-full text-left transition"
+                                  >
+                                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>ট্র্যাকিং কপি</span>
+                                  </button>
+
+                                  {directorMobile && (
+                                    <a
+                                      href={`tel:${directorMobile}`}
+                                      onClick={() => setOpenDropdown(null)}
+                                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 w-full text-left transition"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>মুহতামিমকে কল</span>
+                                    </a>
+                                  )}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
                         </div>
                       </div>
                     );
@@ -463,13 +521,13 @@ export default function VisitorDashboard() {
               <div className="flex justify-between items-center px-1">
                 <h2 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
                   <Building2 className="w-4 h-4 text-emerald-600" />
-                  চলমান ও অপেক্ষমান পরিদর্শন তালিকা
+                  চলমান ও অপেক্ষমান পরিদর্শন
                 </h2>
                 <button
                   onClick={() => setActiveTab("madrasas")}
                   className="text-xs font-semibold text-emerald-600 hover:underline cursor-pointer"
                 >
-                  সবগুলো দেখুন ({applications.length})
+                  সবগুলো ({applications.length})
                 </button>
               </div>
 
@@ -506,10 +564,10 @@ export default function VisitorDashboard() {
                       <button
                         type="button"
                         onClick={() => handleStartInspection(app)}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer self-start sm:self-center"
+                        className="h-8.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer self-start sm:self-center"
                       >
                         <FileCheck className="w-3.5 h-3.5" />
-                        <span>পরিদর্শন শুরু করুন</span>
+                        <span>পরিদর্শন শুরু</span>
                       </button>
                     </div>
                   ))}
@@ -525,14 +583,14 @@ export default function VisitorDashboard() {
             <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-emerald-900">ডিজিটাল পরিদর্শন ফর্ম</h3>
-                <p className="text-xs text-emerald-700 mt-0.5">আপনি মোবাইল ফ্রেন্ডলি পপআপ ডায়ালগ মোডালেও ফর্মটি পূরণ করতে পারেন।</p>
+                <p className="text-xs text-emerald-700 mt-0.5">মোবাইল ফ্রেন্ডলি পরিদর্শন এন্ট্রি ফর্ম</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsFormModalOpen(true)}
-                className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition cursor-pointer shrink-0"
+                className="h-8.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer shrink-0"
               >
-                পপআপ মোডালে খুলুন
+                পপআপে খুলুন
               </button>
             </div>
             <InspectionForm
@@ -544,40 +602,40 @@ export default function VisitorDashboard() {
           </div>
         )}
 
-        {/* Tab 3: All Reports (Organized, Supportive Cards with Search & Filters) */}
+        {/* Tab 3: All Reports */}
         {activeTab === "reports" && (
           <div className="space-y-4">
             {/* Search and Grade Filter Bar */}
             <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div>
-                  <h2 className="text-xs sm:text-sm font-bold text-slate-800">দাখিলকৃত পরিদর্শন রিপোর্টসমূহ</h2>
-                  <p className="text-[11px] text-slate-500 mt-0.5">মোট রিপোর্ট: {reports.length} টি</p>
+                  <h2 className="text-xs sm:text-sm font-bold text-slate-800">পরিদর্শন রিপোর্টসমূহ</h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">মোট: {reports.length} টি</p>
                 </div>
 
                 {/* Search Input */}
-                <div className="relative w-full sm:w-72">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={reportSearch}
                     onChange={(e) => setReportSearch(e.target.value)}
-                    placeholder="মাদরাসার নাম, ট্র্যাকিং বা M কোড..."
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-emerald-600 transition"
+                    placeholder="মাদরাসা, ট্র্যাকিং বা কোড..."
+                    className="w-full h-9 pl-8 pr-7 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-emerald-600 transition"
                   />
                   {reportSearch && (
                     <button
                       onClick={() => setReportSearch("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Quick Filter Badges */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-0.5 scrollbar-none text-xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto scroll-smooth no-scrollbar pt-1 pb-0.5 text-xs">
                 <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1 shrink-0 mr-1">
                   <Filter className="w-3 h-3" />
                   ফিল্টার:
@@ -684,11 +742,11 @@ export default function VisitorDashboard() {
                             {rep.adminReviewStatus === "APPROVED" ? (
                               <span className="inline-flex items-center gap-1 text-[10.5px] px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
                                 <ShieldCheck className="w-3.5 h-3.5" />
-                                <span>বোর্ড অনুমোদিত</span>
+                                <span>অনুমোদিত</span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[10.5px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 font-semibold border border-amber-200">
-                                <Clock className="w-3 h-3" />
+                                <Clock className="w-3.5 h-3.5" />
                                 <span>পর্যালোচনায়</span>
                               </span>
                             )}
@@ -698,7 +756,7 @@ export default function VisitorDashboard() {
                         {/* Middle: Structured Supportive Chips Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50/90 p-3 rounded-xl border border-slate-100 text-xs">
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-medium text-slate-400">ট্র্যাকিং নম্বর</span>
+                            <span className="text-[10px] font-medium text-slate-400">ট্র্যাকিং</span>
                             <button
                               type="button"
                               onClick={() => handleCopyTracking(rep.trackingNo)}
@@ -711,7 +769,7 @@ export default function VisitorDashboard() {
                           </div>
 
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-medium text-slate-400">মাদরাসা কোড (M)</span>
+                            <span className="text-[10px] font-medium text-slate-400">মাদরাসা কোড</span>
                             <span className="font-bold text-slate-800 text-[11px] mt-0.5">
                               {mCode}
                             </span>
@@ -757,42 +815,87 @@ export default function VisitorDashboard() {
                           </div>
                         )}
 
-                        {/* Action Footer: Supportive Action Buttons */}
+                        {/* Action Footer: 1 Primary Button + Three-Dot Dropdown */}
                         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 mt-0.5">
-                          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedReportForPrint(rep)}
-                              className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
-                            >
-                              <Printer className="w-4 h-4 text-emerald-400" />
-                              <span>অফিসিয়াল রিপোর্ট ভিউ ও প্রিন্ট</span>
-                            </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedReportForPrint(rep)}
+                            className="h-8.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>রিপোর্ট প্রিন্ট</span>
+                          </button>
 
+                          <div className="relative">
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedApplicationForForm(rep.applicationId || { _id: rep.applicationId, trackingNo: rep.trackingNo });
-                                setIsFormModalOpen(true);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdown(
+                                  openDropdown?.id === rep._id && openDropdown?.type === "rep"
+                                    ? null
+                                    : { id: rep._id, type: "rep" }
+                                );
                               }}
-                              className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 active:scale-95 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                              title="রিপোর্টের পূর্ণ তথ্য পর্যালোচনা"
+                              className={`h-8.5 w-8.5 rounded-xl border flex items-center justify-center transition cursor-pointer ${
+                                openDropdown?.id === rep._id && openDropdown?.type === "rep"
+                                  ? "bg-slate-100 text-slate-800 border-slate-300"
+                                  : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200"
+                              }`}
+                              title="অতিরিক্ত অপশন"
                             >
-                              <Eye className="w-3.5 h-3.5 text-slate-500" />
-                              <span className="hidden sm:inline">পূর্ণাঙ্গ বিবরণ</span>
+                              <MoreVertical className="w-4 h-4" />
                             </button>
-                          </div>
 
-                          {directorMobile && (
-                            <a
-                              href={`tel:${directorMobile}`}
-                              className="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition border border-emerald-200"
-                              title="মুহতামিমকে কল করুন"
-                            >
-                              <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-                              <span className="hidden sm:inline">কল করুন</span>
-                            </a>
-                          )}
+                            <AnimatePresence>
+                              {openDropdown?.id === rep._id && openDropdown?.type === "rep" && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  transition={{ duration: 0.1 }}
+                                  className="absolute right-0 bottom-full mb-1.5 w-44 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden py-1 divide-y divide-slate-100"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdown(null);
+                                      setSelectedApplicationForForm(rep.applicationId || { _id: rep.applicationId, trackingNo: rep.trackingNo });
+                                      setIsFormModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 w-full text-left transition"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>পূর্ণাঙ্গ বিবরণ</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdown(null);
+                                      handleCopyTracking(rep.trackingNo);
+                                    }}
+                                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 w-full text-left transition"
+                                  >
+                                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>ট্র্যাকিং কপি</span>
+                                  </button>
+
+                                  {directorMobile && (
+                                    <a
+                                      href={`tel:${directorMobile}`}
+                                      onClick={() => setOpenDropdown(null)}
+                                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 w-full text-left transition"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>মুহতামিমকে কল</span>
+                                    </a>
+                                  )}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
                         </div>
                       </div>
                     );
@@ -802,31 +905,31 @@ export default function VisitorDashboard() {
           </div>
         )}
 
-        {/* Tab 4: Assigned Madrasas (Organized & Supportive Cards) */}
+        {/* Tab 4: Assigned Madrasas */}
         {activeTab === "madrasas" && (
           <div className="space-y-4">
             {/* Search Bar */}
             <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xs sm:text-sm font-bold text-slate-800">বরাদ্দকৃত মাদরাসা তালিকা</h2>
-                <p className="text-[11px] text-slate-500 mt-0.5">মোট বরাদ্দকৃত মাদরাসা: {applications.length} টি</p>
+                <h2 className="text-xs sm:text-sm font-bold text-slate-800">বরাদ্দকৃত মাদরাসা</h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">মোট: {applications.length} টি</p>
               </div>
 
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={madrasaSearch}
                   onChange={(e) => setMadrasaSearch(e.target.value)}
-                  placeholder="মাদরাসার নাম বা উপজেলা দিয়ে খুঁজুন..."
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-emerald-600 transition"
+                  placeholder="মাদরাসার নাম বা উপজেলা..."
+                  className="w-full h-9 pl-8 pr-7 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-emerald-600 transition"
                 />
                 {madrasaSearch && (
                   <button
                     onClick={() => setMadrasaSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
@@ -834,7 +937,7 @@ export default function VisitorDashboard() {
 
             {applications.length === 0 ? (
               <div className="bg-white p-12 text-center text-slate-400 text-xs rounded-2xl border border-slate-200">
-                আপনাকে এখনো কোনো মাদরাসা পরিদর্শনের জন্য বরাদ্দ করা হয়নি।
+                কোনো বরাদ্দকৃত মাদরাসা নেই।
               </div>
             ) : (
               <div className="space-y-3.5">
@@ -881,26 +984,26 @@ export default function VisitorDashboard() {
 
                           <span className="inline-flex items-center gap-1 text-[10.5px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 font-semibold border border-amber-200 self-start sm:self-auto">
                             <Clock className="w-3 h-3" />
-                            <span>পরিদর্শনের জন্য বরাদ্দকৃত</span>
+                            <span>বরাদ্দকৃত</span>
                           </span>
                         </div>
 
                         {/* Supportive Info Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50/90 p-3 rounded-xl border border-slate-100 text-xs">
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-medium text-slate-400">ট্র্যাকিং নম্বর</span>
+                            <span className="text-[10px] font-medium text-slate-400">ট্র্যাকিং</span>
                             <span className="font-mono font-bold text-slate-800 text-[11px] mt-0.5">
                               {app.trackingNo}
                             </span>
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-medium text-slate-400">পরিচালক / মুহতামিম</span>
+                            <span className="text-[10px] font-medium text-slate-400">মুহতামিম</span>
                             <span className="font-semibold text-slate-800 text-[11px] mt-0.5">
                               {app.directorName || "—"}
                             </span>
                           </div>
                           <div className="flex flex-col col-span-2 sm:col-span-1">
-                            <span className="text-[10px] font-medium text-slate-400">মোবাইল নম্বর</span>
+                            <span className="text-[10px] font-medium text-slate-400">মোবাইল</span>
                             {app.directorMobile ? (
                               <a
                                 href={`tel:${app.directorMobile}`}
@@ -915,27 +1018,76 @@ export default function VisitorDashboard() {
                           </div>
                         </div>
 
-                        {/* Action Footer */}
+                        {/* Action Footer: 1 Primary Button + Three-Dot Dropdown */}
                         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                           <button
                             type="button"
                             onClick={() => handleStartInspection(app)}
-                            className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
+                            className="h-8.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer"
                           >
-                            <FileCheck className="w-4 h-4" />
-                            <span>সরেজমিন পরিদর্শন শুরু করুন</span>
+                            <FileCheck className="w-3.5 h-3.5" />
+                            <span>পরিদর্শন শুরু</span>
                           </button>
 
-                          {app.directorMobile && (
-                            <a
-                              href={`tel:${app.directorMobile}`}
-                              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
-                              title="কল করুন"
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdown(
+                                  openDropdown?.id === app._id && openDropdown?.type === "app"
+                                    ? null
+                                    : { id: app._id, type: "app" }
+                                );
+                              }}
+                              className={`h-8.5 w-8.5 rounded-xl border flex items-center justify-center transition cursor-pointer ${
+                                openDropdown?.id === app._id && openDropdown?.type === "app"
+                                  ? "bg-slate-100 text-slate-800 border-slate-300"
+                                  : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200"
+                              }`}
+                              title="অতিরিক্ত অপশন"
                             >
-                              <PhoneCall className="w-3.5 h-3.5 text-slate-600" />
-                              <span className="hidden sm:inline">কল করুন</span>
-                            </a>
-                          )}
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            <AnimatePresence>
+                              {openDropdown?.id === app._id && openDropdown?.type === "app" && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  transition={{ duration: 0.1 }}
+                                  className="absolute right-0 bottom-full mb-1.5 w-44 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden py-1 divide-y divide-slate-100"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {app.trackingNo && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenDropdown(null);
+                                        handleCopyTracking(app.trackingNo);
+                                      }}
+                                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 w-full text-left transition"
+                                    >
+                                      <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                      <span>ট্র্যাকিং কপি</span>
+                                    </button>
+                                  )}
+
+                                  {app.directorMobile && (
+                                    <a
+                                      href={`tel:${app.directorMobile}`}
+                                      onClick={() => setOpenDropdown(null)}
+                                      className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 w-full text-left transition"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>মুহতামিমকে কল</span>
+                                    </a>
+                                  )}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
                         </div>
                       </div>
                     );

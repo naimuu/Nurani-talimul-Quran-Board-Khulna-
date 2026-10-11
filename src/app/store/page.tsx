@@ -1283,10 +1283,10 @@ export default function StorePage() {
       .catch(() => {});
   }, []);
 
-  const isCenterOrMadrasa = useMemo(() => {
-    if (!currentUser) return false;
-    const r = (currentUser.role || "").toUpperCase();
-    return r === "MADRASA" || r === "CENTER" || r === "AGENT" || r === "ADMIN" || !!currentUser.madrasaId;
+  const isAgentOrCenter = useMemo(() => {
+    if (!currentUser?.id) return false;
+    const r = (currentUser.role || "").trim().toUpperCase();
+    return r === "AGENT" || r === "CENTER" || r === "EXAM_CENTER" || r === "ADMIN";
   }, [currentUser]);
 
   useEffect(() => {
@@ -1361,8 +1361,8 @@ export default function StorePage() {
   };
 
   const handleOpenOrder = () => {
-    // Only show center/delivery rules modal if Center, Madrasa, Agent, or Admin is logged in
-    if (isCenterOrMadrasa) {
+    // Only show center/agent delivery rules modal if Agent, Center or Admin is logged in
+    if (isAgentOrCenter) {
       setDeliveryAlertMode("before_order");
       setIsDeliveryAlertOpen(true);
     } else {
@@ -1515,8 +1515,8 @@ export default function StorePage() {
             </div>
           </div>
 
-          {/* Delivery Policy Announcement Banner (Only for logged-in Center/Madrasa) */}
-          {isCenterOrMadrasa && !isDeliveryBannerDismissed && (
+          {/* Delivery Policy Announcement Banner (Only for logged-in Agent & Center) */}
+          {isAgentOrCenter && !isDeliveryBannerDismissed && (
             <div className="mb-3.5 p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/70 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm flex-shrink-0 animate-in fade-in">
               <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
@@ -1860,7 +1860,7 @@ export default function StorePage() {
                   <span>অর্ডার করুন</span>
                 </button>
 
-                {isCenterOrMadrasa && deliveryInfo.ruleNotice && (
+                {isAgentOrCenter && deliveryInfo.ruleNotice && (
                   <p className="text-[9.5px] text-slate-500 bg-slate-50 p-1 rounded-md border border-slate-200/70 flex items-start gap-1 leading-tight">
                     <span className="shrink-0 text-xs">🚚</span>
                     <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
@@ -2071,7 +2071,7 @@ export default function StorePage() {
                   <span>অর্ডার করুন</span>
                 </button>
 
-                {isCenterOrMadrasa && deliveryInfo.ruleNotice && (
+                {isAgentOrCenter && deliveryInfo.ruleNotice && (
                   <p className="text-[10px] text-slate-500 bg-white p-1.5 rounded-lg border border-slate-200/70 flex items-start gap-1 leading-snug">
                     <span className="shrink-0 text-xs">🚚</span>
                     <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>

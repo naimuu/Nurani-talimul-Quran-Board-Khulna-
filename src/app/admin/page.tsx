@@ -1211,10 +1211,10 @@ function AdminDashboardContent() {
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="নাম, ইমেইল, ফোন বা রোল দিয়ে খুঁজুন..."
+                  placeholder="নাম, ইমেইল, ফোন বা রোল..."
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 transition-colors"
+                  className="w-full h-9 pl-8 pr-7 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 transition-colors shadow-2xs"
                 />
                 {userSearchQuery && (
                   <button
@@ -1227,19 +1227,19 @@ function AdminDashboardContent() {
               </div>
 
               {/* Role Dropdown Filter */}
-              <div className="w-full sm:w-48 shrink-0">
+              <div className="w-full sm:w-44 shrink-0">
                 <select
                   value={userRoleFilter}
                   onChange={(e) => setUserRoleFilter(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 font-medium text-slate-700 cursor-pointer"
+                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 font-medium text-slate-700 cursor-pointer"
                 >
-                  <option value="ALL">সকল রোল (All Roles)</option>
-                  <option value="GENERAL">সাধারণ ইউজার (পেন্ডিং)</option>
-                  <option value="MADRASA">মাদরাসা (MADRASA)</option>
-                  <option value="MUALLIM">মুয়াল্লিম (MUALLIM)</option>
-                  <option value="TRAINER">প্রশিক্ষক (TRAINER)</option>
-                  <option value="VISITOR">পরিদর্শক (VISITOR)</option>
-                  <option value="ADMIN">অ্যাডমিন (ADMIN)</option>
+                  <option value="ALL">সকল রোল</option>
+                  <option value="GENERAL">পেন্ডিং ইউজার</option>
+                  <option value="MADRASA">মাদরাসা</option>
+                  <option value="MUALLIM">মুয়াল্লিম</option>
+                  <option value="TRAINER">প্রশিক্ষক</option>
+                  <option value="VISITOR">পরিদর্শক</option>
+                  <option value="ADMIN">অ্যাডমিন</option>
                   <option value="SUPER_ADMIN">সুপার অ্যাডমিন</option>
                 </select>
               </div>
@@ -2124,107 +2124,108 @@ function AdminDashboardContent() {
               <button
                 type="button"
                 onClick={() => setIsAddMadrasaModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/25 transition-all active:scale-[0.98] hover:shadow-lg"
-                title="নতুন মাদরাসা (ইলহাক ফরম) যুক্ত করুন"
+                className="h-9 flex items-center gap-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-all active:scale-[0.98]"
+                title="নতুন মাদরাসা যুক্ত করুন"
               >
-                <Plus className="w-4 h-4" />
-                <span>নতুন মাদরাসা (ইলহাক)</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>নতুন মাদরাসা</span>
               </button>
 
               <button
                 onClick={() => setShowPrintColumnsModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold rounded-xl border border-slate-200 transition-colors shadow-sm"
-                title="প্রিন্ট কলাম নির্বাচন করুন"
+                className="h-9 flex items-center gap-1.5 px-3 bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold rounded-xl border border-slate-200 transition-colors shadow-2xs"
+                title="প্রিন্ট কলাম নির্বাচন"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
-                <span>কলাম নির্বাচন</span>
+                <span>কলাম</span>
               </button>
 
               <button
                 onClick={handlePrintMadrasas}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
+                className="h-9 flex items-center gap-1.5 px-3.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xs transition-all active:scale-[0.98]"
+                title="এ৪ পেপারে প্রিন্ট করুন"
               >
-                <Printer className="w-4 h-4" />
-                <span>এ৪ প্রিন্ট করুন</span>
+                <Printer className="w-3.5 h-3.5" />
+                <span>প্রিন্ট</span>
               </button>
             </div>
           </div>
 
           {/* Search and Filters Toolbar */}
-          <div className="p-4 bg-white border-b border-slate-100 space-y-3">
+          <div className="p-3.5 bg-white border-b border-slate-100 space-y-2.5">
             {/* Top Row: Status Tabs + Search bar */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
               {/* Status Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 flex-wrap">
+              <div className="flex items-center gap-1 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 overflow-x-auto scroll-smooth no-scrollbar">
                 <button
                   onClick={() => setMadrasaStatusFilter("ALL")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                     madrasaStatusFilter === "ALL"
                       ? "bg-white text-slate-800 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  সব মাদরাসা ({madrasas.length})
+                  সব ({madrasas.length})
                 </button>
                 <button
                   onClick={() => setMadrasaStatusFilter("PENDING")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1 transition-all ${
                     madrasaStatusFilter === "PENDING"
                       ? "bg-amber-500 text-white shadow-sm"
                       : "text-amber-700 hover:bg-amber-100/50"
                   }`}
                 >
-                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <ShieldAlert className="w-3 h-3" />
                   <span>অপেক্ষমাণ ({pendingCount})</span>
                 </button>
                 <button
                   onClick={() => setMadrasaStatusFilter("APPROVED")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1 transition-all ${
                     madrasaStatusFilter === "APPROVED"
                       ? "bg-emerald-600 text-white shadow-sm"
                       : "text-emerald-700 hover:bg-emerald-100/50"
                   }`}
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3 h-3" />
                   <span>অনুমোদিত ({approvedCount})</span>
                 </button>
               </div>
 
               {/* Search Bar */}
               <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="মাদরাসার নাম, কোড, মুহতামিম, ফোন বা ঠিকানা খুঁজুন..."
+                  placeholder="মাদরাসার নাম, কোড, ফোন বা ঠিকানা..."
                   value={madrasaSearchQuery}
                   onChange={(e) => setMadrasaSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 bg-slate-50 focus:bg-white transition-all shadow-inner"
+                  className="w-full h-9 pl-9 pr-8 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 bg-slate-50 focus:bg-white transition-all shadow-2xs"
                 />
                 {madrasaSearchQuery && (
                   <button
                     onClick={() => setMadrasaSearchQuery("")}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
             </div>
 
             {/* Second Row: Multi-layer Geographic Filters & Date Filters */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
               {/* District Filter */}
               <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <MapPin className="w-3 h-3 text-slate-400" />
                 <select
                   value={madrasaDistrictFilter}
                   onChange={(e) => {
                     setMadrasaDistrictFilter(e.target.value);
                     setMadrasaUpazilaFilter(""); // reset upazila when district changes
                   }}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-medium focus:outline-none focus:border-emerald-600"
+                  className="h-8.5 px-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-medium focus:outline-none focus:border-emerald-600 text-xs"
                 >
-                  <option value="">সব জেলা (All Districts)</option>
+                  <option value="">সকল জেলা</option>
                   {availableDistricts.map((dist) => (
                     <option key={dist} value={dist}>{dist}</option>
                   ))}
@@ -2236,10 +2237,10 @@ function AdminDashboardContent() {
                 <select
                   value={madrasaUpazilaFilter}
                   onChange={(e) => setMadrasaUpazilaFilter(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-medium focus:outline-none focus:border-emerald-600"
+                  className="h-8.5 px-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-medium focus:outline-none focus:border-emerald-600 text-xs"
                   disabled={availableUpazilas.length === 0}
                 >
-                  <option value="">সব উপজেলা (All Upazilas)</option>
+                  <option value="">সকল উপজেলা</option>
                   {availableUpazilas.map((upz) => (
                     <option key={upz} value={upz}>{upz}</option>
                   ))}
@@ -2978,13 +2979,52 @@ function AdminDashboardContent() {
 
       {/* Main Content */}
       <main className="flex-1 h-full overflow-y-auto p-3 md:p-8 w-full max-w-full overflow-x-hidden flex flex-col [scrollbar-gutter:stable]">
+        {/* Mobile & Tablet Smooth Scrollable Navigation Bar (< xl) */}
+        <div className="xl:hidden flex items-center gap-1.5 overflow-x-auto scroll-smooth no-scrollbar p-1.5 mb-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs shrink-0">
+          {[
+            { id: "dashboard", icon: LayoutDashboard, label: "ড্যাশবোর্ড" },
+            { id: "madrasas", icon: Building2, label: "মাদরাসা" },
+            { id: "inspection", icon: FileCheck, label: "পরিদর্শন" },
+            { id: "exams", icon: FileCheck, label: "পরীক্ষা" },
+            { id: "batches", icon: GraduationCap, label: "ব্যাচ" },
+            { id: "muallim", icon: UserCheck, label: "মুয়াল্লিম" },
+            { id: "store", icon: ShoppingBag, label: "স্টোর" },
+            { id: "curriculum", icon: BookOpen, label: "কারিকুলাম" },
+            { id: "applications", icon: ClipboardList, label: "আবেদন", badge: applications.filter(a=>a.status==='PENDING').length },
+            { id: "locations", icon: MapPin, label: "লোকেশন" },
+            { id: "users", icon: Users, label: "ইউজার" },
+            { id: "reports", icon: FileText, label: "রিপোর্ট" },
+            { id: "settings", icon: Settings, label: "সেটিংস" },
+          ].map((item: any) => (
+            <button
+              key={item.id}
+              onClick={() => handleTabChange(item.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                activeTab === item.id
+                  ? "bg-primary text-white shadow-xs"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/60"
+              }`}
+            >
+              <item.icon className="w-3.5 h-3.5 shrink-0" />
+              <span>{item.label}</span>
+              {item.badge > 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                  activeTab === item.id ? "bg-white text-primary" : "bg-amber-500 text-white"
+                }`}>
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {activeTab === "dashboard" && (
-          <header className="mb-8 flex justify-between items-center relative z-40">
+          <header className="mb-6 flex justify-between items-center relative z-40">
             <div>
-              <h1 className="text-3xl font-bold text-slate-800">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
                 স্বাগতম, অ্যাডমিন!
               </h1>
-              <p className="text-slate-500">
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 আজকের সিস্টেমের বর্তমান অবস্থা।
               </p>
             </div>

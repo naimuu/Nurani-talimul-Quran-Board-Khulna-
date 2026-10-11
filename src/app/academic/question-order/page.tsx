@@ -27,14 +27,15 @@ import {
   BookOpen,
   Calendar,
   Clock,
-  Building2
+  Building2,
+  Download
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
 import { generateClassId, getCanonicalClassId, generateExamCode, generateItemCode } from "@/lib/classUtils";
 import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
-import { printOrderInvoice } from "@/lib/orderPrint";
+import { printOrderInvoice, downloadOrderPdf } from "@/lib/orderPrint";
 import { generateQRCodeDataUrl, generateBarcodeSVG } from "@/lib/qrHelper";
 import { cleanAddressNotes, parseQuestionItemsFromNotes } from "@/lib/orderTimeline";
 
@@ -2239,11 +2240,19 @@ export default function QuestionOrderPage() {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => printInvoice(orderSuccessData)}
+                onClick={() => downloadOrderPdf(orderSuccessData, { mode: "customer" })}
                 className="w-full py-2.5 bg-[#095738] hover:bg-[#07472d] text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 cursor-pointer transition-all"
               >
-                <Printer className="w-4 h-4" />
-                <span>গ্রাহক ইনভয়েস প্রিন্ট / PDF</span>
+                <Download className="w-4 h-4" />
+                <span>সরাসরি PDF ডাউনলোড</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => printInvoice(orderSuccessData)}
+                className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 cursor-pointer transition-all"
+              >
+                <Printer className="w-4 h-4 text-slate-600" />
+                <span>ব্রাউজার প্রিন্ট</span>
               </button>
               <button
                 type="button"

@@ -56,10 +56,17 @@ export async function GET(
     console.warn("MongoDB GridFS download check error:", dbErr);
   }
 
-  // 2. Fallback to local filesystem disk storage
+  // 2. Fallback to local filesystem disk storage (public/uploads/... or public/...)
   const filePath = join(process.cwd(), "public", "uploads", ...safePath);
+  const altFilePath = join(process.cwd(), "public", ...safePath);
+
   try {
-    const fileBuffer = await readFile(filePath);
+    let fileBuffer: Buffer;
+    try {
+      fileBuffer = await readFile(filePath);
+    } catch {
+      fileBuffer = await readFile(altFilePath);
+    }
     const contentType = getContentType(ext);
 
     // Background sync to MongoDB GridFS so it becomes permanently available
@@ -83,6 +90,34 @@ export async function GET(
       },
     });
   } catch (fsErr) {
+    // Graceful fallback for missing images: return the board's logo image instead of 404
+    const isImage = ["jpg", "jpeg", "png", "webp", "gif", "svg"].includes(ext);
+    if (isImage) {
+      try {
+        const logoPath = join(process.cwd(), "public", "images", "logo.jpeg");
+        const logoBuffer = await readFile(logoPath);
+        return new NextResponse(new Uint8Array(logoBuffer), {
+          headers: {
+            "Content-Type": "image/jpeg",
+            "Content-Disposition": `inline; filename="placeholder.jpeg"`,
+            "Cache-Control": "public, max-age=3600",
+          },
+        });
+      } catch (placeholderErr) {
+        // In case logo.jpeg cannot be read, return SVG placeholder
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" fill="#f8fafc">
+          <rect width="400" height="300" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+          <text x="200" y="150" font-family="system-ui, sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">ছবি পাওয়া যায়নি</text>
+        </svg>`;
+        return new NextResponse(svg, {
+          headers: {
+            "Content-Type": "image/svg+xml",
+            "Cache-Control": "public, max-age=3600",
+          },
+        });
+      }
+    }
+
     return new NextResponse("File not found", { status: 404 });
   }
 }

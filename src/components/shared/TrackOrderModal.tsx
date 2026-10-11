@@ -1,14 +1,14 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, X, Package, CheckCircle2, Clock, Truck, Printer, Copy, 
+  Search, X, Package, CheckCircle2, Clock, Truck, Printer, Download, Copy, 
   Camera, QrCode, Sparkles, AlertCircle, UserCheck, ShieldCheck, 
   CheckCircle, ArrowRight, User, Calendar, MessageSquare, Check, ThumbsUp
 } from 'lucide-react';
 import { QRScannerModal } from './QRScannerModal';
 import { generateQRCodeDataUrl, generateBarcodeSVG } from '@/lib/qrHelper';
 import { formatBanglaDateTime, TimelineEvent, cleanAddressNotes, parseQuestionItemsFromNotes } from '@/lib/orderTimeline';
-import { printOrderInvoice } from '@/lib/orderPrint';
+import { printOrderInvoice, downloadOrderPdf } from '@/lib/orderPrint';
 
 function parseTrackingInfo(notes?: string | null, courierName?: string | null) {
   let trackingId = '';
@@ -233,7 +233,12 @@ export function TrackOrderModal({
 
   const printInvoice = () => {
     if (!order) return;
-    printOrderInvoice(order, { printBW });
+    printOrderInvoice(order, { printBW, mode: 'customer' });
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!order) return;
+    await downloadOrderPdf(order, { printBW, mode: 'customer' });
   };
 
   const isQuestion = Boolean(
@@ -1028,13 +1033,25 @@ export function TrackOrderModal({
                     />
                     সাদাকালো প্রিন্ট (B&W)
                   </label>
-                  <button 
-                    onClick={printInvoice}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#06422b] to-[#095738] hover:from-[#053724] hover:to-[#07472e] text-white font-extrabold text-xs sm:text-sm rounded-2xl transition-all shadow-md shadow-emerald-950/20 active:scale-95"
-                  >
-                    <Printer className="w-4 h-4" /> 
-                    <span>ইনভয়েস প্রিন্ট করুন</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={handleDownloadPdf}
+                      className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-emerald-50 border border-emerald-300 text-emerald-900 font-bold text-xs sm:text-sm rounded-xl transition-all shadow-sm active:scale-95"
+                      title="সরাসরি ক্রিস্টাল ক্লিয়ার টেক্সট PDF ডাউনলোড"
+                    >
+                      <Download className="w-4 h-4 text-emerald-700" />
+                      <span>PDF ডাউনলোড</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={printInvoice}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#06422b] to-[#095738] hover:from-[#053724] hover:to-[#07472e] text-white font-extrabold text-xs sm:text-sm rounded-xl transition-all shadow-md shadow-emerald-950/20 active:scale-95"
+                    >
+                      <Printer className="w-4 h-4" /> 
+                      <span>ইনভয়েস প্রিন্ট</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

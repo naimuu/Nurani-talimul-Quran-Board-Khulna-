@@ -15,83 +15,77 @@ import {
   ChevronLeft,
   ChevronDown,
   ListOrdered,
-  Maximize2,
-  Minimize2
+  FileCheck,
+  Award
 } from "lucide-react";
 
 interface TOCItem {
   id: number;
   title: string;
-  subtitle: string;
   icon: React.ReactNode;
   link: string;
-  badge?: string;
 }
 
 const tocItems: TOCItem[] = [
   {
     id: 1,
     title: "স্থায়ী কার্যালয়",
-    subtitle: "বোর্ডের প্রধান ও স্থায়ী কার্যালয়",
-    icon: <Building2 className="w-3.5 h-3.5 text-emerald-600" />,
-    link: "/about/board_introduction",
-    badge: "তালিকা"
+    icon: <Building2 className="w-4 h-4 text-emerald-600" />,
+    link: "/about/board_introduction"
   },
   {
     id: 2,
     title: "বই বিক্রয় কেন্দ্র",
-    subtitle: "সকল বিভাগীয় বিক্রয় কেন্দ্রসমূহ",
-    icon: <Store className="w-3.5 h-3.5 text-blue-600" />,
-    link: "/store",
-    badge: "তালিকা"
+    icon: <Store className="w-4 h-4 text-emerald-600" />,
+    link: "/store"
   },
   {
     id: 3,
-    title: "অফিস কর্মকর্তা তালিকা",
-    subtitle: "বোর্ডের দায়িত্বশীল কর্মকর্তাবৃন্দ",
-    icon: <UserCheck className="w-3.5 h-3.5 text-indigo-600" />,
-    link: "/member/office-staff",
-    badge: "তালিকা"
+    title: "কর্মকর্তা তালিকা",
+    icon: <UserCheck className="w-4 h-4 text-emerald-600" />,
+    link: "/member/office-staff"
   },
   {
     id: 4,
     title: "প্রশিক্ষক ও পরিদর্শক",
-    subtitle: "কেন্দ্রীয় পরিদর্শক ও প্রশিক্ষক প্যানেল",
-    icon: <Users className="w-3.5 h-3.5 text-amber-600" />,
-    link: "/member/trainer-inspector",
-    badge: "তালিকা"
+    icon: <Users className="w-4 h-4 text-emerald-600" />,
+    link: "/member/trainer-inspector"
   },
   {
     id: 5,
-    title: "স্থায়ী প্রশিক্ষণ কেন্দ্রসমূহ",
-    subtitle: "সারাদেশের স্থায়ী প্রশিক্ষণ কেন্দ্র",
-    icon: <GraduationCap className="w-3.5 h-3.5 text-purple-600" />,
-    link: "/training/permanent-center-list",
-    badge: "তালিকা"
+    title: "স্থায়ী প্রশিক্ষণ কেন্দ্র",
+    icon: <GraduationCap className="w-4 h-4 text-emerald-600" />,
+    link: "/training/permanent-center-list"
   },
   {
     id: 6,
-    title: "বাৎসরিক প্রশিক্ষণ কেন্দ্র",
-    subtitle: "ব্যাচভিত্তিক চলমান প্রশিক্ষণ তালিকা",
-    icon: <BookOpenCheck className="w-3.5 h-3.5 text-teal-600" />,
-    link: "/training/batchwise-center-list",
-    badge: "তালিকা"
+    title: "চলমান প্রশিক্ষণ ব্যাচ",
+    icon: <BookOpenCheck className="w-4 h-4 text-emerald-600" />,
+    link: "/training/batchwise-center-list"
   },
   {
     id: 7,
-    title: "বাৎসরিক ক্যালেন্ডার",
-    subtitle: "২০২৬ সালের বাৎসরিক ছুটির তালিকা",
-    icon: <CalendarDays className="w-3.5 h-3.5 text-rose-600" />,
-    link: "/training/rules",
-    badge: "২০২৬"
+    title: "ছুটির ক্যালেন্ডার",
+    icon: <CalendarDays className="w-4 h-4 text-emerald-600" />,
+    link: "/training/rules"
   },
   {
     id: 8,
     title: "মজলিশে আমেলা ও শুরা",
-    subtitle: "কার্যকরী পরিষদ ও নীতিনির্ধারণী কমিটি",
-    icon: <FileText className="w-3.5 h-3.5 text-sky-600" />,
-    link: "/member/amela",
-    badge: "পরিষদ"
+    icon: <FileText className="w-4 h-4 text-emerald-600" />,
+    link: "/member/amela"
+  },
+  {
+    id: 9,
+    title: "মাদরাসা পরিদর্শন ও এলহাক",
+    icon: <FileCheck className="w-4 h-4 text-emerald-600" />,
+    link: "/audit"
+  },
+  {
+    id: 10,
+    title: "কেন্দ্রীয় পরীক্ষার রেজাল্ট",
+    icon: <Award className="w-4 h-4 text-emerald-600" />,
+    link: "/results"
   }
 ];
 
@@ -102,97 +96,78 @@ export default function HomeSidebarTOC() {
     return (
       <div 
         onClick={() => setIsExpanded(true)}
-        className="cursor-pointer bg-white hover:bg-emerald-50 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] border border-slate-200/90 p-2.5 sm:p-3 flex flex-row lg:flex-col items-center justify-between gap-3 transition-all duration-300 group hover:border-emerald-400 w-full lg:w-12 h-auto lg:h-[480px] select-none"
-        title="সূচিপত্র সাইডবার খুলুন (Click to Expand)"
+        className="cursor-pointer bg-white hover:bg-emerald-50/70 rounded-2xl shadow-xs border border-slate-200 p-2.5 flex flex-row lg:flex-col items-center justify-between gap-3 transition group w-full lg:w-11 h-auto lg:h-[480px] select-none"
+        title="লিংকসমূহ খুলুন"
       >
         <div className="flex items-center gap-2 lg:flex-col">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold shrink-0 group-hover:scale-110 transition-transform">
-            <ListOrdered className="w-4 h-4" />
+          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold shrink-0">
+            <ListOrdered className="w-3.5 h-3.5" />
           </div>
-          <div className="flex items-center gap-1.5 lg:[writing-mode:vertical-lr] lg:rotate-180 font-bold text-xs text-slate-700 group-hover:text-emerald-800 tracking-wider">
-            <span>গুরুত্বপূর্ণ লিংকসমূহ</span>
-            <span className="text-[10px] text-emerald-600 font-normal lg:hidden">(খুলুন)</span>
+          <div className="flex items-center gap-1 lg:[writing-mode:vertical-lr] lg:rotate-180 font-bold text-xs text-slate-700 group-hover:text-emerald-800 tracking-wider">
+            <span>গুরুত্বপূর্ণ লিংক</span>
           </div>
         </div>
 
-        <div className="w-7 h-7 rounded-full bg-emerald-100/80 text-emerald-800 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors shadow-2xs shrink-0">
-          <ChevronRight className="w-4 h-4 hidden lg:block" />
-          <ChevronDown className="w-4 h-4 lg:hidden" />
+        <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition shadow-2xs shrink-0">
+          <ChevronRight className="w-3.5 h-3.5 hidden lg:block" />
+          <ChevronDown className="w-3.5 h-3.5 lg:hidden" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.04)] border border-slate-100/90 overflow-hidden flex flex-col justify-between w-full lg:w-[260px] xl:w-[280px] 2xl:w-[300px] h-full min-h-[520px] sm:min-h-[550px] transition-all duration-300">
+    <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden flex flex-col justify-between w-full lg:w-[240px] xl:w-[260px] 2xl:w-[275px] h-full min-h-[500px] transition-all">
       
-      {/* Header with Side Collapse Button */}
-      <div className="p-3 sm:p-3.5 border-b border-slate-100 bg-gradient-to-r from-emerald-50/80 via-slate-50/60 to-transparent flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold shrink-0">
-            <ListOrdered className="w-4 h-4" />
+      {/* Header */}
+      <div className="p-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold shrink-0">
+            <ListOrdered className="w-3.5 h-3.5" />
           </div>
-          <div className="min-w-0">
-            <h3 className="font-bold text-slate-800 text-sm leading-tight truncate">গুরুত্বপূর্ণ লিংকসমূহ</h3>
-            <p className="text-[10.5px] text-slate-500 font-medium truncate">প্রয়োজনীয় রেফারেন্স ও লিংক</p>
-          </div>
+          <h3 className="font-bold text-slate-800 text-xs sm:text-sm truncate">গুরুত্বপূর্ণ লিংক</h3>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0 pl-1">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(false)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-[11px] font-bold border border-slate-200/80 transition-colors shadow-2xs"
-            title="সাইডে সঙ্কুচিত করুন (Collapse to side)"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">লুকান</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsExpanded(false)}
+          className="flex items-center gap-0.5 px-2 py-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 text-[11px] font-semibold transition"
+          title="লুকান"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">লুকান</span>
+        </button>
       </div>
 
-      {/* Directory Items List */}
-      <div className="divide-y divide-slate-100 flex-1 overflow-y-auto p-1.5 sm:p-2 overscroll-contain">
+      {/* Plain List: Just Icon and Text Label */}
+      <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 overscroll-contain">
         {tocItems.map((item) => (
           <Link
             key={item.id}
             href={item.link}
-            className="group flex items-center justify-between p-2 rounded-xl hover:bg-emerald-50/50 hover:border-emerald-100 transition-all duration-150"
+            className="flex items-center justify-between px-2.5 py-2 rounded-lg text-slate-700 hover:text-emerald-800 hover:bg-emerald-50/70 transition-colors group"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-xs group-hover:scale-105 transition-all">
+              <span className="text-slate-500 group-hover:text-emerald-600 transition-colors shrink-0">
                 {item.icon}
-              </div>
-              <div className="min-w-0">
-                <h4 className="text-xs font-semibold text-slate-700 group-hover:text-emerald-700 transition-colors truncate">
-                  {item.title}
-                </h4>
-                <p className="text-[10px] text-slate-400 truncate group-hover:text-slate-500 transition-colors">
-                  {item.subtitle}
-                </p>
-              </div>
+              </span>
+              <span className="text-xs font-semibold truncate text-slate-700 group-hover:text-emerald-800 transition-colors">
+                {item.title}
+              </span>
             </div>
-
-            <div className="flex items-center gap-1 shrink-0 pl-1.5">
-              {item.badge && (
-                <span className="text-[9.5px] font-medium text-slate-400 bg-slate-100 group-hover:bg-emerald-100 group-hover:text-emerald-700 px-1.5 py-0.5 rounded transition-colors">
-                  {item.badge}
-                </span>
-              )}
-              <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
-            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
           </Link>
         ))}
       </div>
 
-      {/* Bottom Footer Callout */}
-      <div className="p-2.5 sm:p-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 shrink-0">
-        <span className="text-[10.5px]">সকল নিয়ম ও কার্যক্রম</span>
+      {/* Minimal Footer Callout */}
+      <div className="p-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 shrink-0">
+        <span className="text-[11px]">সকল কার্যক্রম</span>
         <Link 
           href="/about/our_activities" 
-          className="text-emerald-700 hover:text-emerald-800 font-bold inline-flex items-center gap-0.5 hover:underline text-[10.5px]"
+          className="text-emerald-700 hover:text-emerald-800 font-bold inline-flex items-center gap-0.5 hover:underline text-[11px]"
         >
-          বিস্তারিত
+          <span>বিস্তারিত</span>
           <ChevronRight className="w-3 h-3" />
         </Link>
       </div>

@@ -197,9 +197,9 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
     return () => window.removeEventListener("settingsUpdated", handler);
   }, []);
 
-  // Lock background scroll when drawer or mobile sheet is open
+  // Lock background scroll when drawer is open
   useEffect(() => {
-    if (isMobileMenuOpen || activeMobileDropdown) {
+    if (isMobileMenuOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -207,7 +207,7 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isMobileMenuOpen, activeMobileDropdown]);
+  }, [isMobileMenuOpen]);
 
   // Ref for mobile horizontally scrollable nav
   const mobileScrollRef = useRef<HTMLDivElement>(null);
@@ -431,7 +431,7 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
     <header className="sticky top-0 z-50 shadow-md font-sans w-full">
 
       {/* ─── 1. TOP PROFESSIONAL BAR ────────────────────────────────────── */}
-      <div className="bg-[#052e23] text-emerald-100 text-xs sm:text-sm border-b border-[#0d4f3b] relative z-20">
+      <div className="bg-[#052e23] text-emerald-100 text-xs sm:text-sm border-b border-[#0d4f3b] relative z-40">
         <div className="w-full max-w-[1780px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-1.5 flex items-center justify-between gap-1.5 sm:gap-2">
 
           {/* Left: Hotline */}
@@ -477,7 +477,7 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
       </div>
 
       {/* ─── 2. MAIN BRANDING & NAVIGATION BAR ─────────────────────────── */}
-      <div className="bg-[#095738] text-white border-b-[3px] border-amber-400 shadow-lg relative z-20">
+      <div className="bg-[#095738] text-white border-b-[3px] border-amber-400 shadow-lg relative z-40">
         <div className="w-full max-w-[1780px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-2.5 flex justify-between items-center gap-2 sm:gap-4">
 
           {/* LEFT: BRANDING (Auto-uploaded Logo + Board Name + Address underneath) */}
@@ -690,13 +690,13 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
 
       {/* ─── 3. MOBILE SCROLLABLE BUTTON BAR (Auto Centers On Click & Hides On Scroll) ─────── */}
       <div
-        className={`xl:hidden bg-[#063f29] border-[#0d563a] shadow-inner transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden relative z-10 ${
-          isMenuHidden
+        className={`xl:hidden bg-[#042c22] border-b border-[#0a4233] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden relative z-40 ${
+          isMenuHidden && !activeMobileDropdown
             ? 'max-h-0 opacity-0 py-0 border-b-0 pointer-events-none -translate-y-2'
-            : 'max-h-14 opacity-100 py-1.5 px-2 border-b translate-y-0'
+            : 'max-h-14 opacity-100 py-1.5 px-2 translate-y-0'
         }`}
       >
-        <div ref={mobileScrollRef} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth px-1">
+        <div ref={mobileScrollRef} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth px-0.5">
           {isVisitorPage ? (
             /* Visitor mobile quick scroll pills */
             [
@@ -713,10 +713,10 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                 <Link
                   key={idx}
                   href={item.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all flex-shrink-0 active:scale-95 ${
                     isActive
-                      ? "bg-amber-400 text-slate-950 shadow-md font-extrabold"
-                      : "bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15"
+                      ? "bg-white text-[#052e23] font-bold shadow-xs"
+                      : "text-emerald-100/90 hover:text-white hover:bg-white/10 font-medium"
                   }`}
                 >
                   <ItemIcon className="w-3.5 h-3.5 opacity-90" />
@@ -736,16 +736,21 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                     data-active={isActive}
                     onClick={(e) => {
                       scrollButtonToCenter(e.currentTarget);
-                      openMobileDropdown(item);
+                      if (activeMobileDropdown?.title === item.title) {
+                        closeMobileDropdown();
+                      } else {
+                        openMobileDropdown(item);
+                      }
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${activeMobileDropdown?.title === item.title || isActive
-                        ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                        : 'bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15'
-                      }`}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all flex-shrink-0 active:scale-95 ${
+                      activeMobileDropdown?.title === item.title || isActive
+                        ? 'bg-white text-[#052e23] font-bold shadow-xs'
+                        : 'text-emerald-100/90 hover:text-white hover:bg-white/10 font-medium'
+                    }`}
                   >
                     <ItemIcon className="w-3.5 h-3.5 opacity-90" />
                     <span>{item.title}</span>
-                    <ChevronDown className="w-3 h-3 opacity-70" />
+                    <ChevronDown className={`w-3 h-3 opacity-60 transition-transform duration-200 ${activeMobileDropdown?.title === item.title ? 'rotate-180' : ''}`} />
                   </button>
                 );
               }
@@ -757,11 +762,13 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                   data-active={isActive}
                   onClick={(e) => {
                     scrollButtonToCenter(e.currentTarget);
+                    closeMobileDropdown();
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 active:scale-95 shadow-xs ${isActive
-                      ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                      : 'bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white border border-white/15'
-                    }`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all flex-shrink-0 active:scale-95 ${
+                    isActive
+                      ? 'bg-white text-[#052e23] font-bold shadow-xs'
+                      : 'text-emerald-100/90 hover:text-white hover:bg-white/10 font-medium'
+                  }`}
                 >
                   <ItemIcon className="w-3.5 h-3.5 opacity-90" />
                   <span>{item.title}</span>
@@ -770,14 +777,15 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
             })
           )}
 
-          {/* Quick Track Pill */}
+          {/* Quick Track Button */}
           {!isVisitorPage && (
             <button
               onClick={(e) => {
                 scrollButtonToCenter(e.currentTarget);
+                closeMobileDropdown();
                 setIsTrackModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap bg-amber-400 text-slate-950 shadow-sm flex-shrink-0 active:scale-95"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-xs flex-shrink-0 active:scale-95 transition-all"
             >
               <Search className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>অর্ডার ট্র্যাক</span>
@@ -786,141 +794,153 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
         </div>
       </div>
 
-      {/* ─── 4. SMART TOUCH-FRIENDLY MOBILE DROPDOWN BOTTOM-SHEET MODAL (Smooth Open & Collapse) ─── */}
-      <div
-        className={`xl:hidden fixed inset-0 z-[70] flex flex-col justify-end transition-all duration-300 ${activeMobileDropdown ? "visible pointer-events-auto" : "invisible pointer-events-none"
-          }`}
-      >
-        {/* Backdrop with rich blur and smooth fade */}
-        <div
-          className={`fixed inset-0 bg-slate-950/50 backdrop-blur-md transition-opacity duration-350 ease-out ${isDropdownVisible ? "opacity-100" : "opacity-0"
+      {/* ─── 4. MOBILE INLINE DROPDOWN LIST (Opens directly below the scrollable pill bar) ─── */}
+      {activeMobileDropdown && (
+        <div className="xl:hidden">
+          {/* Subtle Backdrop behind dropdown (z-30: keeps navbar buttons at z-40 fully visible & interactive) */}
+          <div
+            className={`fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-30 transition-opacity duration-200 ${
+              isDropdownVisible ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
-          onClick={closeMobileDropdown}
-        />
+            onClick={closeMobileDropdown}
+          />
 
-        {/* Bottom Sheet Card - Glassmorphic Full 80% Height with Smooth Slide Up & Collapse */}
-        <div
-          className={`relative bg-white/80 backdrop-blur-2xl rounded-t-3xl shadow-[0_-15px_50px_rgba(0,0,0,0.25)] h-[80vh] max-h-[80vh] overflow-hidden flex flex-col z-10 border-t-2 border-emerald-400/80 transition-transform duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] ${isDropdownVisible ? "translate-y-0" : "translate-y-full"
+          {/* Standard Rounded & Stylish Dropdown Card */}
+          <div
+            className={`absolute top-full mt-2 left-2 right-2 sm:left-4 sm:right-auto sm:w-88 max-w-[370px] mx-auto sm:mx-0 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.22)] ring-1 ring-black/5 overflow-hidden transition-all duration-200 ease-out origin-top ${
+              isDropdownVisible
+                ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
+                : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
             }`}
-        >
-          {activeMobileDropdown && (
-            <>
-              {/* Sheet Handle & Header */}
-              <div className="p-4 bg-gradient-to-r from-[#052e23]/95 via-[#074734]/95 to-[#095738]/95 backdrop-blur-md text-white flex items-center justify-between border-b border-white/10 flex-shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-sm">
-                    {(() => {
-                      const Icon = activeMobileDropdown.icon;
-                      return <Icon className="w-4 h-4" />;
-                    })()}
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-base leading-tight">{activeMobileDropdown.title} মেনু</h3>
-                    <p className="text-[11px] text-emerald-200">অপশন নির্বাচন করুন</p>
-                  </div>
+          >
+            {/* Dropdown Header */}
+            <div className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-50/90 via-slate-50/80 to-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+                  {(() => {
+                    const Icon = activeMobileDropdown.icon;
+                    return <Icon className="w-4 h-4" />;
+                  })()}
                 </div>
-
-                <button
-                  onClick={closeMobileDropdown}
-                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
-                  aria-label="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm truncate">
+                    {activeMobileDropdown.title}
+                  </h3>
+                  {activeMobileDropdown.subtitle && (
+                    <p className="text-[10px] text-emerald-800 font-medium truncate">
+                      {activeMobileDropdown.subtitle}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {/* List with Glassmorphism and 50px+ Touch Targets - Smoothly Scrollable with Momentum Touch */}
-              <div
-                className="p-3.5 drawer-scroll flex-1 min-h-0 flex flex-col gap-2 pb-28 touch-pan-y"
-                style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+              <button
+                onClick={closeMobileDropdown}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition active:scale-95 shrink-0"
+                aria-label="Close"
               >
-                {activeMobileDropdown.subItems?.map((sub, sIdx) => {
-                  const SubIcon = sub.icon;
-                  const isExpanded = expandedNestedItem === sub.title;
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-                  if (sub.subItems) {
-                    return (
-                      <div
-                        key={sIdx}
-                        className={`rounded-2xl border transition-all duration-300 overflow-hidden shadow-xs touch-pan-y ${isExpanded ? 'border-emerald-500/80 bg-white/95 shadow-md ring-2 ring-emerald-500/15' : 'border-white/90 bg-white/70 hover:bg-white/90'
-                          }`}
+            {/* SubItems Plain List */}
+            <div className="p-2 space-y-1 overflow-y-auto max-h-[calc(75vh-56px)]">
+              {activeMobileDropdown.subItems?.map((sub, sIdx) => {
+                const SubIcon = sub.icon;
+                const isExpanded = expandedNestedItem === sub.title;
+
+                if (sub.subItems) {
+                  return (
+                    <div
+                      key={sIdx}
+                      className="rounded-xl border border-slate-200/80 overflow-hidden bg-slate-50/60 transition-all shadow-2xs"
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setExpandedNestedItem((prev) => (prev === sub.title ? null : sub.title));
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-emerald-50/60 transition group cursor-pointer"
                       >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setExpandedNestedItem(prev => (prev === sub.title ? null : sub.title));
-                          }}
-                          className={`w-full flex items-center justify-between p-3.5 min-h-[52px] text-left transition-all touch-pan-y active:scale-[0.99] ${isExpanded ? 'bg-emerald-50/90 text-emerald-950' : 'hover:bg-white/80 active:bg-emerald-50/60'
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-6 h-6 rounded-md bg-white border border-slate-200/60 flex items-center justify-center shrink-0 group-hover:border-emerald-300">
+                            <SubIcon className="w-3.5 h-3.5 text-emerald-700" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-xs text-slate-800 block truncate group-hover:text-emerald-900">
+                              {sub.title}
+                            </span>
+                            {sub.subtitle && (
+                              <span className="text-[10px] text-slate-500 block truncate">
+                                {sub.subtitle}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                              isExpanded ? "rotate-180 text-emerald-700" : ""
                             }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xs transition-colors ${isExpanded ? 'bg-[#095738] text-white shadow-sm' : 'bg-amber-100/90 text-amber-900'
-                              }`}>
-                              <SubIcon className="w-5 h-5" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-bold text-[15px] text-slate-800">{sub.title}</span>
-                              <span className="text-[11.5px] text-emerald-700 font-semibold">{sub.subtitle || "নিবন্ধন ও বিস্তারিত"}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">{isExpanded ? 'লুকান' : 'দেখুন'}</span>
-                            <ChevronDown className={`w-5 h-5 text-emerald-700 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-emerald-900' : ''}`} />
-                          </div>
-                        </button>
+                          />
+                        </div>
+                      </button>
 
-                        {/* Smooth Animated Nested sub-items */}
-                        {isExpanded && (
-                          <div className="px-2.5 pb-2.5 flex flex-col gap-1.5 border-t border-emerald-100/80 pt-2 bg-emerald-50/30 backdrop-blur-md touch-pan-y animate-in fade-in slide-in-from-top-2 duration-200">
-                            {sub.subItems.map((nested, nIdx) => {
-                              const NestedIcon = nested.icon;
-                              return (
-                                <Link
-                                  key={nIdx}
-                                  href={nested.href}
-                                  onClick={closeMobileDropdown}
-                                  className="flex items-center justify-between px-3 py-2.5 min-h-[48px] rounded-xl bg-white hover:bg-emerald-50 active:bg-emerald-100/80 transition-all border border-slate-100/80 shadow-2xs touch-pan-y"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-100/80 text-[#095738] flex items-center justify-center flex-shrink-0">
-                                      <NestedIcon className="w-4 h-4" />
-                                    </div>
-                                    <span className="text-[14px] font-semibold text-slate-800">{nested.title}</span>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                                </Link>
-                              );
-                            })}
-                          </div>
+                      {isExpanded && (
+                        <div className="px-2 pb-2 space-y-0.5 bg-white border-t border-slate-100 pt-1.5">
+                          {sub.subItems.map((nested, nIdx) => {
+                            const NestedIcon = nested.icon;
+                            return (
+                              <Link
+                                key={nIdx}
+                                href={nested.href}
+                                onClick={closeMobileDropdown}
+                                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/80 transition"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <NestedIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <span className="truncate">{nested.title}</span>
+                                </div>
+                                <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={sIdx}
+                    href={sub.href}
+                    onClick={closeMobileDropdown}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/80 border border-transparent hover:border-emerald-100 transition group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-md bg-slate-100 group-hover:bg-emerald-100 flex items-center justify-center shrink-0 transition-colors">
+                        <SubIcon className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-700 shrink-0 transition-colors" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="truncate block font-bold group-hover:text-emerald-900">{sub.title}</span>
+                        {sub.subtitle && (
+                          <span className="text-[10px] text-slate-400 group-hover:text-slate-600 font-normal block truncate">
+                            {sub.subtitle}
+                          </span>
                         )}
                       </div>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={sIdx}
-                      href={sub.href}
-                      onClick={closeMobileDropdown}
-                      className="flex items-center justify-between p-3 min-h-[50px] rounded-2xl border border-white/90 bg-white/70 hover:bg-white/95 backdrop-blur-md active:bg-emerald-50/90 transition-all shadow-xs touch-pan-y"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-100/80 text-[#095738] flex items-center justify-center flex-shrink-0 shadow-xs">
-                          <SubIcon className="w-5 h-5" />
-                        </div>
-                        <span className="font-bold text-[14.5px] text-slate-800">{sub.title}</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </>
-          )}
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-700 shrink-0 group-hover:translate-x-0.5 transition-all" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ─── 5. FULL MOBILE SIDEBAR DRAWER (Luxury Islamic Frosted Glass) ─── */}
       <div className={`xl:hidden fixed inset-0 z-[60] flex transition-all duration-300 ${isMobileMenuOpen ? "visible" : "invisible pointer-events-none"}`}>

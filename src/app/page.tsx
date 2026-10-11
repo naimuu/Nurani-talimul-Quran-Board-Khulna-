@@ -7,7 +7,7 @@ import AuthorMessages from "@/components/home/AuthorMessages";
 import HomeMobileNavModals from "@/components/home/HomeMobileNavModals";
 import { getUserSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
+
 
 export default async function Home() {
   const user = await getUserSession();
@@ -52,25 +52,29 @@ export default async function Home() {
         
         {/* Scrolling Notice Ticker */}
         {showScrollingNotice && scrollingNotice && (
-          <div className="bg-emerald-700 text-white py-2 overflow-hidden flex items-center shadow-sm">
+          <div className="bg-emerald-700 text-white py-2 overflow-hidden flex items-center shadow-xs">
             <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 2xl:px-10 flex items-center">
-              <span className="font-bold whitespace-nowrap bg-emerald-800 px-3 py-1 rounded-md mr-4 text-sm z-10 shrink-0">জরুরী নোটিশ:</span>
+              <span className="font-bold whitespace-nowrap bg-emerald-800 px-3 py-1 rounded-md mr-4 text-xs sm:text-sm z-10 shrink-0">
+                জরুরী নোটিশ:
+              </span>
               <div className="flex-1 overflow-hidden relative">
-                {/* @ts-ignore - marquee is deprecated but works reliably for simple tickers without custom css */}
-                <marquee className="text-sm font-medium pt-1">{scrollingNotice}</marquee>
+                {/* @ts-ignore - marquee for simple ticker */}
+                <marquee className="text-xs sm:text-sm font-medium pt-0.5">{scrollingNotice}</marquee>
               </div>
             </div>
           </div>
         )}
 
+
+
         {/* Middle Section: 
-            - Desktop (lg+): 3-Column Layout [TOC Left (Sticky)] + [Training Middle (Expanded)] + [Notice Right (Sticky)]
-            - Mobile (< lg): Top Scrollable Quick Bar (Click to open Popup Modal) + Training Cards (Clean & Focused)
+            - Desktop (lg+): 3-Column Layout [Plain List TOC Left (Sticky)] + [Training Middle (Expanded)] + [Plain List Notice Right (Sticky)]
+            - Mobile (< lg): Top Scrollable Quick Bar + Training Cards
         */}
-        <section className="w-full max-w-[1850px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-3 md:py-5">
+        <section className="w-full max-w-[1850px] mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-3 md:py-4">
           {/* Desktop 3-Column Layout */}
           <div className="hidden lg:flex flex-row gap-3.5 sm:gap-4 lg:gap-4 xl:gap-5 items-start justify-between">
-            {/* Left Column: Table of Contents */}
+            {/* Left Column: Plain List Sidebar */}
             <div className="w-auto shrink-0 sticky top-[76px] self-start transition-all duration-300">
               <HomeSidebarTOC />
             </div>
@@ -80,13 +84,13 @@ export default async function Home() {
               <TrainingSchedule />
             </div>
 
-            {/* Right Column: Notice Board */}
+            {/* Right Column: Plain List Notice Board */}
             <div className="w-auto shrink-0 sticky top-[76px] self-start transition-all duration-300">
               <NoticeBoard />
             </div>
           </div>
 
-          {/* Mobile Optimized Layout (No long cluttered cards below) */}
+          {/* Mobile Optimized Layout */}
           <div className="flex lg:hidden flex-col gap-3.5">
             {/* Top Horizontally Scrollable Quick Bar with Popup Modal Triggers */}
             <HomeMobileNavModals notices={notices} />
@@ -98,7 +102,7 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Bottom Section: Board Introduction & Chairman/Secretary Messages (Centered Below) */}
+        {/* Bottom Section: Board Introduction & Responsible Person Messages */}
         <section className="w-full px-2.5 sm:px-4 md:px-6 lg:px-8 py-3 md:py-4">
           <div className="max-w-[1780px] mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-stretch">
