@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import connectDB from "@/lib/mongodb";
 import User from "@/lib/models/User";
+import Madrasa from "@/lib/models/Madrasa";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "nurani_board_khulna_secret_key_2024"
@@ -12,8 +13,10 @@ const JWT_SECRET = new TextEncoder().encode(
 const ROLE_REDIRECT: Record<string, string> = {
   ADMIN: "/admin",
   MUHTAMIM: "/madrasa",
+  MADRASA: "/madrasa",
   MUALLIM: "/muallim",
   GENERAL: "/",
+  CUSTOMER: "/store",
   TRAINER: "/trainer",
   VISITOR: "/visitor",
 };
@@ -22,27 +25,28 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { identifier, password } = body;
-    // identifier can be email or phone
 
     if (!identifier || !password) {
-      return NextResponse.json({ error: "Email/Phone and Password are required" }, { status: 400 });
-    }
-
-    // Bangladeshi phone number validation: must be 11 digits starting with 01
-    const isPhone = /^01[3-9]\d{8}$/.test(identifier);
-    if (!isPhone && identifier.startsWith("0")) {
       return NextResponse.json(
-        { error: "ফোন নম্বরটি সঠিক নয়। ১১ সংখ্যার বাংলাদেশী নম্বর দিন (যেমন: 01870186441)" },
+        { error: "আইডি/ইমেইল/ফোন এবং পাসওয়ার্ড প্রদান করুন" },
         { status: 400 }
       );
     }
 
-    // Master Admin Login (Credentials configured in .env file)
+    const cleanIdentifier = String(identifier).trim();
+    const cleanLower = cleanIdentifier.toLowerCase();
+    const cleanPassword = String(password).trim();
+
+    // 1. Check Master Admin Credentials (from .env or defaults)
     const adminEmail = process.env.ADMIN_EMAIL || "admin@nuraniboard.com";
     const adminPassword = process.env.ADMIN_PASSWORD || "admin";
 
-    if (identifier.trim().toLowerCase() === adminEmail.toLowerCase()) {
-      if (password.trim() === adminPassword) {
+    if (
+      cleanLower === adminEmail.toLowerCase() ||
+      cleanLower === "admin" ||
+      cleanLower === "superadmin"
+    ) {
+      if (cleanPassword === adminPassword) {
         const token = await new SignJWT({
           userId: "master_admin",
           role: "ADMIN",
@@ -55,7 +59,7 @@ export async function POST(req: Request) {
           .sign(JWT_SECRET);
 
         const response = NextResponse.json({
-          message: "Login successful (Admin)",
+          message: "Login successful (Master Admin)",
           role: "ADMIN",
           name: "System Admin",
           redirectUrl: "/admin",
@@ -70,48 +74,101 @@ export async function POST(req: Request) {
         });
 
         return response;
-      } else {
-        return NextResponse.json({ error: "পাসওয়ার্ড সঠিক নয়" }, { status: 401 });
       }
     }
 
     await connectDB();
 
-    // Find user by email or phone
-    const user = await User.findOne({
-      $or: [{ email: identifier }, { phone: identifier }],
+    // 2. Build search variations for phone / digits
+    const digitsOnly = cleanIdentifier.replace(/\D/g, "");
+    const phoneCandidates = [cleanIdentifier];
+    if (digitsOnly.length >= 10) {
+      phoneCandidates.push(digitsOnly);
+      if (digitsOnly.startsWith("8801")) {
+        phoneCandidates.push("0" + digitsOnly.slice(4));
+      }
+      if (digitsOnly.startsWith("01")) {
+        phoneCandidates.push(digitsOnly);
+        phoneCandidates.push("+88" + digitsOnly);
+      }
+    }
+
+    // Escape regex string for literal string match
+    const escapedIdentifier = cleanIdentifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // 3. Find User directly in DB by email, phone, or name
+    let user = await User.findOne({
+      $or: [
+        { email: { $regex: new RegExp(`^${escapedIdentifier}$`, "i") } },
+        { phone: { $in: phoneCandidates } },
+        { name: { $regex: new RegExp(`^${escapedIdentifier}$`, "i") } },
+      ],
     });
+
+    // 4. If not found, check if identifier is a Madrasa code / trackingId / ilhak
+    if (!user) {
+      const madrasa = await Madrasa.findOne({
+        $or: [
+          { code: cleanIdentifier },
+          { trackingId: cleanIdentifier },
+          ...(digitsOnly ? [{ code: digitsOnly }, { trackingId: digitsOnly }] : []),
+          { phone1: { $in: phoneCandidates } },
+          { phone2: { $in: phoneCandidates } },
+          { email: { $regex: new RegExp(`^${escapedIdentifier}$`, "i") } },
+        ],
+      });
+
+      if (madrasa) {
+        const madrasaPhones = [madrasa.phone1, madrasa.phone2].filter(Boolean) as string[];
+        user = await User.findOne({
+          $or: [
+            { madrasaId: madrasa._id },
+            ...(madrasa.email ? [{ email: madrasa.email.toLowerCase() }] : []),
+            ...(madrasaPhones.length > 0 ? [{ phone: { $in: madrasaPhones } }] : []),
+          ],
+        });
+      }
+    }
 
     if (!user) {
       return NextResponse.json(
-        { error: "এই ইমেইল বা ফোন নম্বর দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি" },
+        { error: "এই তথ্য দিয়ে কোনো অ্যাকাউন্ট খুঁজে পাওয়া যায়নি। সঠিক ইলহাক, ফোন বা ইমেইল দিন।" },
         { status: 404 }
       );
     }
 
-    // Verify password (support both bcrypt hashes and plain text for manually added dev users)
+    // 5. Verify Password
     let isPasswordValid = false;
-    
-    // Check if the stored password looks like a bcrypt hash (starts with $2a$ or $2b$)
     if (user.password && (user.password.startsWith("$2a$") || user.password.startsWith("$2b$"))) {
-      isPasswordValid = await bcrypt.compare(password, user.password);
+      isPasswordValid = await bcrypt.compare(cleanPassword, user.password);
     } else {
-      // Fallback to plain text comparison if they manually added the user in MongoDB Atlas
-      isPasswordValid = password === user.password;
+      isPasswordValid = cleanPassword === user.password;
     }
 
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: "পাসওয়ার্ড সঠিক নয়" },
+        { error: "পাসওয়ার্ড সঠিক নয়। পুনরায় সঠিক পাসওয়ার্ড দিন।" },
         { status: 401 }
       );
     }
 
-    // Create JWT token
+    // 6. Determine Role and Dashboard Destination
+    const normalizedRole = (user.role || "GENERAL").toUpperCase();
+    let redirectUrl = ROLE_REDIRECT[normalizedRole] || "/";
+
+    // If user is GENERAL or not explicitly mapped, but belongs to a Madrasa -> go to /madrasa
+    if (
+      (normalizedRole === "GENERAL" || !ROLE_REDIRECT[normalizedRole]) &&
+      (user.madrasaId || user.madrasaName)
+    ) {
+      redirectUrl = "/madrasa";
+    }
+
+    // 7. Create JWT token
     const token = await new SignJWT({
       userId: user._id.toString(),
-      role: user.role,
-      name: user.name,
+      role: normalizedRole,
+      name: user.name || "ব্যবহারকারী",
       email: user.email,
     })
       .setProtectedHeader({ alg: "HS256" })
@@ -119,13 +176,11 @@ export async function POST(req: Request) {
       .setExpirationTime("7d")
       .sign(JWT_SECRET);
 
-    const redirectUrl = ROLE_REDIRECT[user.role] || "/general";
-
-    // Set cookie and return response
+    // 8. Return response with redirectUrl and set cookie
     const response = NextResponse.json({
       message: "Login successful",
-      role: user.role,
-      name: user.name,
+      role: normalizedRole,
+      name: user.name || "ব্যবহারকারী",
       redirectUrl,
     });
 
@@ -140,7 +195,10 @@ export async function POST(req: Request) {
     return response;
   } catch (error: any) {
     console.error("Login error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "সার্ভারে সমস্যা হয়েছে, কিছুক্ষণ পর চেষ্টা করুন" },
+      { status: 500 }
+    );
   }
 }
 

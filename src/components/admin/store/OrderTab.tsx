@@ -163,6 +163,11 @@ type Sale = {
   courierName?: string; 
   totalWeight?: number; 
   notes?: string;
+  paymentMethod?: string | null;
+  senderNumber?: string | null;
+  trxId?: string | null;
+  deliveryOptionType?: string | null;
+  courierOrTransportName?: string | null;
   timeline?: TimelineEvent[];
   confirmedByCustomer?: boolean;
   receivedAt?: string;
@@ -1227,6 +1232,60 @@ export default function OrderTab({
                       <strong>ঠিকানা / নোট:</strong> {cleanAddressNotes(selectedOrder.notes) || selectedOrder.notes}
                     </span>
                   )}
+                </div>
+
+                {/* Payment & Delivery Summary Card */}
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {/* Payment Verification Info */}
+                  <div className="bg-emerald-50/70 border border-emerald-200/80 p-2.5 rounded-xl flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-emerald-900 flex items-center gap-1">
+                        <span>💳</span>
+                        <span>পেমেন্ট: {selectedOrder.paymentMethod || 'অনলাইন'}</span>
+                      </span>
+                      {selectedOrder.trxId && (
+                        <span className="bg-emerald-200/80 text-emerald-900 text-[10px] px-1.5 py-0.5 rounded font-black">
+                          TrxID যাচাই করুন
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-0.5 text-[11px] text-slate-700">
+                      {selectedOrder.senderNumber && (
+                        <p className="flex items-center justify-between">
+                          <span className="text-slate-500">প্রেরকের নম্বর:</span>
+                          <span className="font-mono font-bold text-slate-800">{selectedOrder.senderNumber}</span>
+                        </p>
+                      )}
+                      {selectedOrder.trxId ? (
+                        <p className="flex items-center justify-between bg-white px-2 py-1 rounded border border-emerald-200">
+                          <span className="text-emerald-800 font-semibold">TrxID:</span>
+                          <span className="font-mono font-black text-emerald-950 tracking-wider select-all">{selectedOrder.trxId}</span>
+                        </p>
+                      ) : (
+                        <p className="text-slate-400 italic">কোনো TrxID দেওয়া হয়নি</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Delivery Info */}
+                  <div className="bg-blue-50/70 border border-blue-200/80 p-2.5 rounded-xl flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-blue-900 flex items-center gap-1">
+                        <span>🚚</span>
+                        <span>{selectedOrder.courierName || 'পাঠাও কুরিয়ার'}</span>
+                      </span>
+                      <span className="text-[11px] font-black font-mono text-blue-900">
+                        {selectedOrder.deliveryCharge ? `৳${selectedOrder.deliveryCharge}` : 'ফ্রি ডেলিভারি'}
+                      </span>
+                    </div>
+                    {selectedOrder.courierOrTransportName ? (
+                      <p className="text-[11px] text-blue-950 font-bold bg-white px-2 py-1 rounded border border-blue-200">
+                        নির্দিষ্ট নাম: {selectedOrder.courierOrTransportName}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-500">সরাসরি নির্ধারিত কুরিয়ারে বুকিং হবে</p>
+                    )}
+                  </div>
                 </div>
               </div>
               <button 

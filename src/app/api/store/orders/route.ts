@@ -18,16 +18,28 @@ export async function POST(request: Request) {
       discount = 0,
       paymentOption,
       paymentProvider,
+      paymentMethod,
+      senderNumber,
       trxId,
       receiptNumber,
       remainingOption,
       remainingProvider,
       remainingTrxId,
       promiseDate,
+      deliveryOptionType = "pathao",
+      courierOrTransportName,
     } = await request.json();
     
     if (!customerName || !items || items.length === 0) {
       return NextResponse.json({ error: "customerName and items are required" }, { status: 400 });
+    }
+
+    // STRICT RULE: Reject "pay_later" completely from backend
+    if (paymentOption === "pay_later") {
+      return NextResponse.json(
+        { error: "'পরে পেমেন্ট করব' অপশনটি অনুমোদিত নয়। অনুগ্রহ করে সরাসরি পেমেন্ট সম্পন্ন করুন।" },
+        { status: 400 }
+      );
     }
 
     // Auto-create or link User Account
@@ -158,12 +170,48 @@ export async function POST(request: Request) {
       subtotal += finalUnitPrice * item.quantity;
     }
 
-    // Calculate delivery charge according to rules
-    const deliveryInfo = calculateDeliveryCost(itemsForDeliveryCalc);
-    const deliveryCharge = deliveryInfo.deliveryCharge;
-    const totalWeight = deliveryInfo.totalWeightKg;
-    const courierName = deliveryInfo.courierName;
-    const totalAmount = subtotal + deliveryCharge;
+    // Resolve Delivery Option & Charge from Database/Defaults
+    const selectedDeliveryType = (deliveryOptionType || "pathao").toLowerCase();
+    let deliveryCharge = 0;
+    let courierName = "পাঠাও কুরিয়ার";
+
+    let dbDeliveryOption = await (prisma as any).deliveryOption.findUnique({
+      where: { type: selectedDeliveryType },
+    });
+
+    if (dbDeliveryOption) {
+      deliveryCharge = Number(dbDeliveryOption.charge) || 0;
+      courierName = dbDeliveryOption.name;
+    } else {
+      if (selectedDeliveryType === "steadfast") {
+        deliveryCharge = 0;
+        courierName = "স্টিডফাস্ট কুরিয়ার";
+      } else if (selectedDeliveryType === "other_courier") {
+        deliveryCharge = 200;
+        courierName = "অন্যান্য কুরিয়ার";
+      } else if (selectedDeliveryType === "transport") {
+        deliveryCharge = 100;
+        courierName = "ট্রান্সপোর্ট";
+      } else {
+        deliveryCharge = 0;
+        courierName = "পাঠাও কুরিয়ার";
+      }
+    }
+
+    // Require custom name for other_courier and transport
+    if (
+      (dbDeliveryOption?.requiresName || selectedDeliveryType === "other_courier" || selectedDeliveryType === "transport") &&
+      (!courierOrTransportName || !courierOrTransportName.trim())
+    ) {
+      return NextResponse.json(
+        { error: `অনুগ্রহ করে নির্দিষ্ট ${courierName}-এর নাম লিখুন` },
+        { status: 400 }
+      );
+    }
+
+    const totalWeight = Math.round(itemsForDeliveryCalc.reduce((w, i) => w + (i.product?.weight || 0.25) * i.quantity, 0) * 10) / 10;
+    const finalDiscount = Number(discount) || 0;
+    const totalAmount = Math.max(0, subtotal - finalDiscount + deliveryCharge);
 
     // Generate invoice ID
     const count = await (prisma as any).storeSale.count();
@@ -196,11 +244,11 @@ export async function POST(request: Request) {
       paidAmount = paymentAmountFromReceipt;
     }
 
+    const courierDetailName = courierOrTransportName ? ` (${courierOrTransportName.trim()})` : '';
     const deliveryNoteSummary = deliveryCharge > 0 
-      ? ` | কুরিয়ার: ${courierName} (চার্জ: ${deliveryCharge} ৳, ওজন: ${totalWeight} কেজি)`
-      : ` | কুরিয়ার: ${courierName} (ফ্রি ডেলিভারি, ওজন: ${totalWeight} কেজি)`;
-    const promiseDateSummary = promiseDate ? ` | প্রতিশ্রুত পরিশোধের তারিখ: ${new Date(promiseDate).toLocaleDateString('bn-BD')}` : '';
-    const finalNotes = (notes || "Online Order") + deliveryNoteSummary + promiseDateSummary;
+      ? ` | ডেলিভারি: ${courierName}${courierDetailName} (চার্জ: ${deliveryCharge} ৳, ওজন: ${totalWeight} কেজি)`
+      : ` | ডেলিভারি: ${courierName}${courierDetailName} (ফ্রি ডেলিভারি, ওজন: ${totalWeight} কেজি)`;
+    const finalNotes = (notes || "Online Order") + deliveryNoteSummary;
 
     const initialTimeline = [
       {
@@ -215,7 +263,7 @@ export async function POST(request: Request) {
       }
     ];
 
-    // Create a StoreSale with status 'Pending Order' (does NOT deduct stock)
+    // Create a StoreSale with status 'Pending Order'
     let sale;
     try {
       sale = await (prisma as any).storeSale.create({
@@ -226,13 +274,17 @@ export async function POST(request: Request) {
           instituteId: instituteId || null,
           totalAmount,
           paidAmount,
-          discount: Number(discount) || 0,
+          discount: finalDiscount,
           previousDue,
           previousDueList,
           deliveryCharge,
           courierName,
+          deliveryOptionType: selectedDeliveryType,
+          courierOrTransportName: courierOrTransportName ? courierOrTransportName.trim() : null,
+          paymentMethod: paymentMethod || paymentProvider || "Online",
+          senderNumber: senderNumber ? String(senderNumber).trim() : null,
+          trxId: trxId ? String(trxId).trim() : null,
           totalWeight,
-          promiseDate: promiseDate ? new Date(promiseDate) : null,
           status: "Pending Order",
           notes: finalNotes,
           timeline: initialTimeline,
@@ -251,11 +303,15 @@ export async function POST(request: Request) {
           instituteId: instituteId || null,
           totalAmount,
           paidAmount,
-          discount: Number(discount) || 0,
+          discount: finalDiscount,
           deliveryCharge,
           courierName,
+          deliveryOptionType: selectedDeliveryType,
+          courierOrTransportName: courierOrTransportName ? courierOrTransportName.trim() : null,
+          paymentMethod: paymentMethod || paymentProvider || "Online",
+          senderNumber: senderNumber ? String(senderNumber).trim() : null,
+          trxId: trxId ? String(trxId).trim() : null,
           totalWeight,
-          promiseDate: promiseDate ? new Date(promiseDate) : null,
           status: "Pending Order",
           notes: finalNotes,
           timeline: initialTimeline,
@@ -275,9 +331,11 @@ export async function POST(request: Request) {
           payer: customerName,
           purpose: "Sale Payment",
           amount: totalAmount,
-          method: paymentProvider,
+          method: paymentMethod || paymentProvider || "Online",
           status: "Pending",
-          notes: `TrxID: ${trxId}`
+          senderNumber: senderNumber ? String(senderNumber).trim() : null,
+          trxId: trxId ? String(trxId).trim() : null,
+          notes: `Sender: ${senderNumber || 'N/A'}, TrxID: ${trxId}`
         }
       });
     } else if (paymentOption === 'money_receipt' && validReceipt) {

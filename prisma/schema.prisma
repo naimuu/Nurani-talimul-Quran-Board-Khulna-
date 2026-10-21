@@ -64,7 +64,8 @@ model BoardSettings {
   contacts   ContactInfo[]
   payments   PaymentMethod[]
   
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
 }
 
 model ContactInfo {
@@ -77,14 +78,36 @@ model ContactInfo {
 
 model PaymentMethod {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  type            String   
-  provider        String   
-  accountName     String?  
-  accountNumber   String   
-  branch          String?  
-  routingNo       String?  
-  boardSettingsId String   @db.ObjectId
-  boardSettings   BoardSettings @relation(fields: [boardSettingsId], references: [id], onDelete: Cascade)
+  type            String   @default("mobile") // mobile / bank
+  provider        String   // নগদ, বিকাশ, রকেট, ইসলামী ব্যাংক ইত্যাদি
+  name            String?  // ডিসপ্লে নাম
+  logo            String?  // লোগো ছবি
+  accountName     String?  // অ্যাকাউন্টধারীর নাম
+  accountNumber   String   // নম্বর
+  accountType     String?  // পার্সোনাল / মার্চেন্ট / এজেন্ট
+  branch          String?  // শুধু ব্যাংকের জন্য শাখা
+  routingNo       String?  // শুধু ব্যাংকের জন্য রাউটিং
+  qrCodeImage     String?  // কিউআর কোডের ছবি
+  instructions    String?  // পেমেন্ট নির্দেশনা (টেক্সট)
+  sortOrder       Int      @default(0) // ক্রম
+  isActive        Boolean  @default(true) // চালু বা বন্ধ
+  boardSettingsId String?  @db.ObjectId
+  boardSettings   BoardSettings? @relation(fields: [boardSettingsId], references: [id], onDelete: Cascade)
+  createdAt       DateTime? @default(now())
+  updatedAt       DateTime? @updatedAt
+}
+
+model DeliveryOption {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String   // পাঠাও, স্টিডফাস্ট, অন্যান্য কুরিয়ার, ট্রান্সপোর্ট
+  type            String   @unique // pathao, steadfast, other_courier, transport
+  charge          Float    @default(0)
+  requiresName    Boolean  @default(false)
+  description     String?
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Position {
@@ -179,6 +202,11 @@ model StoreSale {
   previousDueList Json?
   deliveryCharge Float?       @default(0)
   courierName  String?        @default("পাঠাও কুরিয়ার")
+  deliveryOptionType String?  // pathao | steadfast | other_courier | transport
+  courierOrTransportName String? // অন্যান্য কুরিয়ার বা ট্রান্সপোর্টের নাম
+  paymentMethod String?       // বিকাশ, নগদ, ইসলামী ব্যাংক ইত্যাদি
+  senderNumber String?        // প্রেরকের নম্বর / একাউন্ট
+  trxId        String?        // ট্রানজেকশন আইডি
   totalWeight  Float?         @default(0)
   status       String         @default("Pending") // Paid | Pending | Partial
   promiseDate  DateTime?
@@ -207,17 +235,22 @@ model StoreSaleItem {
 }
 
 model StorePayment {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  saleId     String?   @db.ObjectId
-  sale       StoreSale? @relation(fields: [saleId], references: [id])
-  payer      String
-  purpose    String
-  amount     Float
-  method     String    @default("Cash") // Cash | bKash | Nagad | Bank
-  status     String    @default("Completed") // Completed | Partial
-  notes      String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  saleId        String?   @db.ObjectId
+  sale          StoreSale? @relation(fields: [saleId], references: [id])
+  payer         String
+  purpose       String
+  amount        Float
+  method        String    @default("Cash") // Cash | bKash | Nagad | Bank
+  status        String    @default("Completed") // Completed | Partial | Pending | Rejected
+  senderNumber  String?
+  trxId         String?
+  screenshot    String?
+  verifiedBy    String?
+  verifiedAt    DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model CurriculumClass {

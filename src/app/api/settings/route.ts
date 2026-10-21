@@ -167,17 +167,94 @@ async function setCoverFlags(flags: {
   return merged;
 }
 
+const DEFAULT_PAYMENT_METHODS = [
+  {
+    type: "mobile",
+    provider: "bKash",
+    name: "বিকাশ",
+    accountNumber: "01700000000",
+    accountType: "পার্সোনাল",
+    instructions: "বিকাশ অ্যাপ অথবা *247# ডায়াল করে Send Money করুন এবং TrxID দিন।",
+    logo: "https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png",
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    type: "mobile",
+    provider: "Nagad",
+    name: "নগদ",
+    accountNumber: "01700000000",
+    accountType: "পার্সোনাল",
+    instructions: "নগদ অ্যাপ অথবা *167# ডায়াল করে Send Money করুন এবং TrxID দিন।",
+    logo: "https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png",
+    sortOrder: 2,
+    isActive: true,
+  },
+  {
+    type: "mobile",
+    provider: "Rocket",
+    name: "রকেট",
+    accountNumber: "01700000000",
+    accountType: "পার্সোনাল",
+    instructions: "রকেট অ্যাপ অথবা *322# ডায়াল করে Send Money করুন এবং TrxID দিন।",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Rocket_mobile_banking_logo.svg/512px-Rocket_mobile_banking_logo.svg.png",
+    sortOrder: 3,
+    isActive: true,
+  },
+  {
+    type: "bank",
+    provider: "Islami Bank",
+    name: "ইসলামী ব্যাংক",
+    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা",
+    accountNumber: "123456789",
+    branch: "খুলনা প্রধান শাখা",
+    routingNo: "125271822",
+    instructions: "ব্যাংক অ্যাকাউন্ট ডিপোজিট বা অনলাইন ট্রান্সফার করে ট্রানজেকশন স্লিপ বা রেফারেন্স নম্বর দিন।",
+    sortOrder: 4,
+    isActive: true,
+  },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET() {
   try {
     let settings = await prisma.boardSettings.findFirst({
-      include: { contacts: true, payments: true },
+      include: {
+        contacts: true,
+        payments: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
 
     if (!settings) {
       settings = await prisma.boardSettings.create({
-        data: {},
-        include: { contacts: true, payments: true },
+        data: {
+          payments: {
+            create: DEFAULT_PAYMENT_METHODS,
+          },
+        },
+        include: {
+          contacts: true,
+          payments: { orderBy: { sortOrder: 'asc' } },
+        },
+      });
+    } else if (!settings.payments || settings.payments.length === 0) {
+      // Auto-seed default payments if none exist
+      for (const p of DEFAULT_PAYMENT_METHODS) {
+        await (prisma as any).paymentMethod.create({
+          data: {
+            ...p,
+            boardSettingsId: settings.id,
+          },
+        });
+      }
+      settings = await prisma.boardSettings.findFirst({
+        where: { id: settings.id },
+        include: {
+          contacts: true,
+          payments: { orderBy: { sortOrder: 'asc' } },
+        },
       });
     }
 
@@ -215,14 +292,27 @@ export async function PUT(request: Request) {
             create: data.contacts.map((c: any) => ({ type: c.type, value: c.value }))
           } : undefined,
           payments: data.payments ? {
-            create: data.payments.map((p: any) => ({
-              type: p.type, provider: p.provider,
-              accountName: p.accountName, accountNumber: p.accountNumber,
-              branch: p.branch, routingNo: p.routingNo,
+            create: data.payments.map((p: any, idx: number) => ({
+              type: p.type || "mobile",
+              provider: p.provider || "",
+              name: p.name || p.provider || "",
+              logo: p.logo || null,
+              accountName: p.accountName || null,
+              accountNumber: p.accountNumber || "",
+              accountType: p.accountType || null,
+              branch: p.branch || null,
+              routingNo: p.routingNo || null,
+              qrCodeImage: p.qrCodeImage || null,
+              instructions: p.instructions || null,
+              sortOrder: p.sortOrder !== undefined ? Number(p.sortOrder) : idx + 1,
+              isActive: p.isActive !== undefined ? Boolean(p.isActive) : true,
             }))
           } : undefined,
         },
-        include: { contacts: true, payments: true },
+        include: {
+          contacts: true,
+          payments: { orderBy: { sortOrder: 'asc' } },
+        },
       });
     } else {
       settings = await prisma.boardSettings.create({
@@ -233,14 +323,27 @@ export async function PUT(request: Request) {
             create: data.contacts.map((c: any) => ({ type: c.type, value: c.value }))
           } : undefined,
           payments: data.payments ? {
-            create: data.payments.map((p: any) => ({
-              type: p.type, provider: p.provider,
-              accountName: p.accountName, accountNumber: p.accountNumber,
-              branch: p.branch, routingNo: p.routingNo,
+            create: data.payments.map((p: any, idx: number) => ({
+              type: p.type || "mobile",
+              provider: p.provider || "",
+              name: p.name || p.provider || "",
+              logo: p.logo || null,
+              accountName: p.accountName || null,
+              accountNumber: p.accountNumber || "",
+              accountType: p.accountType || null,
+              branch: p.branch || null,
+              routingNo: p.routingNo || null,
+              qrCodeImage: p.qrCodeImage || null,
+              instructions: p.instructions || null,
+              sortOrder: p.sortOrder !== undefined ? Number(p.sortOrder) : idx + 1,
+              isActive: p.isActive !== undefined ? Boolean(p.isActive) : true,
             }))
           } : undefined,
         },
-        include: { contacts: true, payments: true },
+        include: {
+          contacts: true,
+          payments: { orderBy: { sortOrder: 'asc' } },
+        },
       });
     }
 

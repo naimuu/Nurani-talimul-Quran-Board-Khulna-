@@ -484,18 +484,34 @@ export async function generateInvoiceHTML(
           <div class="info-item">
             <span class="label">পেমেন্ট মাধ্যম:</span>
             <span class="value" style="font-weight: 800;">${
-              isCustomer
-                ? (options.paymentMethod || "নগদ / বিকাশ / অনলাইন (পরিশোধিত)")
-                : (options.paymentMethod || (totalDue > 0 ? (paidAmount > 0 ? "নগদ ও বাকি" : "বাকিতে (বকেয়া)") : "নগদে (পরিশোধিত)"))
+              order.paymentMethod || options.paymentMethod || "অনলাইন / নগদ"
+            }</span>
+          </div>
+          ${order.senderNumber ? `
+          <div class="info-item">
+            <span class="label">প্রেরকের নম্বর:</span>
+            <span class="value" style="font-family: monospace; font-weight: 700;">${order.senderNumber}</span>
+          </div>` : ""}
+          ${order.trxId ? `
+          <div class="info-item">
+            <span class="label">TrxID / ট্রানজেকশন:</span>
+            <span class="value" style="font-family: monospace; font-weight: 700;">${order.trxId}</span>
+          </div>` : ""}
+          <div class="info-item">
+            <span class="label">পেমেন্ট অবস্থা:</span>
+            <span class="value" style="font-weight: 800;">${
+              isCustomer || paidAmount >= grandTotalBill && grandTotalBill > 0
+                ? '<span style="color: #065f46; font-weight: 800;">পরিশোধিত (PAID)</span>'
+                : (order.trxId ? '<span style="color: #1e40af; font-weight: 800;">যাচাই প্রক্রিয়াধীন (VERIFYING)</span>' : '<span style="color: #92400e; font-weight: 800;">অপেক্ষমান (PENDING)</span>')
             }</span>
           </div>
           <div class="info-item">
-            <span class="label">অর্ডার অবস্থা:</span>
-            <span class="value" style="font-weight: 800;">${isCustomer ? "অনুমোদিত ও পরিশোধিত" : getStatusText(order.status)}</span>
+            <span class="label">ডেলিভারি পদ্ধতি:</span>
+            <span class="value" style="font-weight: 700;">${courierName} ${order.courierOrTransportName ? `(${order.courierOrTransportName})` : ''}</span>
           </div>
           <div class="info-item">
-            <span class="label">ডেলিভারি কুরিয়ার:</span>
-            <span class="value">${courierName}</span>
+            <span class="label">ডেলিভারি চার্জ:</span>
+            <span class="value" style="font-weight: 800;">${deliveryCharge > 0 ? `৳${deliveryCharge.toFixed(2)}` : "৳০.০০ (ফ্রি)"}</span>
           </div>
         </div>
       </div>
@@ -549,21 +565,21 @@ export async function generateInvoiceHTML(
             <span>৳${itemsSubtotal.toFixed(2)}</span>
           </div>
           <div class="totals-row">
-            <span>কুরিয়ার চার্জ (${courierName}):</span>
+            <span>ডেলিভারি চার্জ (${courierName}${order.courierOrTransportName ? ` - ${order.courierOrTransportName}` : ''}):</span>
             <span>${deliveryCharge > 0 ? `৳${deliveryCharge.toFixed(2)}` : "৳০.০০ (ফ্রি)"}</span>
           </div>
-          ${order.discount ? `<div class="totals-row"><span>বিশেষ ছাড় / কমিশন:</span><span>-৳${order.discount.toFixed(2)}</span></div>` : ""}
+          ${order.discount ? `<div class="totals-row" style="color: #047857;"><span>বিশেষ ছাড় / কমিশন:</span><span>-৳${order.discount.toFixed(2)}</span></div>` : ""}
           
           ${
             isCustomer
               ? `
             <div class="totals-row grand" style="margin-top: 4px;">
-              <span>সর্বমোট পরিশোধিত বিল:</span>
+              <span>সর্বমোট প্রদেয় বিল:</span>
               <span>৳${order.totalAmount.toFixed(2)}</span>
             </div>
             <div class="totals-row" style="color: #000; font-weight: 700;">
               <span>পেমেন্ট স্ট্যাটাস:</span>
-              <span>পরিশোধিত (PAID)</span>
+              <span>পরিশোধিত (PAID) ✓</span>
             </div>
           `
               : `

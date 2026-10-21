@@ -9,8 +9,10 @@ const JWT_SECRET = new TextEncoder().encode(
 const ROLE_REDIRECT: Record<string, string> = {
   ADMIN: "/admin",
   MUHTAMIM: "/madrasa",
+  MADRASA: "/madrasa",
   MUALLIM: "/muallim",
   GENERAL: "/",
+  CUSTOMER: "/store",
   TRAINER: "/trainer",
   VISITOR: "/visitor",
 };
@@ -58,7 +60,7 @@ export async function middleware(request: NextRequest) {
 
     // All other /admin routes require strict ADMIN role
     if (!token) {
-      return NextResponse.redirect(new URL('/admin/login', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
 
     try {
@@ -73,7 +75,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL(ROLE_REDIRECT[role] || '/', request.url));
       }
     } catch (err) {
-      return NextResponse.redirect(new URL('/admin/login', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
 
     return NextResponse.next();
@@ -104,7 +106,7 @@ export async function middleware(request: NextRequest) {
   // 4. Protection for Visitor Panel (/visitor/*)
   if (pathname.startsWith('/visitor')) {
     if (!token) {
-      return NextResponse.redirect(new URL('/login/visitor', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
 
     try {
@@ -116,7 +118,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL(ROLE_REDIRECT[role] || '/', request.url));
       }
     } catch (err) {
-      return NextResponse.redirect(new URL('/login/visitor', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
 
     return NextResponse.next();

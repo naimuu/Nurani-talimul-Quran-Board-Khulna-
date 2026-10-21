@@ -28,7 +28,10 @@ import {
   Calendar,
   Clock,
   Building2,
-  Download
+  Download,
+  Truck,
+  Smartphone,
+  QrCode
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
@@ -103,19 +106,26 @@ export default function QuestionOrderPage() {
     address?: boolean;
   }>({});
 
-  // Payment States
+  // Delivery Options State
+  const [deliveryOptions, setDeliveryOptions] = useState<any[]>([]);
+  const [selectedDeliveryType, setSelectedDeliveryType] = useState<string>("pathao");
+  const [courierOrTransportName, setCourierOrTransportName] = useState<string>("");
+
+  // Payment States (Strictly dynamic methods & money receipt, NO pay later)
   const [paymentStep, setPaymentStep] = useState(false);
-  const [paymentOption, setPaymentOption] = useState<"pay_now" | "pay_later" | "money_receipt">("pay_now");
-  const [paymentProvider, setPaymentProvider] = useState<"bKash" | "Nagad" | "Rocket" | "Bank">("bKash");
+  const [paymentOption, setPaymentOption] = useState<"pay_now" | "money_receipt">("pay_now");
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [selectedPaymentTab, setSelectedPaymentTab] = useState<"mobile" | "bank">("mobile");
+  const [selectedMethodId, setSelectedMethodId] = useState<string>("");
+  const [senderNumber, setSenderNumber] = useState("");
   const [trxId, setTrxId] = useState("");
-  const [promiseDate, setPromiseDate] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
   const [receiptVerifyStatus, setReceiptVerifyStatus] = useState<"idle" | "verifying" | "valid" | "invalid">("idle");
   const [receiptVerifyMsg, setReceiptVerifyMsg] = useState("");
   const [receiptBalance, setReceiptBalance] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [remainingOption, setRemainingOption] = useState<"pay_now" | "pay_later" | "skip_receipt">("pay_now");
-  const [remainingProvider, setRemainingProvider] = useState<"bKash" | "Nagad" | "Rocket" | "Bank">("bKash");
+  const [remainingOption, setRemainingOption] = useState<"pay_now" | "skip_receipt">("pay_now");
+  const [remainingSenderNumber, setRemainingSenderNumber] = useState("");
   const [remainingTrxId, setRemainingTrxId] = useState("");
   const [remainingCopied, setRemainingCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -132,7 +142,7 @@ export default function QuestionOrderPage() {
   const [zimadarPhone, setZimadarPhone] = useState("");
   const [zimadarMadrasasList, setZimadarMadrasasList] = useState<string[]>([""]);
 
-  // Fetch dynamic Zimadar commission configuration from settings
+  // Fetch dynamic settings, payment methods and delivery options
   useEffect(() => {
     fetch(`/api/settings?t=${Date.now()}`)
       .then((r) => r.json())
@@ -144,6 +154,25 @@ export default function QuestionOrderPage() {
             minOrderAmount: data.zimadarMinOrderAmount ?? 5000,
             enabled: data.zimadarCommissionEnabled ?? true,
           });
+        }
+        if (Array.isArray(data?.payments)) {
+          const active = data.payments.filter((p: any) => p.isActive !== false);
+          setPaymentMethods(active);
+          if (active.length > 0) {
+            const firstMob = active.find((p: any) => p.type === "mobile" || p.type === "MOBILE_BANKING") || active[0];
+            setSelectedMethodId(firstMob.id || firstMob.provider);
+          }
+        }
+      })
+      .catch(() => {});
+
+    fetch(`/api/delivery-options?t=${Date.now()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setDeliveryOptions(data);
+          const firstActive = data.find((d: any) => d.isActive !== false);
+          if (firstActive) setSelectedDeliveryType(firstActive.type);
         }
       })
       .catch(() => {});
@@ -550,9 +579,41 @@ export default function QuestionOrderPage() {
     return Math.round(totalAmount * (zimadarConfig.percent / 100));
   }, [isCommissionQualified, totalAmount, zimadarConfig.percent]);
 
+  const selectedDeliveryOption = useMemo(() => {
+    return deliveryOptions.find((d) => d.type === selectedDeliveryType) || {
+      name: "পাঠাও কুরিয়ার",
+      type: "pathao",
+      charge: 0,
+      requiresName: false,
+    };
+  }, [deliveryOptions, selectedDeliveryType]);
+
+  const deliveryCharge = Number(selectedDeliveryOption.charge) || 0;
+
   const finalPayableAmount = useMemo(() => {
-    return Math.max(0, totalAmount - commissionDiscount);
-  }, [totalAmount, commissionDiscount]);
+    return Math.max(0, totalAmount - commissionDiscount + deliveryCharge);
+  }, [totalAmount, commissionDiscount, deliveryCharge]);
+
+  const activeMethods = useMemo(() => {
+    return paymentMethods.filter((p) => p.isActive !== false);
+  }, [paymentMethods]);
+
+  const mobileMethods = useMemo(() => {
+    return activeMethods.filter((p) => p.type === "mobile" || p.type === "MOBILE_BANKING");
+  }, [activeMethods]);
+
+  const bankMethods = useMemo(() => {
+    return activeMethods.filter((p) => p.type === "bank" || p.type === "BANK");
+  }, [activeMethods]);
+
+  const selectedMethod = useMemo(() => {
+    if (selectedMethodId) {
+      const found = activeMethods.find((p) => (p.id ? String(p.id) === String(selectedMethodId) : p.provider === selectedMethodId));
+      if (found) return found;
+    }
+    const currentList = selectedPaymentTab === "mobile" ? mobileMethods : bankMethods;
+    return currentList[0] || activeMethods[0] || null;
+  }, [selectedMethodId, selectedPaymentTab, activeMethods, mobileMethods, bankMethods]);
 
   const addZimadarMadrasa = () => {
     setZimadarMadrasasList((prev) => [...prev, ""]);
@@ -683,18 +744,16 @@ export default function QuestionOrderPage() {
     }
   };
 
-  const handleCopyNumber = (prov: string = paymentProvider) => {
-    const number = prov === "Bank" ? "123456789" : "01700000000";
-    navigator.clipboard.writeText(number);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleRemainingCopy = () => {
-    const number = remainingProvider === "Bank" ? "123456789" : "01700000000";
-    navigator.clipboard.writeText(number);
-    setRemainingCopied(true);
-    setTimeout(() => setRemainingCopied(false), 2000);
+  const handleCopyText = (text: string, isRemaining: boolean = false) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    if (isRemaining) {
+      setRemainingCopied(true);
+      setTimeout(() => setRemainingCopied(false), 2000);
+    } else {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const validateAndProceedToPayment = () => {
@@ -725,6 +784,11 @@ export default function QuestionOrderPage() {
       toast.error("অনুগ্রহ করে অন্তত একটি প্রশ্নপত্র সেটের পরিমাণ নির্বাচন করুন");
       return;
     }
+    if (selectedDeliveryOption?.requiresName && !courierOrTransportName.trim()) {
+      setErrorMsg(`অনুগ্রহ করে ${selectedDeliveryOption.name}-এর নাম উল্লেখ করুন`);
+      toast.error(`অনুগ্রহ করে ${selectedDeliveryOption.name}-এর নাম উল্লেখ করুন`);
+      return;
+    }
     setPaymentStep(true);
   };
 
@@ -744,13 +808,25 @@ export default function QuestionOrderPage() {
       return;
     }
 
-    const isPartialReceipt = paymentOption === "money_receipt" && receiptVerifyStatus === "valid" && receiptBalance < finalPayableAmount;
-    const effectivePaymentOption = (paymentOption === "money_receipt" && isPartialReceipt && remainingOption === "skip_receipt") ? "pay_later" : paymentOption;
-
-    if (effectivePaymentOption === "pay_now" && !trxId.trim()) {
-      setErrorMsg("পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
-      toast.error("পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
+    if (selectedDeliveryOption?.requiresName && !courierOrTransportName.trim()) {
+      setErrorMsg(`অনুগ্রহ করে ${selectedDeliveryOption.name}-এর নাম উল্লেখ করুন`);
+      toast.error(`অনুগ্রহ করে ${selectedDeliveryOption.name}-এর নাম উল্লেখ করুন`);
       return;
+    }
+
+    const isPartialReceipt = paymentOption === "money_receipt" && receiptVerifyStatus === "valid" && receiptBalance < finalPayableAmount;
+
+    if (paymentOption === "pay_now") {
+      if (!senderNumber.trim()) {
+        setErrorMsg("যে নম্বর বা অ্যাকাউন্ট থেকে পেমেন্ট পাঠিয়েছেন তা লিখুন");
+        toast.error("যে নম্বর বা অ্যাকাউন্ট থেকে পেমেন্ট পাঠিয়েছেন তা লিখুন");
+        return;
+      }
+      if (!trxId.trim()) {
+        setErrorMsg("পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
+        toast.error("পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
+        return;
+      }
     }
 
     if (paymentOption === "money_receipt") {
@@ -759,22 +835,18 @@ export default function QuestionOrderPage() {
         toast.error("মানি রিসিট নম্বর সঠিক নয় বা যাচাই করা হয়নি");
         return;
       }
-      if (isPartialReceipt && remainingOption === "pay_now" && !remainingTrxId.trim()) {
-        setErrorMsg("বাকি টাকার ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
-        toast.error("বাকি টাকার ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
-        return;
+      if (isPartialReceipt && remainingOption === "pay_now") {
+        if (!remainingSenderNumber.trim()) {
+          setErrorMsg("বাকি টাকার প্রেরক নম্বর বা অ্যাকাউন্ট লিখুন");
+          toast.error("বাকি টাকার প্রেরক নম্বর বা অ্যাকাউন্ট লিখুন");
+          return;
+        }
+        if (!remainingTrxId.trim()) {
+          setErrorMsg("বাকি টাকার ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
+          toast.error("বাকি টাকার ট্রানজেকশন আইডি (TrxID) প্রদান করুন");
+          return;
+        }
       }
-      if (isPartialReceipt && remainingOption === "pay_later" && !promiseDate) {
-        setErrorMsg("বাকি টাকা পরিশোধের প্রতিশ্রুত তারিখ নির্বাচন করুন");
-        toast.error("বাকি টাকা পরিশোধের প্রতিশ্রুত তারিখ নির্বাচন করুন");
-        return;
-      }
-    }
-
-    if (effectivePaymentOption === "pay_later" && !promiseDate) {
-      setErrorMsg("পরিশোধের প্রতিশ্রুত তারিখ (Promise Date) নির্বাচন করুন");
-      toast.error("পরিশোধের প্রতিশ্রুত তারিখ (Promise Date) নির্বাচন করুন");
-      return;
     }
 
     setIsSubmitting(true);
@@ -812,11 +884,15 @@ export default function QuestionOrderPage() {
         ? ` | [কেন্দ্র জিম্মাদার: ${zimadarName.trim() || ownerName.trim()} (ফোন: ${zimadarPhone.trim() || contactNo.trim()}) | মাদরাসা তালিকা (${validMadrasasCount}টি): ${zimadarMadrasasList.map((m) => m.trim()).filter(Boolean).join(", ")}${isCommissionQualified ? ` | কমিশন: ৳${commissionDiscount} (${zimadarConfig.percent}%)` : ""}]`
         : "";
 
-      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}${zimadarNote}`;
+      const courierNote = selectedDeliveryOption?.requiresName && courierOrTransportName.trim()
+        ? ` | [${selectedDeliveryOption.name}: ${courierOrTransportName.trim()}]`
+        : ` | [ডেলিভারি মাধ্যম: ${selectedDeliveryOption?.name || selectedDeliveryType}]`;
 
-      const effectiveTrxId = effectivePaymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt && remainingOption === "pay_now" ? remainingTrxId.trim() : undefined);
-      const effectiveProvider = effectivePaymentOption === "pay_now" ? paymentProvider : (isPartialReceipt && remainingOption === "pay_now" ? remainingProvider : undefined);
-      const effectivePromiseDate = (effectivePaymentOption === "pay_later" || (isPartialReceipt && remainingOption === "pay_later")) ? promiseDate : undefined;
+      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}${zimadarNote}${courierNote}`;
+
+      const effectiveSenderNumber = paymentOption === "pay_now" ? senderNumber.trim() : (isPartialReceipt && remainingOption === "pay_now" ? remainingSenderNumber.trim() : undefined);
+      const effectiveTrxId = paymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt && remainingOption === "pay_now" ? remainingTrxId.trim() : undefined);
+      const effectiveMethodName = selectedMethod?.name || selectedMethod?.provider || "Direct Payment";
 
       const res = await fetch("/api/store/orders", {
         method: "POST",
@@ -827,12 +903,16 @@ export default function QuestionOrderPage() {
           instituteId: instituteName.trim(),
           items: orderItems,
           notes: fullNotes,
-          paymentOption: effectivePaymentOption,
-          paymentProvider: effectiveProvider,
+          paymentOption: paymentOption === "money_receipt" && remainingOption !== "skip_receipt" ? "money_receipt" : "pay_now",
+          paymentProvider: effectiveMethodName,
+          paymentMethod: effectiveMethodName,
+          senderNumber: effectiveSenderNumber,
           trxId: effectiveTrxId,
           receiptNumber: paymentOption === "money_receipt" && remainingOption !== "skip_receipt" ? receiptNumber.trim() : undefined,
-          promiseDate: effectivePromiseDate,
           discount: isCommissionQualified ? commissionDiscount : 0,
+          deliveryOptionType: selectedDeliveryType,
+          courierOrTransportName: courierOrTransportName.trim() || undefined,
+          deliveryCharge: deliveryCharge,
           totalAmount: finalPayableAmount,
         })
       });
@@ -1868,6 +1948,69 @@ export default function QuestionOrderPage() {
                     )}
                   </div>
 
+                  {/* Delivery Options Selector */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
+                    <label className="block text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                      <Truck className="w-4 h-4 text-[#095738]" />
+                      <span>ডেলিভারি মাধ্যম নির্বাচন করুন <span className="text-red-500">*</span></span>
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {(deliveryOptions.length > 0 ? deliveryOptions.filter(d => d.isActive !== false) : [
+                        { type: "pathao", name: "পাঠাও কুরিয়ার", charge: 0, requiresName: false },
+                        { type: "steadfast", name: "স্টিডফাস্ট কুরিয়ার", charge: 0, requiresName: false },
+                        { type: "other_courier", name: "অন্যান্য কুরিয়ার", charge: 200, requiresName: true },
+                        { type: "transport", name: "পরিবহন / ট্রান্সপোর্ট", charge: 100, requiresName: true },
+                      ]).map((d: any) => {
+                        const isSelected = selectedDeliveryType === d.type;
+                        return (
+                          <button
+                            key={d.type}
+                            type="button"
+                            onClick={() => setSelectedDeliveryType(d.type)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                              isSelected
+                                ? "border-[#095738] bg-emerald-50/70 shadow-xs ring-1 ring-[#095738]"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full mb-1">
+                              <span className={`text-xs font-bold ${isSelected ? "text-[#095738]" : "text-slate-800"}`}>
+                                {d.name}
+                              </span>
+                              <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                                isSelected ? "border-[#095738] bg-[#095738]" : "border-slate-300"
+                              }`}>
+                                {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                              </span>
+                            </div>
+                            <span className={`text-[11px] font-semibold ${Number(d.charge) === 0 ? "text-emerald-700" : "text-amber-700"}`}>
+                              {Number(d.charge) === 0 ? "ফ্রি (৳০)" : `চার্জ: +৳${d.charge}`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedDeliveryOption?.requiresName && (
+                      <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5 animate-in fade-in">
+                        <label className="block text-xs font-bold text-amber-950">
+                          {selectedDeliveryOption.name}-এর নাম লিখুন <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={courierOrTransportName}
+                          onChange={(e) => setCourierOrTransportName(e.target.value)}
+                          placeholder="যেমন: সুন্দরবন কুরিয়ার / এসএ পরিবহন / দিগন্ত পরিবহন"
+                          className="w-full px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-semibold focus:outline-emerald-700 placeholder:text-slate-400"
+                        />
+                        <p className="text-[10px] text-amber-800">
+                          📌 আপনার সুবিধাজনক কুরিয়ার সার্ভিস বা বাসের নাম উল্লেখ করুন যাতে আমরা সঠিক মাধ্যমে পার্সেল পাঠাতে পারি।
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Order Bill Summary */}
                   <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
                     <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
@@ -1884,6 +2027,12 @@ export default function QuestionOrderPage() {
                         <span>-৳{commissionDiscount.toFixed(2)}</span>
                       </div>
                     )}
+                    <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
+                      <span>ডেলিভারি চার্জ ({selectedDeliveryOption.name}):</span>
+                      <span className={`font-bold ${deliveryCharge === 0 ? "text-emerald-700" : "text-slate-800"}`}>
+                        {deliveryCharge === 0 ? "ফ্রি (৳০)" : `+৳${deliveryCharge.toFixed(2)}`}
+                      </span>
+                    </div>
                     <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                       <span className="font-bold text-slate-700 text-sm sm:text-base">সর্বমোট প্রদেয় বিল:</span>
                       <span className="text-xl sm:text-2xl font-black text-[#095738]">৳{finalPayableAmount.toFixed(2)}</span>
@@ -1918,7 +2067,11 @@ export default function QuestionOrderPage() {
               ) : (
                 /* Step 2: Payment Options */
                 <div className="animate-in slide-in-from-right-4 space-y-4">
-                  <h3 className="font-bold text-slate-700 text-sm sm:text-base text-center">কিভাবে পেমেন্ট করতে চান?</h3>
+                  <div className="text-center">
+                    <h3 className="font-bold text-slate-800 text-sm sm:text-base">পেমেন্ট মাধ্যম ও বিবরণ</h3>
+                    <p className="text-[11px] text-slate-500">সঠিক তথ্য দিয়ে দ্রুত অর্ডার নিশ্চিত করুন</p>
+                  </div>
+
                   {errorMsg && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2 animate-in fade-in">
                       <span className="shrink-0 text-sm">⚠️</span>
@@ -1936,68 +2089,163 @@ export default function QuestionOrderPage() {
                         onChange={() => setPaymentOption("pay_now")}
                         className="w-4.5 h-4.5 text-[#095738] focus:ring-[#095738]"
                       />
-                      <span className="font-bold text-slate-800 text-sm">এখনই পেমেন্ট করুন</span>
+                      <span className="font-bold text-slate-800 text-sm">সরাসরি পেমেন্ট (Pay Now)</span>
                     </label>
 
                     {paymentOption === "pay_now" && (
-                      <div className="pl-6 sm:pl-8 pr-2 pb-2 animate-in fade-in space-y-3">
-                        <div className="grid grid-cols-4 gap-2">
-                          {[
-                            { id: "bKash", name: "bKash", logo: "https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" },
-                            { id: "Nagad", name: "Nagad", logo: "https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png" },
-                            { id: "Rocket", name: "Rocket", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Rocket_mobile_banking_logo.svg/512px-Rocket_mobile_banking_logo.svg.png" },
-                            { id: "Bank", name: "Bank" }
-                          ].map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => setPaymentProvider(p.id as any)}
-                              className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all border-2 cursor-pointer ${
-                                paymentProvider === p.id ? "border-[#095738] bg-emerald-50" : "border-slate-100 hover:border-slate-300 bg-white"
-                              }`}
-                            >
-                              <div className="h-9 flex items-center justify-center">
-                                {p.logo ? (
-                                  <img src={p.logo} alt={p.name} className="max-h-full max-w-full object-contain" />
-                                ) : (
-                                  <Building2 className={`w-7 h-7 ${paymentProvider === p.id ? "text-[#095738]" : "text-slate-600"}`} />
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-blue-800 font-medium mb-0.5">এই নাম্বারে টাকা পাঠিয়ে TrxID দিন:</p>
-                            <p className="text-sm sm:text-base font-black text-blue-950 tracking-wider">
-                              {paymentProvider === "bKash" ? "01700000000 (bKash)" :
-                                paymentProvider === "Nagad" ? "01700000000 (Nagad)" :
-                                  paymentProvider === "Rocket" ? "01700000000 (Rocket)" : "A/C: 123456789, Islami Bank"}
-                            </p>
-                          </div>
+                      <div className="pl-4 sm:pl-6 pr-1 pb-2 animate-in fade-in space-y-3">
+                        {/* Payment Type Tabs: Mobile Banking vs Bank */}
+                        <div className="flex border border-slate-200 rounded-xl p-1 bg-slate-50 gap-1">
                           <button
                             type="button"
-                            onClick={() => handleCopyNumber(paymentProvider)}
-                            className="flex flex-col items-center justify-center bg-white border border-blue-200 text-blue-700 rounded-lg w-11 h-11 hover:bg-blue-100 transition-colors shrink-0 cursor-pointer"
-                            title="নম্বর কপি করুন"
+                            onClick={() => {
+                              setSelectedPaymentTab("mobile");
+                              if (mobileMethods.length > 0) setSelectedMethodId(mobileMethods[0].id || mobileMethods[0].provider);
+                            }}
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              selectedPaymentTab === "mobile"
+                                ? "bg-white text-[#095738] shadow-xs border border-slate-200"
+                                : "text-slate-600 hover:text-slate-900"
+                            }`}
                           >
-                            {copied ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                            <span className="text-[9px] font-bold mt-0.5">{copied ? "Copied" : "Copy"}</span>
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>মোবাইল ব্যাংকিং ({mobileMethods.length})</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPaymentTab("bank");
+                              if (bankMethods.length > 0) setSelectedMethodId(bankMethods[0].id || bankMethods[0].provider);
+                            }}
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              selectedPaymentTab === "bank"
+                                ? "bg-white text-[#095738] shadow-xs border border-slate-200"
+                                : "text-slate-600 hover:text-slate-900"
+                            }`}
+                          >
+                            <Building2 className="w-3.5 h-3.5" />
+                            <span>ব্যাংক অ্যাকাউন্ট ({bankMethods.length})</span>
                           </button>
                         </div>
 
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">
-                            ট্রানজেকশন আইডি (TrxID) / রশিদ নং <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={trxId}
-                            onChange={(e) => setTrxId(e.target.value)}
-                            placeholder="ট্রানজেকশন আইডি / রশিদ নং লিখুন"
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
-                          />
+                        {/* Method Selection Buttons */}
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {(selectedPaymentTab === "mobile" ? mobileMethods : bankMethods).map((m: any) => {
+                            const isCur = selectedMethod && ((m.id && selectedMethod.id === m.id) || selectedMethod.provider === m.provider);
+                            return (
+                              <button
+                                key={m.id || m.provider}
+                                type="button"
+                                onClick={() => setSelectedMethodId(m.id || m.provider)}
+                                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all cursor-pointer ${
+                                  isCur ? "border-[#095738] bg-emerald-50 shadow-xs" : "border-slate-100 hover:border-slate-300 bg-white"
+                                }`}
+                              >
+                                <div className="h-8 flex items-center justify-center mb-1">
+                                  {m.logo ? (
+                                    <img src={m.logo} alt={m.name || m.provider} className="max-h-full max-w-full object-contain" />
+                                  ) : (
+                                    <Building2 className={`w-6 h-6 ${isCur ? "text-[#095738]" : "text-slate-500"}`} />
+                                  )}
+                                </div>
+                                <span className={`text-[11px] font-bold truncate max-w-full ${isCur ? "text-[#095738]" : "text-slate-700"}`}>
+                                  {m.name || m.provider}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Selected Method Details Card */}
+                        {selectedMethod && (
+                          <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-blue-950">{selectedMethod.name || selectedMethod.provider}</span>
+                                  {selectedMethod.accountType && (
+                                    <span className="text-[10px] bg-blue-200/70 text-blue-800 font-bold px-1.5 py-0.5 rounded">
+                                      {selectedMethod.accountType}
+                                    </span>
+                                  )}
+                                </div>
+                                {selectedMethod.branch && (
+                                  <p className="text-[11px] text-blue-800 mt-0.5 font-medium">
+                                    শাখা: {selectedMethod.branch} {selectedMethod.routingNo ? `| রাউটিং: ${selectedMethod.routingNo}` : ""}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyText(selectedMethod.number || selectedMethod.accountNumber)}
+                                className="flex items-center gap-1 bg-white border border-blue-300 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 cursor-pointer transition-colors shadow-2xs"
+                                title="নম্বর কপি করুন"
+                              >
+                                {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                <span>{copied ? "কপি হয়েছে" : "কপি করুন"}</span>
+                              </button>
+                            </div>
+
+                            <div className="bg-white p-2.5 rounded-lg border border-blue-100 flex items-center justify-between">
+                              <span className="text-xs text-slate-500 font-medium">হিসাব / মোবাইল নম্বর:</span>
+                              <span className="text-sm font-black text-blue-950 font-mono tracking-wider select-all">
+                                {selectedMethod.number || selectedMethod.accountNumber || "—"}
+                              </span>
+                            </div>
+
+                            {selectedMethod.qrCodeImage && (
+                              <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-blue-100">
+                                <img
+                                  src={selectedMethod.qrCodeImage}
+                                  alt="QR Code"
+                                  className="w-16 h-16 object-contain rounded border border-slate-200 bg-white"
+                                />
+                                <div>
+                                  <span className="text-xs font-bold text-slate-800 block flex items-center gap-1">
+                                    <QrCode className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>QR কোড স্ক্যান করে পেমেন্ট করুন</span>
+                                  </span>
+                                  <span className="text-[10px] text-slate-500">
+                                    অ্যাপ দিয়ে সরাসরি স্ক্যান করে দ্রুত পেমেন্ট সম্পন্ন করতে পারেন।
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {selectedMethod.instructions && (
+                              <p className="text-[11px] text-blue-900 bg-blue-100/60 p-2 rounded-lg leading-relaxed font-medium">
+                                💡 {selectedMethod.instructions}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Sender Number & TrxID Inputs */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">
+                              প্রেরক নম্বর / A/C <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={senderNumber}
+                              onChange={(e) => setSenderNumber(e.target.value)}
+                              placeholder="যে নম্বর থেকে টাকা পাঠিয়েছেন"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">
+                              ট্রানজেকশন আইডি (TrxID) <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={trxId}
+                              onChange={(e) => setTrxId(e.target.value)}
+                              placeholder="TrxID লিখুন (যেমন: 9J4K2L8M1)"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2015,7 +2263,7 @@ export default function QuestionOrderPage() {
                     </label>
 
                     {paymentOption === "money_receipt" && (
-                      <div className="pl-6 sm:pl-8 pr-2 pb-2 animate-in fade-in space-y-3">
+                      <div className="pl-4 sm:pl-6 pr-1 pb-2 animate-in fade-in space-y-3">
                         <div>
                           <label className="block text-xs font-bold text-slate-700 mb-1">
                             মানি রিসিট নম্বর <span className="text-red-500">*</span>
@@ -2073,7 +2321,7 @@ export default function QuestionOrderPage() {
                             </div>
 
                             <div className="bg-white p-3 space-y-2">
-                              <p className="text-xs font-bold text-slate-700 mb-2">বাকি টাকা কিভাবে দিবেন?</p>
+                              <p className="text-xs font-bold text-slate-700 mb-2">বাকি টাকা এখনই পরিশোধ করুন:</p>
 
                               <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${remainingOption === "pay_now" ? "border-[#095738] bg-emerald-50" : "border-slate-200"}`}>
                                 <input type="radio" checked={remainingOption === "pay_now"} onChange={() => setRemainingOption("pay_now")} className="w-4 h-4 text-[#095738]" />
@@ -2081,68 +2329,42 @@ export default function QuestionOrderPage() {
                               </label>
 
                               {remainingOption === "pay_now" && (
-                                <div className="pl-6 space-y-2 animate-in fade-in">
-                                  <div className="grid grid-cols-4 gap-1.5">
-                                    {[
-                                      { id: "bKash", logo: "https://freelogopng.com/images/all_img/1656234745bkash-app-logo-png.png" },
-                                      { id: "Nagad", logo: "https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png" },
-                                      { id: "Rocket", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Rocket_mobile_banking_logo.svg/512px-Rocket_mobile_banking_logo.svg.png" },
-                                      { id: "Bank" }
-                                    ].map((p) => (
+                                <div className="pl-4 space-y-2.5 animate-in fade-in">
+                                  {selectedMethod && (
+                                    <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
+                                      <div>
+                                        <p className="text-[11px] text-blue-700 font-medium">
+                                          বাকি ৳{(finalPayableAmount - receiptBalance).toFixed(2)} পাঠান:
+                                        </p>
+                                        <p className="text-xs font-black text-blue-900 font-mono">
+                                          {selectedMethod.number || selectedMethod.accountNumber} ({selectedMethod.name || selectedMethod.provider})
+                                        </p>
+                                      </div>
                                       <button
-                                        key={p.id}
                                         type="button"
-                                        onClick={() => setRemainingProvider(p.id as any)}
-                                        className={`flex items-center justify-center p-1.5 rounded-lg border-2 transition-all cursor-pointer ${
-                                          remainingProvider === p.id ? "border-[#095738] bg-emerald-50" : "border-slate-100 bg-white"
-                                        }`}
+                                        onClick={() => handleCopyText(selectedMethod.number || selectedMethod.accountNumber, true)}
+                                        className="bg-white border border-blue-200 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 cursor-pointer"
                                       >
-                                        {p.logo ? <img src={p.logo} alt={p.id} className="h-6 object-contain" /> : <Building2 className="w-5 h-5 text-slate-600" />}
+                                        {remainingCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                                       </button>
-                                    ))}
-                                  </div>
-                                  <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
-                                    <div>
-                                      <p className="text-[11px] text-blue-700 font-medium">বাকি ৳{(finalPayableAmount - receiptBalance).toFixed(2)} পাঠান:</p>
-                                      <p className="text-xs font-black text-blue-900">
-                                        {remainingProvider === "Bank" ? "A/C: 123456789" : `01700000000 (${remainingProvider})`}
-                                      </p>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={handleRemainingCopy}
-                                      className="bg-white border border-blue-200 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 cursor-pointer"
-                                    >
-                                      {remainingCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                                    </button>
+                                  )}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <input
+                                      type="text"
+                                      value={remainingSenderNumber}
+                                      onChange={(e) => setRemainingSenderNumber(e.target.value)}
+                                      placeholder="প্রেরক নম্বর / অ্যাকাউন্ট *"
+                                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={remainingTrxId}
+                                      onChange={(e) => setRemainingTrxId(e.target.value)}
+                                      placeholder="বাকি টাকার TrxID *"
+                                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
+                                    />
                                   </div>
-                                  <input
-                                    type="text"
-                                    value={remainingTrxId}
-                                    onChange={(e) => setRemainingTrxId(e.target.value)}
-                                    placeholder="বাকি টাকার ট্রানজেকশন আইডি / রশিদ নং লিখুন"
-                                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#095738] text-xs font-semibold"
-                                  />
-                                </div>
-                              )}
-
-                              <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${remainingOption === "pay_later" ? "border-[#095738] bg-emerald-50" : "border-slate-200"}`}>
-                                <input type="radio" checked={remainingOption === "pay_later"} onChange={() => setRemainingOption("pay_later")} className="w-4 h-4 text-[#095738]" />
-                                <span className="font-bold">বাকি পরে দেব (বাকি বাকি থাকবে)</span>
-                              </label>
-
-                              {remainingOption === "pay_later" && (
-                                <div className="pl-6 space-y-1.5 animate-in fade-in">
-                                  <label className="block text-xs font-bold text-slate-700">
-                                    বাকি টাকা পরিশোধের প্রতিশ্রুত তারিখ (Promise Date) <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="date"
-                                    value={promiseDate}
-                                    min={new Date().toISOString().split("T")[0]}
-                                    onChange={(e) => setPromiseDate(e.target.value)}
-                                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#095738] cursor-pointer"
-                                  />
                                 </div>
                               )}
 
@@ -2153,36 +2375,6 @@ export default function QuestionOrderPage() {
                             </div>
                           </div>
                         )}
-                      </div>
-                    )}
-
-                    {/* Option 3: Pay Later */}
-                    <label className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${paymentOption === "pay_later" ? "border-[#095738] bg-emerald-50/50 ring-1 ring-[#095738]" : "border-slate-200 hover:border-[#095738]/50"}`}>
-                      <input
-                        type="radio"
-                        name="payment_opt"
-                        checked={paymentOption === "pay_later"}
-                        onChange={() => setPaymentOption("pay_later")}
-                        className="w-4.5 h-4.5 text-[#095738] focus:ring-[#095738]"
-                      />
-                      <span className="font-bold text-slate-800 text-sm">পরে পেমেন্ট করব</span>
-                    </label>
-
-                    {paymentOption === "pay_later" && (
-                      <div className="pl-6 sm:pl-8 pr-2 pb-2 animate-in fade-in space-y-2">
-                        <label className="block text-xs font-bold text-slate-700">
-                          কবে পরিশোধ করতে চান? (প্রতিশ্রুত তারিখ / Promise Date) <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="date"
-                          value={promiseDate}
-                          min={new Date().toISOString().split("T")[0]}
-                          onChange={(e) => setPromiseDate(e.target.value)}
-                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#095738]/20 focus:border-[#095738] transition-all cursor-pointer shadow-2xs"
-                        />
-                        <p className="text-[11px] text-slate-500">
-                          💡 আপনি যে তারিখে বকেয়া টাকা পরিশোধ করতে পারবেন সেই নির্দিষ্ট তারিখটি নির্বাচন করুন।
-                        </p>
                       </div>
                     )}
                   </div>

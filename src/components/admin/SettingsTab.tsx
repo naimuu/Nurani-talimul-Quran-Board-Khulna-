@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Briefcase, Users, Phone, Building2, Upload, Link as LinkIcon, Globe, RefreshCw, ExternalLink, Layers, Sidebar as SidebarIcon } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Briefcase, Users, Phone, Building2, Upload, Link as LinkIcon, Globe, RefreshCw, ExternalLink, Layers, Sidebar as SidebarIcon, CreditCard, Truck, QrCode, ArrowUp, ArrowDown, CheckCircle, Eye, EyeOff } from "lucide-react";
 import SliderMediaSidebar from "@/components/admin/SliderMediaSidebar";
 import toast from "react-hot-toast";
 
@@ -14,12 +14,30 @@ interface ContactInfo {
 
 interface PaymentMethod {
   id?: string;
-  type: string;
-  provider: string;
+  type: string; // 'mobile' | 'bank'
+  provider: string; // e.g. bKash, Nagad, Rocket, Islami Bank
+  name?: string; // Display name
+  logo?: string;
   accountName?: string;
   accountNumber: string;
+  accountType?: string; // পার্সোনাল / মার্চেন্ট / এজেন্ট
   branch?: string;
   routingNo?: string;
+  qrCodeImage?: string;
+  instructions?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+interface DeliveryOption {
+  id?: string;
+  name: string;
+  type: string;
+  charge: number;
+  requiresName: boolean;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
 }
 
 export interface HeroSlide {
@@ -113,7 +131,9 @@ export default function SettingsTab() {
 
   const tabs = [
     { id: "general", label: "সাধারণ তথ্য", icon: Building2 },
-    { id: "contacts", label: "যোগাযোগ ও পেমেন্ট", icon: Phone },
+    { id: "contacts", label: "যোগাযোগের তথ্য", icon: Phone },
+    { id: "payments", label: "পেমেন্ট মাধ্যম", icon: CreditCard },
+    { id: "delivery", label: "ডেলিভারি ও চার্জ", icon: Truck },
     { id: "positions", label: "পদবী", icon: Briefcase },
     { id: "members", label: "সদস্য ও স্টাফ", icon: Users },
   ];
@@ -159,6 +179,8 @@ export default function SettingsTab() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[500px]">
         {activeTab === "general" && <GeneralTab settings={settings} onSave={fetchData} />}
         {activeTab === "contacts" && <ContactsTab settings={settings} onSave={fetchData} />}
+        {activeTab === "payments" && <PaymentsTab settings={settings} onSave={fetchData} />}
+        {activeTab === "delivery" && <DeliveryTab />}
         {activeTab === "positions" && <PositionsTab positions={positions} onSave={fetchData} />}
         {activeTab === "members" && <MembersTab members={members} positions={positions} onSave={fetchData} />}
       </div>
@@ -733,29 +755,16 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
 // ==============================
 // 2. Contacts & Payments Tab
 // ==============================
+// ==============================
+// 2. Contacts Tab
+// ==============================
 function ContactsTab({ settings, onSave }: { settings: BoardSettings | null; onSave: () => void }) {
   const [contacts, setContacts] = useState<ContactInfo[]>(settings?.contacts || []);
-  const [payments, setPayments] = useState<PaymentMethod[]>(settings?.payments || []);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load draft
   useEffect(() => {
-    const savedContacts = localStorage.getItem('boardSettingsContactsDraft');
-    const savedPayments = localStorage.getItem('boardSettingsPaymentsDraft');
-    if (savedContacts) try { setContacts(JSON.parse(savedContacts)); } catch (e) {}
-    else if (settings?.contacts) setContacts(settings.contacts);
-    
-    if (savedPayments) try { setPayments(JSON.parse(savedPayments)); } catch (e) {}
-    else if (settings?.payments) setPayments(settings.payments);
+    if (settings?.contacts) setContacts(settings.contacts);
   }, [settings]);
-
-  // Save draft
-  useEffect(() => {
-    localStorage.setItem('boardSettingsContactsDraft', JSON.stringify(contacts));
-  }, [contacts]);
-  useEffect(() => {
-    localStorage.setItem('boardSettingsPaymentsDraft', JSON.stringify(payments));
-  }, [payments]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -763,12 +772,10 @@ function ContactsTab({ settings, onSave }: { settings: BoardSettings | null; onS
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts, payments })
+        body: JSON.stringify({ contacts })
       });
       if (res.ok) {
-        toast.success("যোগাযোগ ও পেমেন্ট সংরক্ষিত হয়েছে!");
-        localStorage.removeItem('boardSettingsContactsDraft');
-        localStorage.removeItem('boardSettingsPaymentsDraft');
+        toast.success("যোগাযোগের তথ্য সংরক্ষিত হয়েছে!");
         onSave();
       } else throw new Error();
     } catch (error) {
@@ -779,107 +786,281 @@ function ContactsTab({ settings, onSave }: { settings: BoardSettings | null; onS
   };
 
   return (
-    <div className="space-y-12 max-w-4xl">
-      {/* Contacts Section */}
-      <div>
-        <div className="flex items-center justify-between mb-4 pb-2 border-b">
+    <div className="space-y-6 max-w-4xl">
+      <div className="flex items-center justify-between pb-3 border-b">
+        <div>
           <h3 className="text-lg font-bold text-slate-800">যোগাযোগের তথ্য</h3>
-          <button 
-            onClick={() => setContacts([...contacts, { type: 'MOBILE', value: '' }])}
-            className="flex items-center gap-1 text-sm text-emerald-700 font-medium hover:bg-emerald-100 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> মাধ্যম যুক্ত করুন
-          </button>
+          <p className="text-xs text-slate-500">ওয়েবসাইট ও ইনভয়েসে প্রদর্শিত যোগাযোগের ফোন ও ইমেইল</p>
         </div>
-        
-        <div className="space-y-3">
-          {contacts.map((contact, i) => (
-            <div key={i} className="flex gap-4 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <select 
-                value={contact.type}
-                onChange={e => {
-                  const newC = [...contacts];
-                  newC[i].type = e.target.value;
-                  setContacts(newC);
-                }}
-                className="w-40 px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500"
-              >
-                <option value="MOBILE">মোবাইল</option>
-                <option value="TELEPHONE">টেলিফোন</option>
-                <option value="WHATSAPP">হোয়াটসঅ্যাপ</option>
-                <option value="EMAIL">ইমেইল</option>
-              </select>
-              <input 
-                type="text" 
-                value={contact.value}
-                onChange={e => {
-                  const newC = [...contacts];
-                  newC[i].value = e.target.value;
-                  setContacts(newC);
-                }}
-                placeholder="নম্বর বা ইমেইল লিখুন"
-                className="flex-1 px-4 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500"
-              />
-              <button onClick={() => setContacts(contacts.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors">
-                <Trash2 className="w-5 h-5" />
-              </button>
-            </div>
-          ))}
-          {contacts.length === 0 && <p className="text-slate-400 italic py-4 text-center">কোনো যোগাযোগের মাধ্যম যুক্ত করা হয়নি।</p>}
+        <button 
+          onClick={() => setContacts([...contacts, { type: 'MOBILE', value: '' }])}
+          className="flex items-center gap-1 text-sm text-emerald-700 font-medium hover:bg-emerald-100 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200 transition-colors"
+        >
+          <Plus className="w-4 h-4" /> মাধ্যম যুক্ত করুন
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {contacts.map((contact, i) => (
+          <div key={i} className="flex gap-4 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <select 
+              value={contact.type}
+              onChange={e => {
+                const newC = [...contacts];
+                newC[i].type = e.target.value;
+                setContacts(newC);
+              }}
+              className="w-40 px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500 font-medium text-sm"
+            >
+              <option value="MOBILE">মোবাইল</option>
+              <option value="TELEPHONE">টেলিফোন</option>
+              <option value="WHATSAPP">হোয়াটসঅ্যাপ</option>
+              <option value="EMAIL">ইমেইল</option>
+            </select>
+            <input 
+              type="text" 
+              value={contact.value}
+              onChange={e => {
+                const newC = [...contacts];
+                newC[i].value = e.target.value;
+                setContacts(newC);
+              }}
+              placeholder="নম্বর বা ইমেইল লিখুন"
+              className="flex-1 px-4 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500 font-medium text-sm"
+            />
+            <button onClick={() => setContacts(contacts.filter((_, idx) => idx !== i))} className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors">
+              <Trash2 className="w-5 h-5" />
+            </button>
+          </div>
+        ))}
+        {contacts.length === 0 && <p className="text-slate-400 italic py-4 text-center">কোনো যোগাযোগের মাধ্যম যুক্ত করা হয়নি।</p>}
+      </div>
+
+      <div className="pt-6 border-t flex justify-end">
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm"
+        >
+          <Save className="w-4 h-4" />
+          {isSaving ? "সংরক্ষণ হচ্ছে..." : "সংরক্ষণ করুন"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ==============================
+// 3. Payments Tab (Dynamic Methods)
+// ==============================
+function PaymentsTab({ settings, onSave }: { settings: BoardSettings | null; onSave: () => void }) {
+  const [payments, setPayments] = useState<PaymentMethod[]>(settings?.payments || []);
+  const [isSaving, setIsSaving] = useState(false);
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (settings?.payments) setPayments(settings.payments);
+  }, [settings]);
+
+  const handleMove = (index: number, direction: 'up' | 'down') => {
+    const newPayments = [...payments];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= newPayments.length) return;
+    const temp = newPayments[index];
+    newPayments[index] = newPayments[targetIdx];
+    newPayments[targetIdx] = temp;
+    newPayments.forEach((p, idx) => { p.sortOrder = idx + 1; });
+    setPayments(newPayments);
+  };
+
+  const handleFileUpload = async (file: File, index: number, field: 'qrCodeImage' | 'logo') => {
+    setUploadingIdx(index);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", "payments");
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        const newPayments = [...payments];
+        newPayments[index][field] = data.url;
+        setPayments(newPayments);
+        toast.success(field === 'qrCodeImage' ? "কিউআর কোড আপলোড হয়েছে!" : "লোগো আপলোড হয়েছে!");
+      } else {
+        toast.error(data.error || "আপলোড ব্যর্থ হয়েছে");
+      }
+    } catch (err) {
+      toast.error("ছবি আপলোড করতে ব্যর্থ হয়েছে");
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payments: payments.map((p, idx) => ({ ...p, sortOrder: idx + 1 })) })
+      });
+      if (res.ok) {
+        toast.success("পেমেন্ট মাধ্যমসমূহ সফলভাবে সংরক্ষিত হয়েছে!");
+        onSave();
+      } else throw new Error();
+    } catch (error) {
+      toast.error("সংরক্ষণ করতে ব্যর্থ হয়েছে");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const addMethod = (type: 'mobile' | 'bank') => {
+    const isMobile = type === 'mobile';
+    setPayments([
+      ...payments,
+      {
+        type,
+        provider: isMobile ? 'বিকাশ' : 'ইসলামী ব্যাংক',
+        name: isMobile ? 'বিকাশ' : 'ইসলামী ব্যাংক বাংলাদেশ লিমিটেড',
+        accountNumber: '',
+        accountName: isMobile ? '' : 'নূরানী তালিমুল কুরআন বোর্ড খুলনা',
+        accountType: isMobile ? 'পার্সোনাল' : undefined,
+        branch: isMobile ? undefined : 'খুলনা শাখা',
+        routingNo: isMobile ? undefined : '',
+        instructions: isMobile ? 'Send Money করে TrxID প্রদান করুন।' : 'ব্যাংক ডিপোজিট করে স্লিপ নম্বর প্রদান করুন।',
+        isActive: true,
+        sortOrder: payments.length + 1,
+      }
+    ]);
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b">
+        <div>
+          <h3 className="text-lg font-bold text-slate-800">ডায়নামিক পেমেন্ট মেথড ব্যবস্থাপনা</h3>
+          <p className="text-xs text-slate-500">
+            অর্ডারের সময় কাস্টমার কেবল সচল (Active) মেথডগুলো দেখতে পাবেন। QR কোড আপলোড করলে গ্রাহক স্ক্যান করে পেমেন্ট করতে পারবে।
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button 
+            type="button"
+            onClick={() => addMethod('mobile')}
+            className="flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-xl border border-emerald-200 transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" /> + মোবাইল ব্যাংকিং
+          </button>
+          <button 
+            type="button"
+            onClick={() => addMethod('bank')}
+            className="flex items-center gap-1.5 text-xs text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-xl border border-blue-200 transition-colors cursor-pointer"
+          >
+            <Building2 className="w-3.5 h-3.5" /> + ব্যাংক অ্যাকাউন্ট
+          </button>
         </div>
       </div>
 
-      {/* Payments Section */}
-      <div>
-        <div className="flex items-center justify-between mb-4 pb-2 border-b">
-          <h3 className="text-lg font-bold text-slate-800">পেমেন্ট মাধ্যম</h3>
-          <button 
-            onClick={() => setPayments([...payments, { type: 'MOBILE_BANKING', provider: '', accountNumber: '' }])}
-            className="flex items-center gap-1 text-sm text-emerald-700 font-medium hover:bg-emerald-100 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> পেমেন্ট মাধ্যম যুক্ত করুন
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          {payments.map((payment, i) => (
-            <div key={i} className="bg-slate-50 p-5 rounded-xl border border-slate-200 relative">
-              <button onClick={() => setPayments(payments.filter((_, idx) => idx !== i))} className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors">
-                <Trash2 className="w-5 h-5" />
-              </button>
-              
-              <div className="grid grid-cols-2 gap-5 mr-12">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">ধরন</label>
-                  <select 
-                    value={payment.type}
-                    onChange={e => {
+      <div className="space-y-4">
+        {payments.map((payment, i) => {
+          const isMobile = payment.type === 'mobile' || payment.type === 'MOBILE_BANKING';
+          const isActive = payment.isActive !== false;
+
+          return (
+            <div 
+              key={i} 
+              className={`p-5 rounded-2xl border transition-all ${
+                isActive ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-50 border-slate-200 opacity-60'
+              }`}
+            >
+              {/* Header row */}
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={i === 0}
+                      onClick={() => handleMove(i, 'up')}
+                      className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 rounded hover:bg-slate-100"
+                      title="উপরে নিন"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={i === payments.length - 1}
+                      onClick={() => handleMove(i, 'down')}
+                      className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 rounded hover:bg-slate-100"
+                      title="নিচে নিন"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    isMobile ? 'bg-pink-100 text-pink-800' : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {isMobile ? '📱 মোবাইল ব্যাংকিং' : '🏦 ব্যাংক অ্যাকাউন্ট'}
+                  </span>
+
+                  <span className="font-extrabold text-sm text-slate-800">
+                    {payment.name || payment.provider || 'নতুন পেমেন্ট মাধ্যম'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
                       const newP = [...payments];
-                      newP[i].type = e.target.value;
+                      newP[i].isActive = !isActive;
                       setPayments(newP);
                     }}
-                    className="w-full px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500"
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                      isActive 
+                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    }`}
                   >
-                    <option value="MOBILE_BANKING">মোবাইল ব্যাংকিং</option>
-                    <option value="BANK">ব্যাংক অ্যাকাউন্ট</option>
-                  </select>
+                    {isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    <span>{isActive ? 'সচল (Active)' : 'বন্ধ (Inactive)'}</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => setPayments(payments.filter((_, idx) => idx !== i))} 
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                    title="মুছে ফেলুন"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
+              </div>
+
+              {/* Form Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">প্রোভাইডার/ব্যাংকের নাম</label>
+                  <label className="block font-bold text-slate-700 mb-1">প্রোভাইডার / ব্যাংকের নাম <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     value={payment.provider}
                     onChange={e => {
                       const newP = [...payments];
                       newP[i].provider = e.target.value;
+                      if (!newP[i].name) newP[i].name = e.target.value;
                       setPayments(newP);
                     }}
-                    placeholder="যেমন: bKash, Islami Bank"
-                    className="w-full px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500"
+                    placeholder="যেমন: বিকাশ / ইসলামী ব্যাংক"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-semibold"
                   />
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">অ্যাকাউন্ট নম্বর</label>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">অ্যাকাউন্ট নম্বর <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     value={payment.accountNumber}
@@ -888,28 +1069,45 @@ function ContactsTab({ settings, onSave }: { settings: BoardSettings | null; onS
                       newP[i].accountNumber = e.target.value;
                       setPayments(newP);
                     }}
-                    placeholder="অ্যাকাউন্ট নম্বর লিখুন"
-                    className="w-full px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
+                    placeholder="নম্বর লিখুন"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono font-bold"
                   />
                 </div>
-                
-                {payment.type === 'BANK' && (
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">অ্যাকাউন্টের ধরন / টাইপ</label>
+                  <input 
+                    type="text" 
+                    value={payment.accountType || ''}
+                    onChange={e => {
+                      const newP = [...payments];
+                      newP[i].accountType = e.target.value;
+                      setPayments(newP);
+                    }}
+                    placeholder="যেমন: পার্সোনাল / মার্চেন্ট / এজেন্ট"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">অ্যাকাউন্টধারীর নাম (Account Name)</label>
+                  <input 
+                    type="text" 
+                    value={payment.accountName || ''}
+                    onChange={e => {
+                      const newP = [...payments];
+                      newP[i].accountName = e.target.value;
+                      setPayments(newP);
+                    }}
+                    placeholder="নূরানী তালিমুল কুরআন বোর্ড খুলনা"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-semibold"
+                  />
+                </div>
+
+                {!isMobile && (
                   <>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">অ্যাকাউন্টের নাম (ঐচ্ছিক)</label>
-                      <input 
-                        type="text" 
-                        value={payment.accountName || ''}
-                        onChange={e => {
-                          const newP = [...payments];
-                          newP[i].accountName = e.target.value;
-                          setPayments(newP);
-                        }}
-                        className="w-full px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">শাখা (ঐচ্ছিক)</label>
+                      <label className="block font-bold text-slate-700 mb-1">শাখার নাম (Branch)</label>
                       <input 
                         type="text" 
                         value={payment.branch || ''}
@@ -918,11 +1116,12 @@ function ContactsTab({ settings, onSave }: { settings: BoardSettings | null; onS
                           newP[i].branch = e.target.value;
                           setPayments(newP);
                         }}
-                        className="w-full px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500"
+                        placeholder="খুলনা প্রধান শাখা"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-semibold"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">রাউটিং নম্বর (ঐচ্ছিক)</label>
+                      <label className="block font-bold text-slate-700 mb-1">রাউটিং নম্বর (Routing No)</label>
                       <input 
                         type="text" 
                         value={payment.routingNo || ''}
@@ -931,26 +1130,292 @@ function ContactsTab({ settings, onSave }: { settings: BoardSettings | null; onS
                           newP[i].routingNo = e.target.value;
                           setPayments(newP);
                         }}
-                        className="w-full px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:border-emerald-500"
+                        placeholder="125271822"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono font-bold"
                       />
                     </div>
                   </>
                 )}
+
+                <div className="col-span-1 md:col-span-3">
+                  <label className="block font-bold text-slate-700 mb-1">পেমেন্ট নির্দেশনা (গ্রাহকের জন্য)</label>
+                  <input 
+                    type="text" 
+                    value={payment.instructions || ''}
+                    onChange={e => {
+                      const newP = [...payments];
+                      newP[i].instructions = e.target.value;
+                      setPayments(newP);
+                    }}
+                    placeholder="যেমন: বিকাশ Send Money করুন এবং TrxID ও প্রেরক নম্বর লিখুন।"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-medium text-xs"
+                  />
+                </div>
+
+                {/* QR Code and Logo Upload Area */}
+                <div className="col-span-1 md:col-span-3 flex flex-wrap gap-6 pt-3 border-t border-slate-100">
+                  {/* QR Code Upload */}
+                  <div className="flex items-center gap-3">
+                    <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <QrCode className="w-4 h-4 text-emerald-700" />
+                      <span>কিউআর কোড (QR Code):</span>
+                    </label>
+                    {payment.qrCodeImage ? (
+                      <div className="flex items-center gap-2">
+                        <img src={payment.qrCodeImage} alt="QR" className="w-12 h-12 object-contain border rounded-lg p-0.5 bg-white shadow-2xs" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newP = [...payments];
+                            newP[i].qrCodeImage = '';
+                            setPayments(newP);
+                          }}
+                          className="text-red-500 hover:text-red-700 font-bold text-xs"
+                        >
+                          মুছুন
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{uploadingIdx === i ? 'আপলোড হচ্ছে...' : 'QR ছবি আপলোড'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, i, 'qrCodeImage');
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Logo Upload */}
+                  <div className="flex items-center gap-3">
+                    <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-blue-700" />
+                      <span>লোগো (Logo):</span>
+                    </label>
+                    {payment.logo ? (
+                      <div className="flex items-center gap-2">
+                        <img src={payment.logo} alt="Logo" className="w-10 h-10 object-contain border rounded-lg p-0.5 bg-white shadow-2xs" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newP = [...payments];
+                            newP[i].logo = '';
+                            setPayments(newP);
+                          }}
+                          className="text-red-500 hover:text-red-700 font-bold text-xs"
+                        >
+                          মুছুন
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{uploadingIdx === i ? 'আপলোড হচ্ছে...' : 'লোগো আপলোড'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, i, 'logo');
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          ))}
-          {payments.length === 0 && <p className="text-slate-400 italic py-4 text-center">কোনো পেমেন্ট মাধ্যম যুক্ত করা হয়নি।</p>}
-        </div>
+          );
+        })}
+
+        {payments.length === 0 && (
+          <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-2xl">
+            <p className="text-slate-400 italic">কোনো পেমেন্ট মাধ্যম পাওয়া যায়নি। উপরে বাটন চাপুন।</p>
+          </div>
+        )}
       </div>
 
-      <div className="pt-6 border-t">
+      <div className="pt-6 border-t flex justify-end">
         <button 
           onClick={handleSave}
           disabled={isSaving}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm"
         >
           <Save className="w-4 h-4" />
-          {isSaving ? "সংরক্ষণ হচ্ছে..." : "যোগাযোগ ও পেমেন্ট সংরক্ষণ করুন"}
+          {isSaving ? "সংরক্ষণ হচ্ছে..." : "পেমেন্ট মাধ্যমসমূহ সংরক্ষণ করুন"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ==============================
+// 4. Delivery Options Tab
+// ==============================
+function DeliveryTab() {
+  const [options, setOptions] = useState<DeliveryOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    fetchOptions();
+  }, []);
+
+  const fetchOptions = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/delivery-options');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setOptions(data);
+      }
+    } catch (e) {
+      toast.error("ডেলিভারি অপশন লোড করতে ব্যর্থ হয়েছে");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/delivery-options', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options),
+      });
+      if (res.ok) {
+        toast.success("ডেলিভারি অপশন ও চার্জ সংরক্ষিত হয়েছে!");
+        fetchOptions();
+      } else throw new Error();
+    } catch (error) {
+      toast.error("সংরক্ষণ করতে ব্যর্থ হয়েছে");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="py-12 text-center text-slate-500 text-sm">ডেলিভারি তথ্য লোড হচ্ছে...</div>;
+  }
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div className="pb-3 border-b">
+        <h3 className="text-lg font-bold text-slate-800">ডেলিভারি অপশন ও চার্জ ব্যবস্থাপনা</h3>
+        <p className="text-xs text-slate-500 mt-0.5">
+          অর্ডার চেকআউটের সময় গ্রাহক এই অপশনগুলো থেকে নির্বাচন করবেন। কুরিয়ার বা ট্রান্সপোর্টের নাম ইনপুট বাধ্যতামূলক করতে চেকবক্স অন রাখুন।
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {options.map((opt, i) => (
+          <div key={opt.type || i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Truck className="w-4 h-4 text-emerald-700" />
+                <span className="font-extrabold text-sm text-slate-800">{opt.name}</span>
+                <span className="text-[11px] font-mono text-slate-400">({opt.type})</span>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  const newO = [...options];
+                  newO[i].isActive = !newO[i].isActive;
+                  setOptions(newO);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                  opt.isActive !== false 
+                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                }`}
+              >
+                {opt.isActive !== false ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                <span>{opt.isActive !== false ? 'সচল (Active)' : 'বন্ধ (Inactive)'}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">প্রদর্শিত নাম (Display Name)</label>
+                <input
+                  type="text"
+                  value={opt.name}
+                  onChange={(e) => {
+                    const newO = [...options];
+                    newO[i].name = e.target.value;
+                    setOptions(newO);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">ডেলিভারি চার্জ (টাকা ৳)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={opt.charge}
+                  onChange={(e) => {
+                    const newO = [...options];
+                    newO[i].charge = Number(e.target.value) || 0;
+                    setOptions(newO);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono font-bold"
+                />
+              </div>
+
+              <div className="flex items-center pt-5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(opt.requiresName)}
+                    onChange={(e) => {
+                      const newO = [...options];
+                      newO[i].requiresName = e.target.checked;
+                      setOptions(newO);
+                    }}
+                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                  />
+                  <span className="font-bold text-slate-700 text-xs">নির্দিষ্ট নাম ইনপুট আবশ্যক?</span>
+                </label>
+              </div>
+
+              <div className="col-span-1 md:col-span-3">
+                <label className="block font-bold text-slate-700 mb-1">বিবরণ / নির্দেশনা (Description)</label>
+                <input
+                  type="text"
+                  value={opt.description || ''}
+                  onChange={(e) => {
+                    const newO = [...options];
+                    newO[i].description = e.target.value;
+                    setOptions(newO);
+                  }}
+                  placeholder="যেমন: সুন্দরবন, এস এ পরিবহন, করতোয়া ইত্যাদি"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="pt-6 border-t flex justify-end">
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm"
+        >
+          <Save className="w-4 h-4" />
+          {isSaving ? "সংরক্ষণ হচ্ছে..." : "ডেলিভারি অপশন সংরক্ষণ করুন"}
         </button>
       </div>
     </div>
