@@ -27,6 +27,67 @@ export type Product = {
 
 const STAR_RATINGS: Record<string, { rating: number; reviews: number }> = {};
 
+const toEnglishDigits = (str: string) => {
+  const bnToEn: Record<string, string> = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
+  return str.replace(/[০-৯]/g, m => bnToEn[m] || m);
+};
+
+const cleanProductCode = (code?: string | null) => {
+  if (!code || code.startsWith("__NO_BARCODE_")) return null;
+  const trimmed = code.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const compareProductsByCode = (a: Product, b: Product) => {
+  const codeA = cleanProductCode(a.barcode);
+  const codeB = cleanProductCode(b.barcode);
+  if (codeA && !codeB) return -1;
+  if (!codeA && codeB) return 1;
+  if (codeA && codeB) {
+    const normA = toEnglishDigits(codeA);
+    const normB = toEnglishDigits(codeB);
+    const numA = Number(normA);
+    const numB = Number(normB);
+    if (!Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+      return numA - numB;
+    }
+    const cmp = normA.localeCompare(normB, undefined, { numeric: true, sensitivity: "base" });
+    if (cmp !== 0) return cmp;
+  }
+  return 0;
+};
+
+function ProductImage({
+  src,
+  alt,
+  className = "w-full h-full object-cover",
+  iconClassName = "w-6 h-6 text-slate-300",
+}: {
+  src?: string | null;
+  alt: string;
+  className?: string;
+  iconClassName?: string;
+}) {
+  const [imgErr, setImgErr] = useState(false);
+  useEffect(() => {
+    setImgErr(false);
+  }, [src]);
+
+  const validSrc = src && src.trim().length > 0 ? src.trim() : null;
+  if (!validSrc || imgErr) {
+    return <Package className={iconClassName} />;
+  }
+  return (
+    <img
+      src={validSrc}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => setImgErr(true)}
+    />
+  );
+}
+
 function StarDisplay({ rating, reviews }: { rating: number; reviews: number }) {
   return (
     <div className="flex items-center gap-1">
@@ -45,16 +106,22 @@ function ListProductRow({
   toggleFav: (id:string)=>void, addToCart: (p:Product, q:number)=>void, setDetailProduct: (p:Product)=>void 
 }) {
   const [qty, setQty] = useState(1);
+  const productCode = cleanProductCode(product.barcode);
   return (
     <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
+       <td className="p-4 text-xs font-mono font-bold text-slate-600 whitespace-nowrap">
+          {productCode ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+              #{productCode}
+            </span>
+          ) : (
+            <span className="text-slate-300">—</span>
+          )}
+       </td>
        <td className="p-4">
           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                ) : (
-                  <Package className="w-6 h-6 text-slate-300" />
-                )}
+             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden cursor-pointer" onClick={() => setDetailProduct(product)}>
+                <ProductImage src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" iconClassName="w-6 h-6 text-slate-300" />
              </div>
              <div className="flex flex-col">
                 <h3 className="font-bold text-slate-800 text-sm line-clamp-1 cursor-pointer hover:text-primary transition-colors" onClick={() => setDetailProduct(product)}>{product.name}</h3>
@@ -104,16 +171,13 @@ function ProductDetailModal({
   isFav: boolean; onToggleFav: () => void;
 }) {
   const r = STAR_RATINGS[product.id] || { rating: 4.2, reviews: 18 };
+  const productCode = cleanProductCode(product.barcode);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="relative">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 h-56 flex items-center justify-center rounded-t-2xl overflow-hidden">
-            {product.imageUrl ? (
-              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
-              <Package className="w-24 h-24 text-slate-300" />
-            )}
+            <ProductImage src={product.imageUrl} alt={product.name} className="w-full h-full object-contain p-2" iconClassName="w-24 h-24 text-slate-300" />
           </div>
           <button onClick={onClose} className="absolute top-3 right-3 bg-white/80 hover:bg-white p-2 rounded-full shadow transition-colors">
             <X className="w-4 h-4 text-slate-600" />
@@ -123,7 +187,12 @@ function ProductDetailModal({
           </button>
         </div>
         <div className="p-6">
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {productCode && (
+              <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                আইডি: #{productCode}
+              </span>
+            )}
             {(product.category || '').split(',').map(c => c.trim()).filter(Boolean).map(c => (
               <span key={c} className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{c}</span>
             ))}
@@ -332,8 +401,18 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
   const filtered = useMemo(() => {
     let list = [...products];
     if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(p => p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.toLowerCase().includes(q)));
+      const q = search.trim().toLowerCase();
+      const qEn = toEnglishDigits(q);
+      list = list.filter(p => {
+        const code = cleanProductCode(p.barcode);
+        const codeLower = code ? code.toLowerCase() : "";
+        const codeEn = code ? toEnglishDigits(codeLower) : "";
+        return (
+          p.name.toLowerCase().includes(q) ||
+          (p.category || "").toLowerCase().includes(q) ||
+          (codeLower && (codeLower.includes(q) || codeEn.includes(qEn)))
+        );
+      });
     }
     if (selectedCategories.size > 0) {
       list = list.filter(p => {
@@ -346,7 +425,8 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
     if (minPrice) list = list.filter(p => p.price >= parseFloat(minPrice));
     if (maxPrice) list = list.filter(p => p.price <= parseFloat(maxPrice));
     if (ratingFilter > 0) list = list.filter(p => getProductRating(p.id).rating >= ratingFilter);
-    if (sortBy === "price-asc") list.sort((a, b) => a.price - b.price);
+    if (sortBy === "default") list.sort(compareProductsByCode);
+    else if (sortBy === "price-asc") list.sort((a, b) => a.price - b.price);
     else if (sortBy === "price-desc") list.sort((a, b) => b.price - a.price);
     else if (sortBy === "name") list.sort((a, b) => a.name.localeCompare(b.name));
     else if (sortBy === "rating") list.sort((a, b) => getProductRating(b.id).rating - getProductRating(a.id).rating);
@@ -583,11 +663,22 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
               {filtered.map(product => {
                 const r = getProductRating(product.id);
                 const isFav = favourites.has(product.id);
+                const productCode = cleanProductCode(product.barcode);
                 return (
                   <div key={product.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-col">
-                    <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 aspect-[4/3] w-full flex items-center justify-center">
-                      <Package className="w-16 h-16 text-slate-300 group-hover:scale-105 transition-transform" />
-                      <button onClick={() => toggleFav(product.id)}
+                    <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 aspect-[4/3] w-full flex items-center justify-center overflow-hidden cursor-pointer" onClick={() => setDetailProduct(product)}>
+                      <ProductImage
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        iconClassName="w-16 h-16 text-slate-300 group-hover:scale-105 transition-transform"
+                      />
+                      {productCode && (
+                        <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-emerald-700 border border-emerald-200 text-[11px] font-mono font-bold px-2 py-0.5 rounded-md shadow-sm">
+                          #{productCode}
+                        </span>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); toggleFav(product.id); }}
                         className={`absolute top-3 right-3 p-1.5 rounded-full bg-white/80 shadow hover:bg-white transition-colors ${isFav ? "text-red-500" : "text-slate-300"}`}>
                         <Heart className={`w-4 h-4 ${isFav ? "fill-red-500" : ""}`} />
                       </button>
@@ -604,7 +695,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                           <span key={c} className="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full w-fit">{c}</span>
                         ))}
                       </div>
-                      <h3 className="font-bold text-slate-800 mb-1 line-clamp-1">{product.name}</h3>
+                      <h3 className="font-bold text-slate-800 mb-1 line-clamp-1 cursor-pointer hover:text-primary transition-colors" onClick={() => setDetailProduct(product)}>{product.name}</h3>
                       <StarDisplay rating={r.rating} reviews={r.reviews} />
                       <div className="mt-auto pt-3 flex items-center justify-between border-t border-slate-50 mt-3">
                         <span className="text-xl font-black text-primary">৳{product.price}</span>
@@ -632,7 +723,8 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm">
-                    <th className="p-4 font-bold rounded-tl-2xl">পণ্য</th>
+                    <th className="p-4 font-bold rounded-tl-2xl w-24">আইডি</th>
+                    <th className="p-4 font-bold">পণ্য</th>
                     <th className="p-4 font-bold">ক্যাটাগরি</th>
                     <th className="p-4 font-bold">স্টক</th>
                     <th className="p-4 font-bold">মূল্য</th>
@@ -642,7 +734,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                 <tbody>
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <div className="flex flex-col items-center justify-center py-24 text-slate-400">
                           <Package className="w-16 h-16 mb-4 text-slate-200" />
                           <p className="text-lg font-bold">কোনো পণ্য পাওয়া যায়নি</p>
@@ -687,8 +779,8 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                 <div className="flex flex-col mb-4">
                   {cart.map((item, i) => (
                     <div key={i} className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
-                      <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Package className="w-5 h-5 text-slate-300" />
+                      <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                        <ProductImage src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" iconClassName="w-5 h-5 text-slate-300" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-800 text-xs line-clamp-1">{item.product.name}</p>
@@ -782,8 +874,8 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                 <div className="flex flex-col mb-4">
                   {cart.map((item, i) => (
                     <div key={i} className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
-                      <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Package className="w-6 h-6 text-slate-300" />
+                      <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                        <ProductImage src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" iconClassName="w-6 h-6 text-slate-300" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-800 text-sm line-clamp-1">{item.product.name}</p>

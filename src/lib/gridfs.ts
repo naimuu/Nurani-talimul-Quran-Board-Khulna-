@@ -1,8 +1,5 @@
 import mongoose from "mongoose";
 import connectDB from "./mongodb";
-import { Readable } from "stream";
-
-let bucket: mongoose.mongo.GridFSBucket | null = null;
 
 export async function getGridFSBucket(): Promise<mongoose.mongo.GridFSBucket> {
   await connectDB();
@@ -10,12 +7,9 @@ export async function getGridFSBucket(): Promise<mongoose.mongo.GridFSBucket> {
   if (!db) {
     throw new Error("MongoDB connection not established");
   }
-  if (!bucket) {
-    bucket = new mongoose.mongo.GridFSBucket(db, {
-      bucketName: "uploads",
-    });
-  }
-  return bucket;
+  return new mongoose.mongo.GridFSBucket(db, {
+    bucketName: "uploads",
+  });
 }
 
 export interface GridFSUploadResult {
@@ -26,7 +20,7 @@ export interface GridFSUploadResult {
 }
 
 /**
- * Uploads a Buffer to MongoDB GridFS
+ * Uploads a Buffer to MongoDB GridFS (compatible with MongoDB Node driver v6+)
  */
 export async function uploadToGridFS(
   buffer: Buffer,
@@ -44,34 +38,38 @@ export async function uploadToGridFS(
     for (const file of existing) {
       await gridBucket.delete(file._id);
     }
-  } catch (e) {
+  } catch {
     // Ignore error if search/delete fails
   }
 
   return new Promise((resolve, reject) => {
     const uploadStream = gridBucket.openUploadStream(filename, {
       contentType: options.contentType,
-      metadata: options.metadata || {},
+      metadata: {
+        ...(options.metadata || {}),
+        contentType: options.contentType,
+      },
     });
 
-    const readable = new Readable();
-    readable.push(buffer);
-    readable.push(null);
-
-    readable.pipe(uploadStream);
-
-    uploadStream.on("error", (err) => {
+    uploadStream.once("error", (err) => {
       reject(err);
     });
 
-    uploadStream.on("finish", (file: any) => {
-      resolve({
-        fileId: String(file._id),
-        filename: file.filename,
-        contentType: options.contentType,
-        size: buffer.length,
-      });
+    uploadStream.once("finish", () => {
+      try {
+        const gFile = (uploadStream as any).gridFSFile;
+        resolve({
+          fileId: String(gFile?._id ?? uploadStream.id),
+          filename: gFile?.filename || filename,
+          contentType: options.contentType,
+          size: buffer.length,
+        });
+      } catch (err) {
+        reject(err);
+      }
     });
+
+    uploadStream.end(buffer);
   });
 }
 
@@ -90,11 +88,14 @@ export async function downloadFromGridFS(
 ): Promise<GridFSDownloadResult | null> {
   const gridBucket = await getGridFSBucket();
 
-  // Clean filename for matching
-  const cleanPath = filenameOrPath.replace(/^\/+/, "");
+  // Clean filename for matching (strip leading slashes and optional "uploads/" or "api/uploads/" prefix)
+  const cleanPath = filenameOrPath
+    .replace(/^\/+/, "")
+    .replace(/^api\/uploads\//, "")
+    .replace(/^uploads\//, "");
   const baseName = cleanPath.split("/").pop() || cleanPath;
 
-  // Search by exact path or just basename
+  // Search by exact path or basename
   const files = await gridBucket
     .find({
       $or: [
@@ -120,15 +121,18 @@ export async function downloadFromGridFS(
       chunks.push(Buffer.from(chunk));
     });
 
-    downloadStream.on("error", (err) => {
+    downloadStream.once("error", (err) => {
       reject(err);
     });
 
-    downloadStream.on("end", () => {
+    downloadStream.once("end", () => {
       const buffer = Buffer.concat(chunks);
       resolve({
         buffer,
-        contentType: (targetFile as any).contentType || "application/octet-stream",
+        contentType:
+          (targetFile as any).contentType ||
+          (targetFile as any).metadata?.contentType ||
+          "application/octet-stream",
         originalName: (targetFile as any).metadata?.originalName,
         filename: targetFile.filename,
       });

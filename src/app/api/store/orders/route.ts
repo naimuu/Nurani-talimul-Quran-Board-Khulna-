@@ -149,6 +149,7 @@ export async function POST(request: Request) {
             weight: Number(item.weight) || 0.25,
             className: item.className || null,
             visibility: "academic",
+            barcode: `__NO_BARCODE_auto_${Date.now()}_${Math.random()}__`,
           }
         });
       }
@@ -160,7 +161,8 @@ export async function POST(request: Request) {
             price: Number(item.unitPrice) || 0,
             stock: 9999,
             weight: Number(item.weight) || 0.25,
-            visibility: "stationary",
+            visibility: "academic",
+            barcode: `__NO_BARCODE_auto_${Date.now()}_${Math.random()}__`,
           }
         });
       }

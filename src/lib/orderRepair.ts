@@ -87,6 +87,7 @@ export async function repairQuestionOrderSaleIfNeeded(sale: any, prisma: PrismaC
             stock: 9999,
             weight: 0.25,
             visibility: "academic",
+            barcode: `__NO_BARCODE_auto_${Date.now()}_${Math.random()}__`,
           }
         });
       }

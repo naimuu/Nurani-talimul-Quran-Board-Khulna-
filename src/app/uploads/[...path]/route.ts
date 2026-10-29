@@ -3,6 +3,8 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 import { downloadFromGridFS, uploadToGridFS } from "@/lib/gridfs";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { path: string[] } }

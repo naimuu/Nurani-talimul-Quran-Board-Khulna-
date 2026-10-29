@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ImageCropper from './ImageCropper';
-import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Crop, Upload, Printer, Scan } from 'lucide-react';
+import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Printer, Scan, Loader2 } from 'lucide-react';
 
 type Product = { id: string; name: string; category: string; price: number; stock: number; unit: string; updatedAt: string; imageUrl?: string | null; barcode?: string | null; className?: string | null; description?: string | null; weight?: number | null; };
 
@@ -10,51 +10,99 @@ const toEnglishDigits = (str: string) => {
   return str.replace(/[০-৯]/g, match => bnToEn[match]);
 };
 
+const cleanBarcodeValue = (val?: string | null) => {
+  if (!val) return '';
+  const trimmed = String(val).trim();
+  return trimmed.startsWith('__NO_BARCODE_') ? '' : trimmed;
+};
+
+function ProductThumbnail({ src, alt, className = "w-10 h-10" }: { src?: string | null; alt: string; className?: string }) {
+  const [imgErr, setImgErr] = useState(false);
+
+  useEffect(() => {
+    setImgErr(false);
+  }, [src]);
+
+  return (
+    <div className={`${className} rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0`}>
+      {src && !imgErr ? (
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          onError={() => setImgErr(true)}
+        />
+      ) : (
+        <Package className="w-5 h-5 text-slate-300" />
+      )}
+    </div>
+  );
+}
+
 function ProductModal({ product, products = [], defaultCategory, defaultClass, onClose, onSaved }: { product?: Product | null; products?: Product[]; defaultCategory?: string; defaultClass?: string; onClose: () => void; onSaved: () => void }) {
   const [activeProduct, setActiveProduct] = useState<Product | null>(product || null);
   const isEdit = !!activeProduct;
-  
+
   const [form, setForm] = useState<{name: string, price: string, stock: string, unit: string, barcode: string, imageUrl: string, className: string, description: string, weight: string}>(() => {
     if (!product && typeof window !== 'undefined') {
       try {
         const draft = localStorage.getItem('store_product_draft');
         if (draft) {
           const parsed = JSON.parse(draft);
-          if (parsed.form) return parsed.form;
+          if (parsed.form) {
+            const safeImg = typeof parsed.form.imageUrl === 'string' && !parsed.form.imageUrl.startsWith('blob:') && !parsed.form.imageUrl.startsWith('data:')
+              ? parsed.form.imageUrl
+              : '';
+            return {
+              name: parsed.form.name || '',
+              price: parsed.form.price || '',
+              stock: parsed.form.stock || '',
+              unit: parsed.form.unit || 'টি',
+              barcode: cleanBarcodeValue(parsed.form.barcode),
+              imageUrl: safeImg,
+              className: parsed.form.className || defaultClass || '',
+              description: parsed.form.description || '',
+              weight: parsed.form.weight || '0.25',
+            };
+          }
         }
-      } catch (e) {}
+      } catch {}
     }
     return { 
       name: product?.name || '', 
       price: product?.price?.toString() || '', 
       stock: product?.stock?.toString() || '', 
       unit: product?.unit || 'টি',
-      barcode: product?.barcode || '',
+      barcode: cleanBarcodeValue(product?.barcode),
       imageUrl: product?.imageUrl || '',
       className: product?.className || defaultClass || '',
       description: product?.description || '',
       weight: product?.weight !== undefined && product?.weight !== null ? product.weight.toString() : '0.25'
     };
   });
-  
+
   const [selectedCats, setSelectedCats] = useState<string[]>(() => {
     if (!product && typeof window !== 'undefined') {
       try {
         const draft = localStorage.getItem('store_product_draft');
         if (draft) {
           const parsed = JSON.parse(draft);
-          if (parsed.selectedCats) return parsed.selectedCats;
+          if (Array.isArray(parsed.selectedCats) && parsed.selectedCats.length > 0) return parsed.selectedCats;
         }
-      } catch (e) {}
+      } catch {}
     }
     return product?.category ? product.category.split(',').map(s=>s.trim()).filter(Boolean) : (defaultCategory ? [defaultCategory] : []);
   });
+
   const [formErrors, setFormErrors] = useState<{name?: boolean, price?: boolean, category?: boolean}>({});
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [modalImgErr, setModalImgErr] = useState(false);
   const [error, setError] = useState('');
   const [showCropper, setShowCropper] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+
   const [curriculumClasses, setCurriculumClasses] = useState<{id:string, name:string}[]>([]);
   const uniqueClasses = useMemo(() => {
     const set = new Set(curriculumClasses.map(c => c.name));
@@ -62,8 +110,10 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
     return Array.from(set);
   }, [curriculumClasses, products]);
   const [isNewClass, setIsNewClass] = useState(false);
-  
 
+  useEffect(() => {
+    setModalImgErr(false);
+  }, [form.imageUrl, previewDataUrl]);
 
   useEffect(() => {
     if (!isEdit) {
@@ -71,25 +121,53 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
     }
   }, [form, selectedCats, isEdit]);
 
-  // Smart Search Logic
-  useEffect(() => {
-    if (!product && form.barcode && form.barcode.length > 2) {
-      const match = products.find(p => p.barcode && p.barcode === form.barcode);
-      if (match && !activeProduct) {
-        setActiveProduct(match);
-        setForm({
-          name: match.name, price: match.price.toString(), stock: match.stock.toString(), unit: match.unit || 'টি', barcode: match.barcode || '', imageUrl: match.imageUrl || '', className: match.className || '', description: match.description || '', weight: match.weight !== undefined && match.weight !== null ? match.weight.toString() : '0.25'
-        });
-        setSelectedCats(match.category ? match.category.split(',').map(s=>s.trim()).filter(Boolean) : []);
+  // Detect duplicate Product ID / Barcode clearly without hijacking form state
+  const duplicateCodeProduct = useMemo(() => {
+    const trimmed = form.barcode.trim();
+    if (!trimmed) return null;
+    return products.find(
+      p => cleanBarcodeValue(p.barcode) === trimmed && p.id !== activeProduct?.id
+    ) || null;
+  }, [form.barcode, products, activeProduct]);
+
+  const handleImageCropComplete = async (blob: Blob, previewUrl: string) => {
+    setShowCropper(false);
+    setPreviewDataUrl(previewUrl);
+    setUploadingImage(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('file', blob, 'product.jpg');
+    formData.append('folder', 'products');
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) {
+        setForm(prev => ({ ...prev, imageUrl: data.url }));
+        setPreviewDataUrl(null);
+      } else {
+        setPreviewDataUrl(null);
+        setError(data.error || 'ছবি আপলোড করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
       }
+    } catch {
+      setPreviewDataUrl(null);
+      setError('নেটওয়ার্ক ত্রুটির কারণে ছবি আপলোড করা যায়নি। আবার চেষ্টা করুন।');
+    } finally {
+      setUploadingImage(false);
     }
-  }, [form.barcode, products, product, activeProduct]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadingImage) {
+      setError('ছবি আপলোড সম্পন্ন হওয়া পর্যন্ত অনুগ্রহ করে অপেক্ষা করুন।');
+      return;
+    }
+
     const errors = {
-      name: !form.name,
-      price: !form.price,
+      name: !form.name.trim(),
+      price: !form.price.trim() || isNaN(parseFloat(form.price)),
       category: selectedCats.length === 0
     };
     setFormErrors(errors);
@@ -98,19 +176,42 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
       setError('লাল চিহ্নিত আবশ্যিক তথ্যগুলো পূরণ করুন।'); 
       return; 
     }
-    setLoading(true);
-    const res = await fetch(isEdit ? `/api/store/products/${activeProduct!.id}` : '/api/store/products', {
-      method: isEdit ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, category: selectedCats.join(', '), price: parseFloat(form.price), stock: parseInt(form.stock || '0'), weight: parseFloat(form.weight || '0.25') || 0.25 }),
-    });
-    setLoading(false);
-    if (res.ok) { 
-      if (!isEdit) localStorage.removeItem('store_product_draft');
-      onSaved(); 
-      onClose(); 
+
+    if (duplicateCodeProduct) {
+      setError(`প্রোডাক্ট আইডি "${form.barcode.trim()}" ইতিমধ্যে "${duplicateCodeProduct.name}" পণ্যে ব্যবহৃত হয়েছে। ভিন্ন আইডি দিন।`);
+      return;
     }
-    else { const d = await res.json(); setError(d.error || 'সেভ করতে সমস্যা হয়েছে'); }
+
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(isEdit ? `/api/store/products/${activeProduct!.id}` : '/api/store/products', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          name: form.name.trim(),
+          barcode: form.barcode.trim(),
+          imageUrl: form.imageUrl ? form.imageUrl.trim() : null,
+          category: selectedCats.join(', '),
+          price: parseFloat(form.price),
+          stock: parseInt(form.stock || '0') || 0,
+          weight: parseFloat(form.weight || '0.25') || 0.25
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { 
+        if (!isEdit) localStorage.removeItem('store_product_draft');
+        onSaved(); 
+        onClose(); 
+      } else {
+        setError(d.error || 'পণ্য সেভ করতে সমস্যা হয়েছে');
+      }
+    } catch {
+      setError('সার্ভারে সংযোগ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const [categories, setCategories] = useState<{id:string, name:string, isClassWise?: boolean}[]>([]);
@@ -119,70 +220,136 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
   const [newCategoryIsClassWise, setNewCategoryIsClassWise] = useState(false);
   
   useEffect(() => {
-    fetch('/api/store/categories').then(r => r.json()).then(data => setCategories(Array.isArray(data) ? data : []));
-    fetch('/api/curriculum/classes').then(r => r.json()).then(data => setCurriculumClasses(Array.isArray(data) ? data : []));
+    fetch('/api/store/categories').then(r => r.json()).then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {});
+    fetch('/api/curriculum/classes').then(r => r.json()).then(data => setCurriculumClasses(Array.isArray(data) ? data : [])).catch(() => {});
   }, []);
+
+  const displayImageSrc = previewDataUrl || form.imageUrl;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <h2 className="text-xl font-bold text-slate-800">{isEdit ? 'পণ্য সম্পাদনা করুন' : 'নতুন পণ্য যোগ করুন'}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
         </div>
         {showCropper && (
           <ImageCropper 
             onCancel={() => setShowCropper(false)}
-            onCropComplete={async (blob, url, sizeKb) => {
-              setShowCropper(false);
-              const formData = new FormData();
-              formData.append('file', blob, 'product.jpg');
-              try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.url) setForm(prev => ({ ...prev, imageUrl: data.url }));
-              } catch(e) { console.error(e); }
-            }}
+            onCropComplete={handleImageCropComplete}
           />
         )}
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 max-h-[80vh] overflow-y-auto">
           <div className="flex gap-4 items-start">
-            <div 
-              onClick={() => setShowCropper(true)}
-              className="w-24 h-24 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200 transition-colors overflow-hidden relative shrink-0"
-            >
-              {form.imageUrl ? (
-                <img src={form.imageUrl} className="w-full h-full object-cover" alt="Product" />
-              ) : (
-                <>
-                  <ImageIcon className="w-6 h-6 text-slate-400 mb-1" />
-                  <span className="text-[10px] font-bold text-slate-500">ছবি দিন</span>
-                </>
+            <div className="flex flex-col items-center gap-1.5 shrink-0">
+              <div 
+                onClick={() => !uploadingImage && setShowCropper(true)}
+                className="w-24 h-24 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200 transition-colors overflow-hidden relative"
+              >
+                {displayImageSrc && !modalImgErr ? (
+                  <img
+                    src={displayImageSrc}
+                    className="w-full h-full object-cover"
+                    alt="Product"
+                    onError={() => setModalImgErr(true)}
+                  />
+                ) : (
+                  <>
+                    <ImageIcon className="w-6 h-6 text-slate-400 mb-1" />
+                    <span className="text-[10px] font-bold text-slate-500">ছবি দিন</span>
+                  </>
+                )}
+
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white p-1">
+                    <Loader2 className="w-5 h-5 animate-spin mb-1" />
+                    <span className="text-[9px] font-bold text-center">আপলোড হচ্ছে...</span>
+                  </div>
+                )}
+
+                {form.imageUrl && !uploadingImage && (
+                  <button
+                    type="button"
+                    title="ছবি মুছে ফেলুন"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setForm(prev => ({ ...prev, imageUrl: '' }));
+                      setPreviewDataUrl(null);
+                    }}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center shadow hover:bg-red-700"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              {form.imageUrl && !uploadingImage && (
+                <button
+                  type="button"
+                  onClick={() => setShowCropper(true)}
+                  className="text-[11px] font-bold text-blue-600 hover:underline"
+                >
+                  ছবি পরিবর্তন
+                </button>
               )}
             </div>
-            <div className="flex-1 space-y-4">
+
+            <div className="flex-1 space-y-2">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">বারকোড / প্রোডাক্ট আইডি (Optional)</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">প্রোডাক্ট আইডি / কোড নাম্বার</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     id="barcode-input"
                     value={form.barcode}
                     onChange={e => setForm(prev => ({ ...prev, barcode: e.target.value }))}
-                    placeholder="Scan barcode or type ID"
-                    className="flex-1 px-4 py-3 text-lg font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all" 
+                    placeholder="যেমন: 01, 101 বা কোড দিন"
+                    className={`flex-1 px-3.5 py-2.5 text-base font-bold bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 focus:bg-white transition-all ${
+                      duplicateCodeProduct
+                        ? 'border-amber-400 focus:ring-amber-400/50'
+                        : 'border-slate-200 focus:ring-blue-500/50'
+                    }`}
                   />
                   <button 
                     type="button" 
+                    title="বারকোড স্ক্যান বা ফোকাস করুন"
                     onClick={() => document.getElementById('barcode-input')?.focus()}
-                    className="flex items-center justify-center w-14 h-[52px] bg-blue-50 border border-blue-200 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                    className="flex items-center justify-center w-12 h-[46px] bg-blue-50 border border-blue-200 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors shrink-0"
                   >
-                    <Scan className="w-6 h-6" />
+                    <Scan className="w-5 h-5" />
                   </button>
                 </div>
+                {duplicateCodeProduct && (
+                  <div className="mt-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1">
+                    <p className="font-semibold">⚠️ এই আইডিটি &ldquo;{duplicateCodeProduct.name}&rdquo; পণ্যে ব্যবহৃত হয়েছে।</p>
+                    {!product && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveProduct(duplicateCodeProduct);
+                          setForm({
+                            name: duplicateCodeProduct.name,
+                            price: duplicateCodeProduct.price.toString(),
+                            stock: duplicateCodeProduct.stock.toString(),
+                            unit: duplicateCodeProduct.unit || 'টি',
+                            barcode: cleanBarcodeValue(duplicateCodeProduct.barcode),
+                            imageUrl: duplicateCodeProduct.imageUrl || form.imageUrl || '',
+                            className: duplicateCodeProduct.className || '',
+                            description: duplicateCodeProduct.description || '',
+                            weight: duplicateCodeProduct.weight !== undefined && duplicateCodeProduct.weight !== null ? duplicateCodeProduct.weight.toString() : '0.25'
+                          });
+                          setSelectedCats(duplicateCodeProduct.category ? duplicateCodeProduct.category.split(',').map(s=>s.trim()).filter(Boolean) : []);
+                        }}
+                        className="text-blue-600 font-bold hover:underline"
+                      >
+                        → ওই পণ্যটি সম্পাদনা করতে এখানে ক্লিক করুন
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
+
           <div className="relative">
             <label className="block text-sm font-bold text-slate-700 mb-2">পণ্যের নাম *</label>
             <input
@@ -190,13 +357,13 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
               value={form.name}
               onChange={e => {
                 setForm(prev => ({ ...prev, name: e.target.value }));
+                if (formErrors.name) setFormErrors(prev => ({ ...prev, name: false }));
                 if (!activeProduct) setShowSuggestions(true);
               }}
               onFocus={() => { if(!activeProduct) setShowSuggestions(true); }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              placeholder="Product name (e.g. Noorani Qaida)"
-              lang="en"
-              className="w-full px-4 py-3 text-lg font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all" 
+              placeholder="পণ্যের নাম লিখুন (যেমন: নূরানী কায়দা)"
+              className={`w-full px-4 py-3 text-base font-medium bg-slate-50 border ${formErrors.name ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all`} 
             />
             {showSuggestions && form.name.length > 0 && !activeProduct && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto">
@@ -206,18 +373,25 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
                     type="button"
                     onClick={() => {
                       setActiveProduct(match);
-                      setForm({
-                        name: match.name, price: match.price.toString(), stock: match.stock.toString(), 
-                        unit: match.unit || 'টি', barcode: match.barcode || '', imageUrl: match.imageUrl || '',
-                        className: match.className || '', description: match.description || '',
+                      setForm(prev => ({
+                        name: match.name,
+                        price: match.price.toString(),
+                        stock: match.stock.toString(),
+                        unit: match.unit || 'টি',
+                        barcode: cleanBarcodeValue(match.barcode) || prev.barcode || '',
+                        imageUrl: match.imageUrl || prev.imageUrl || '',
+                        className: match.className || '',
+                        description: match.description || '',
                         weight: match.weight !== undefined && match.weight !== null ? match.weight.toString() : '0.25'
-                      });
+                      }));
                       setSelectedCats(match.category ? match.category.split(',').map(s=>s.trim()).filter(Boolean) : []);
                       setShowSuggestions(false);
                     }}
                     className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
                   >
-                    <div className="font-bold text-slate-800">{match.name}</div>
+                    <div className="font-bold text-slate-800">
+                      {cleanBarcodeValue(match.barcode) ? `[#${cleanBarcodeValue(match.barcode)}] ` : ''}{match.name}
+                    </div>
                     <div className="text-xs text-slate-500">মূল্য: {match.price} ৳ | মজুদ: {match.stock} {match.unit}</div>
                   </button>
                 ))}
@@ -236,6 +410,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
                 return (
                   <button type="button" key={c.id} onClick={() => {
                     setSelectedCats(prev => isSelected ? prev.filter(x => x !== c.name) : [...prev, c.name]);
+                    if (formErrors.category) setFormErrors(prev => ({ ...prev, category: false }));
                   }} className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors flex items-center gap-1.5 ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}>
                     {c.name} {isSelected && <span className="text-white text-xs">✓</span>}
                   </button>
@@ -272,7 +447,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
                       setNewCategoryIsClassWise(false);
                       setIsNewCategory(false);
                     } else {
-                      const d = await res.json();
+                      const d = await res.json().catch(() => ({}));
                       setError(d.error || 'ক্যাটাগরি তৈরি করতে সমস্যা হয়েছে');
                     }
                   }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">সংরক্ষণ</button>
@@ -398,11 +573,11 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
             </div>
           </div>
 
-          {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
+          {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100 font-medium">{error}</p>}
           <div className="flex gap-3 pt-4">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors">বাতিল</button>
-            <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-60">
-              {loading ? 'সেভ হচ্ছে...' : 'সেভ করুন'}
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors font-medium">বাতিল</button>
+            <button type="submit" disabled={loading || uploadingImage} className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-60">
+              {uploadingImage ? 'ছবি আপলোড হচ্ছে...' : loading ? 'সেভ হচ্ছে...' : 'সেভ করুন'}
             </button>
           </div>
         </form>
@@ -428,7 +603,7 @@ function UpdateStockModal({ product, onClose, onSaved }: { product: Product; onC
     });
     setLoading(false);
     if (res.ok) { onSaved(); onClose(); }
-    else { const d = await res.json(); setError(d.error || 'আপডেট করতে সমস্যা হয়েছে'); }
+    else { const d = await res.json().catch(() => ({})); setError(d.error || 'আপডেট করতে সমস্যা হয়েছে'); }
   };
 
   return (
@@ -515,6 +690,7 @@ function StockHistoryModal({ product, onClose }: { product: Product; onClose: ()
 
 function PrintBarcodeModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const [quantity, setQuantity] = useState('12');
+  const code = cleanBarcodeValue(product.barcode) || product.id;
   
   const handlePrint = () => {
     window.print();
@@ -543,7 +719,7 @@ function PrintBarcodeModal({ product, onClose }: { product: Product; onClose: ()
              <p className="text-sm text-slate-500 mb-2">প্রিভিউ (১টি লেবেল)</p>
              <div className="bg-white w-[50mm] h-[25mm] mx-auto border border-slate-200 shadow-sm flex flex-col items-center justify-center p-1">
                <p className="text-[10px] font-bold text-slate-800 line-clamp-1 leading-tight text-center">{product.name}</p>
-               <img src={`https://barcodeapi.org/api/128/${product.barcode || product.id}`} className="h-6 object-contain my-0.5 grayscale" alt="Barcode" />
+               <img src={`https://barcodeapi.org/api/128/${encodeURIComponent(code)}`} className="h-6 object-contain my-0.5 grayscale" alt="Barcode" />
                <p className="text-[10px] font-black text-slate-800 leading-tight">৳{product.price}</p>
              </div>
              <p className="text-xs text-slate-500 mt-4">প্রিন্ট বাটনে ক্লিক করলে {quantity} টি লেবেলের একটি গ্রিড প্রিন্ট হবে।</p>
@@ -562,7 +738,7 @@ function PrintBarcodeModal({ product, onClose }: { product: Product; onClose: ()
         {Array.from({ length: Number(quantity) || 1 }).map((_, i) => (
           <div key={i} className="w-[50mm] h-[25mm] border border-black/20 flex flex-col items-center justify-center p-1 m-0 break-inside-avoid">
              <p className="text-[9px] font-bold text-black line-clamp-1 leading-tight text-center max-w-[48mm] truncate overflow-hidden">{product.name}</p>
-             <img src={`https://barcodeapi.org/api/128/${product.barcode || product.id}`} className="h-6 w-[45mm] object-contain my-[1px]" alt="Barcode" />
+             <img src={`https://barcodeapi.org/api/128/${encodeURIComponent(code)}`} className="h-6 w-[45mm] object-contain my-[1px]" alt="Barcode" />
              <p className="text-[9px] font-black text-black leading-tight">Price: ৳{product.price}</p>
           </div>
         ))}
@@ -578,7 +754,7 @@ function PrintBarcodeModal({ product, onClose }: { product: Product; onClose: ()
   );
 }
 
-function ActionDropdown({ product, onUpdate }: { product: Product; onUpdate: () => void }) {
+function ActionDropdown({ product, allProducts = [], onUpdate }: { product: Product; allProducts?: Product[]; onUpdate: () => void }) {
   const [open, setOpen] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showStockUpdate, setShowStockUpdate] = useState(false);
@@ -610,7 +786,7 @@ function ActionDropdown({ product, onUpdate }: { product: Product; onUpdate: () 
 
   return (
     <div className="relative" ref={ref}>
-      {showEdit && <ProductModal product={product} onClose={() => setShowEdit(false)} onSaved={onUpdate} />}
+      {showEdit && <ProductModal product={product} products={allProducts} onClose={() => setShowEdit(false)} onSaved={onUpdate} />}
       {showStockUpdate && <UpdateStockModal product={product} onClose={() => setShowStockUpdate(false)} onSaved={onUpdate} />}
       {showStockHistory && <StockHistoryModal product={product} onClose={() => setShowStockHistory(false)} />}
       {showPrint && (
@@ -622,7 +798,7 @@ function ActionDropdown({ product, onUpdate }: { product: Product; onUpdate: () 
         <MoreVertical className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 bg-white shadow-xl rounded-xl border border-slate-100 z-10 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-44 bg-white shadow-xl rounded-xl border border-slate-100 z-20 overflow-hidden">
           <button onClick={() => { setShowStockUpdate(true); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
             <TrendingUp className="w-4 h-4 text-emerald-500" /> স্টক আপডেট
           </button>
@@ -667,7 +843,6 @@ export const isQuestionProduct = (p: { name?: string; category?: string } | any)
 
 export default function StockTab({
   storeCategory = 'all',
-  onCategoryChange,
 }: {
   storeCategory?: 'all' | 'stationary' | 'question';
   onCategoryChange?: (cat: 'all' | 'stationary' | 'question') => void;
@@ -691,7 +866,7 @@ export default function StockTab({
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/store/categories');
+      const res = await fetch(`/api/store/categories?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       setAllCategories(Array.isArray(data) ? data : []);
     } catch { setAllCategories([]); }
@@ -700,7 +875,7 @@ export default function StockTab({
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/store/products');
+      const res = await fetch(`/api/store/products?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       setAllProducts(Array.isArray(data) ? data : []);
     } catch { setAllProducts([]); }
@@ -738,11 +913,30 @@ export default function StockTab({
     return allProducts;
   }, [allProducts, storeCategory]);
 
-  const filtered = categoryProducts.filter(p =>
-    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.id.includes(searchTerm)) &&
-    (filterCategory === '' || p.category.includes(filterCategory)) &&
-    (filterClass === '' || p.className === filterClass)
-  );
+  const filtered = useMemo(() => {
+    const qLower = searchTerm.trim().toLowerCase();
+    const qEn = toEnglishDigits(qLower);
+
+    return categoryProducts.filter(p => {
+      const pCode = cleanBarcodeValue(p.barcode);
+      const pCodeLower = pCode.toLowerCase();
+      const pCodeEn = toEnglishDigits(pCodeLower);
+
+      const matchesSearch =
+        !qLower ||
+        p.name.toLowerCase().includes(qLower) ||
+        pCodeLower.includes(qLower) ||
+        pCodeEn.includes(qEn) ||
+        p.category.toLowerCase().includes(qLower) ||
+        p.id.toLowerCase().includes(qLower);
+
+      const pCats = (p.category || '').split(',').map(s => s.trim()).filter(Boolean);
+      const matchesCat = filterCategory === '' || pCats.includes(filterCategory) || p.category.includes(filterCategory);
+      const matchesClass = filterClass === '' || p.className === filterClass;
+
+      return matchesSearch && matchesCat && matchesClass;
+    });
+  }, [categoryProducts, searchTerm, filterCategory, filterClass]);
 
   const currentCategoryProducts = filterCategory ? categoryProducts.filter((p: Product) => p.category.includes(filterCategory) && p.className) : [];
   const uniqueClasses: string[] = Array.from(new Set(currentCategoryProducts.map((p: Product) => p.className).filter((c): c is string => Boolean(c))));
@@ -753,17 +947,29 @@ export default function StockTab({
     return { label: 'মজুদ আছে', class: 'bg-emerald-100 text-emerald-700' };
   };
 
-  const sortedFiltered = [...filtered].sort((a, b) => {
-    if (!sortConfig) return 0;
+  const sortedFiltered = useMemo(() => {
+    if (!sortConfig) return filtered;
     const { key, direction } = sortConfig;
-    let aVal: any = a[key] ?? '';
-    let bVal: any = b[key] ?? '';
-    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-    if (aVal < bVal) return direction === 'asc' ? -1 : 1;
-    if (aVal > bVal) return direction === 'asc' ? 1 : -1;
-    return 0;
-  });
+
+    return [...filtered].sort((a, b) => {
+      if (key === 'barcode') {
+        const codeA = toEnglishDigits(cleanBarcodeValue(a.barcode));
+        const codeB = toEnglishDigits(cleanBarcodeValue(b.barcode));
+        if (!codeA && codeB) return 1;
+        if (codeA && !codeB) return -1;
+        const cmp = codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+        return direction === 'asc' ? cmp : -cmp;
+      }
+
+      let aVal: any = a[key] ?? '';
+      let bVal: any = b[key] ?? '';
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortConfig]);
 
   const sortIcon = (key: keyof Product) => {
     if (sortConfig?.key !== key) return null;
@@ -772,15 +978,14 @@ export default function StockTab({
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-      {showModal && <ProductModal onClose={() => {setShowModal(false); setEditingProduct(undefined);}} onSaved={fetchProducts} product={editingProduct} products={filtered} defaultCategory={filterCategory} defaultClass={filterClass} />}
+      {showModal && <ProductModal onClose={() => {setShowModal(false); setEditingProduct(undefined);}} onSaved={fetchProducts} product={editingProduct} products={allProducts} defaultCategory={filterCategory} defaultClass={filterClass} />}
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex gap-2 w-full sm:w-auto flex-1">
           <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
-            <div className="relative flex-1 sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input type="text" placeholder="পণ্য খুঁজুন..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                lang="en"
+            <div className="relative flex-1 sm:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input type="text" placeholder="পণ্যের নাম বা আইডি দিয়ে খুঁজুন..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all" />
             </div>
           </div>
@@ -790,7 +995,7 @@ export default function StockTab({
         </div>
         <div className="hidden sm:flex items-center gap-3 w-full sm:w-auto">
           <button onClick={() => {
-            const csv = ['পণ্য,ক্যাটাগরি,মূল্য,মজুদ', ...filtered.map(p => `${p.name},${p.category},${p.price},${p.stock}`)].join('\n');
+            const csv = ['আইডি,পণ্য,ক্যাটাগরি,মূল্য,মজুদ', ...filtered.map(p => `${cleanBarcodeValue(p.barcode)},${p.name},"${p.category}",${p.price},${p.stock}`)].join('\n');
             const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
             a.download = 'stock.csv'; a.click();
           }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
@@ -869,20 +1074,22 @@ export default function StockTab({
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 shadow-2xs">
               <tr className="bg-slate-50/95 backdrop-blur-xs text-slate-500 text-sm">
-                <th onClick={() => handleSort('name')} className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">পণ্যের নাম {sortIcon('name')}</th>
-                <th onClick={() => handleSort('category')} className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">ক্যাটাগরি {sortIcon('category')}</th>
-                <th onClick={() => handleSort('price')} className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">মূল্য (৳) {sortIcon('price')}</th>
-                <th onClick={() => handleSort('stock')} className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">মজুদ {sortIcon('stock')}</th>
-                <th className="px-6 py-4 font-medium">স্ট্যাটাস</th>
-                <th className="px-6 py-4 font-medium text-right">অ্যাকশন</th>
+                <th className="px-4 py-4 font-medium w-16 text-center">ছবি</th>
+                <th onClick={() => handleSort('barcode')} className="px-4 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none w-28">আইডি / কোড {sortIcon('barcode')}</th>
+                <th onClick={() => handleSort('name')} className="px-4 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">পণ্যের নাম {sortIcon('name')}</th>
+                <th onClick={() => handleSort('category')} className="px-4 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">ক্যাটাগরি {sortIcon('category')}</th>
+                <th onClick={() => handleSort('price')} className="px-4 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">মূল্য (৳) {sortIcon('price')}</th>
+                <th onClick={() => handleSort('stock')} className="px-4 py-4 font-medium cursor-pointer hover:bg-slate-200 select-none">মজুদ {sortIcon('stock')}</th>
+                <th className="px-4 py-4 font-medium">স্ট্যাটাস</th>
+                <th className="px-4 py-4 font-medium text-right">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">লোড হচ্ছে...</td></tr>
+                <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-400">লোড হচ্ছে...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={8} className="px-6 py-16 text-center">
                     <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-400">কোনো পণ্য পাওয়া যায়নি।</p>
                     <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-blue-600 hover:underline">+ নতুন পণ্য যোগ করুন</button>
@@ -890,17 +1097,35 @@ export default function StockTab({
                 </tr>
               ) : sortedFiltered.map(product => {
                 const status = stockStatus(product.stock);
+                const pCode = cleanBarcodeValue(product.barcode);
                 return (
                   <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-800">
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        <ProductThumbnail src={product.imageUrl} alt={product.name} className="w-10 h-10" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {pCode ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs font-mono">
+                          {pCode}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-slate-800">
                       {product.name}
+                      {product.className && (
+                        <span className="text-xs text-indigo-600 font-medium ml-1.5">[{product.className}]</span>
+                      )}
                       <span className="text-xs text-slate-400 font-normal ml-1.5">({product.weight ?? 0.25} কেজি)</span>
                     </td>
-                    <td className="px-6 py-4 text-slate-600">{product.category}</td>
-                    <td className="px-6 py-4 text-slate-700">{product.price} ৳</td>
-                    <td className="px-6 py-4 font-medium text-slate-800">{product.stock} {product.unit}</td>
-                    <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${status.class}`}>{status.label}</span></td>
-                    <td className="px-6 py-4 text-right"><ActionDropdown product={product} onUpdate={fetchProducts} /></td>
+                    <td className="px-4 py-3 text-slate-600">{product.category}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-700">{product.price} ৳</td>
+                    <td className="px-4 py-3 font-medium text-slate-800">{product.stock} {product.unit}</td>
+                    <td className="px-4 py-3"><span className={`px-3 py-1 rounded-full text-xs font-medium ${status.class}`}>{status.label}</span></td>
+                    <td className="px-4 py-3 text-right"><ActionDropdown product={product} allProducts={allProducts} onUpdate={fetchProducts} /></td>
                   </tr>
                 );
               })}
@@ -920,20 +1145,31 @@ export default function StockTab({
             </div>
           ) : sortedFiltered.map(product => {
             const status = stockStatus(product.stock);
+            const pCode = cleanBarcodeValue(product.barcode);
             return (
               <div key={product.id} className="p-4 flex flex-col gap-3 bg-white border border-slate-200 rounded-xl shadow-sm">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-bold text-slate-800 text-base">{product.name}</p>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${status.class}`}>{status.label}</span>
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <ProductThumbnail src={product.imageUrl} alt={product.name} className="w-12 h-12" />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        {pCode && (
+                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold font-mono">
+                            আইডি: {pCode}
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${status.class}`}>{status.label}</span>
+                      </div>
+                      <p className="font-bold text-slate-800 text-base leading-snug">{product.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {product.category}{product.className ? ` • ${product.className}` : ''}
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-500">{product.category}</p>
                   </div>
-                  <ActionDropdown product={product} onUpdate={fetchProducts} />
+                  <ActionDropdown product={product} allProducts={allProducts} onUpdate={fetchProducts} />
                 </div>
 
-                <div className="h-px w-full bg-slate-100 my-1" />
+                <div className="h-px w-full bg-slate-100 my-0.5" />
 
                 <div className="flex justify-between items-center">
                   <div>

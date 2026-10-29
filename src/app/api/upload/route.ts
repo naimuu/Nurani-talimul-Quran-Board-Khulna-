@@ -4,6 +4,8 @@ import { join } from "path";
 import crypto from "crypto";
 import { uploadToGridFS } from "@/lib/gridfs";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -19,13 +21,34 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create unique filename
-    const fileExtension = file.name.split(".").pop()?.toLowerCase() || "";
+    if (buffer.length === 0) {
+      return NextResponse.json(
+        { error: "Uploaded file is empty" },
+        { status: 400 }
+      );
+    }
+
+    // Determine extension safely from filename or MIME type
+    const rawExt = file.name?.includes(".")
+      ? file.name.split(".").pop()?.toLowerCase()?.replace(/[^a-z0-9]/g, "") || ""
+      : "";
+
+    let fileExtension = rawExt;
+    if (!fileExtension) {
+      if (file.type === "image/png") fileExtension = "png";
+      else if (file.type === "image/webp") fileExtension = "webp";
+      else if (file.type === "image/gif") fileExtension = "gif";
+      else if (file.type === "image/svg+xml") fileExtension = "svg";
+      else if (file.type === "application/pdf") fileExtension = "pdf";
+      else if (file.type?.startsWith("image/")) fileExtension = "jpg";
+      else fileExtension = "bin";
+    }
+
     const filename = `${crypto.randomUUID()}.${fileExtension}`;
 
     // Determine folder based on request or mime type
-    const customFolder = formData.get("folder") as string | null;
-    let folder = customFolder || (file.type.startsWith("image/") ? "images" : "documents");
+    const customFolder = (formData.get("folder") as string | null)?.replace(/[^a-zA-Z0-9_-]/g, "");
+    const folder = customFolder || (file.type?.startsWith("image/") ? "images" : "documents");
 
     // Standardize content type
     let contentType = file.type;
@@ -34,40 +57,55 @@ export async function POST(request: NextRequest) {
       else if (["jpg", "jpeg"].includes(fileExtension)) contentType = "image/jpeg";
       else if (fileExtension === "png") contentType = "image/png";
       else if (fileExtension === "webp") contentType = "image/webp";
+      else if (fileExtension === "gif") contentType = "image/gif";
+      else if (fileExtension === "svg") contentType = "image/svg+xml";
       else contentType = "application/octet-stream";
     }
+
+    let savedToGridFS = false;
+    let savedToDisk = false;
+    let gridErrorMsg = "";
 
     // 1. Upload to MongoDB GridFS for permanent storage across all servers/restarts
     try {
       await uploadToGridFS(buffer, `${folder}/${filename}`, {
         contentType,
         metadata: {
-          originalName: file.name,
+          originalName: file.name || filename,
           folder,
           cleanPath: `${folder}/${filename}`,
           size: buffer.length,
         },
       });
-    } catch (dbErr) {
+      savedToGridFS = true;
+    } catch (dbErr: any) {
+      gridErrorMsg = dbErr?.message || String(dbErr);
       console.error("MongoDB GridFS upload error:", dbErr);
-      // If MongoDB GridFS fails, we will still try writing to disk below
     }
 
     // 2. Also save to local filesystem as cache/fallback if possible
     try {
       const uploadDir = join(process.cwd(), "public", "uploads", folder);
       await mkdir(uploadDir, { recursive: true });
-      const path = join(uploadDir, filename);
-      await writeFile(path, buffer);
+      const filePath = join(uploadDir, filename);
+      await writeFile(filePath, buffer);
+      savedToDisk = true;
     } catch (fsErr) {
-      // Non-fatal if server is read-only (e.g. Vercel serverless)
+      // Non-fatal if server is read-only (e.g. Vercel serverless) as long as GridFS succeeded
       console.warn("Local disk write warning:", fsErr);
     }
 
-    // Return the URL that can be used to access the file
+    if (!savedToGridFS && !savedToDisk) {
+      return NextResponse.json(
+        { error: "ছবি/ফাইল সার্ভারে সংরক্ষণ করা যায়নি: " + (gridErrorMsg || "Storage unavailable") },
+        { status: 500 }
+      );
+    }
+
+    // Return /api/uploads/... URL so it never collides with Next.js static public/uploads folder
     return NextResponse.json({
-      url: `/uploads/${folder}/${filename}`,
-      name: file.name,
+      url: `/api/uploads/${folder}/${filename}`,
+      name: file.name || filename,
       size: buffer.length,
     });
   } catch (error: any) {

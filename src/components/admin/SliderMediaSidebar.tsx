@@ -409,7 +409,7 @@ export default function SliderMediaSidebar({
             ) : (
               slides.map((slide, index) => {
                 const isUrl = slide.imageUrl.startsWith("http://") || slide.imageUrl.startsWith("https://");
-                const isUpload = slide.imageUrl.startsWith("/uploads/") || slide.imageUrl.startsWith("uploads/");
+                const isUpload = slide.imageUrl.startsWith("/uploads/") || slide.imageUrl.startsWith("uploads/") || slide.imageUrl.startsWith("/api/uploads/");
                 const isPreset = slide.imageUrl.startsWith("/images/hero/");
 
                 return (

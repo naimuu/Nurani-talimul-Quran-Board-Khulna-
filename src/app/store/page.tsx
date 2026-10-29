@@ -12,9 +12,81 @@ import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
 type Product = {
   id: string; name: string; category: string; price: number;
   stock: number; unit: string; rating?: number; reviews?: number;
-  imageUrl?: string; className?: string; subject?: string; description?: string | null;
-  weight?: number | null;
+  imageUrl?: string | null; barcode?: string | null; className?: string | null; subject?: string | null; description?: string | null;
+  weight?: number | null; createdAt?: string;
 };
+
+const bnToEnDigits = (str: string) => {
+  const map: Record<string, string> = {
+    "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
+    "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
+  };
+  return str.replace(/[০-৯]/g, (m) => map[m] || m);
+};
+
+function getCleanProductCode(product?: { barcode?: string | null } | null): string {
+  if (!product?.barcode) return "";
+  const trimmed = String(product.barcode).trim();
+  return trimmed.startsWith("__NO_BARCODE_") ? "" : trimmed;
+}
+
+function compareProductsByCode(a: Product, b: Product): number {
+  const codeA = bnToEnDigits(getCleanProductCode(a));
+  const codeB = bnToEnDigits(getCleanProductCode(b));
+
+  const hasA = codeA.length > 0;
+  const hasB = codeB.length > 0;
+
+  if (hasA && !hasB) return -1;
+  if (!hasA && hasB) return 1;
+
+  if (hasA && hasB) {
+    const cmp = codeA.localeCompare(codeB, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    if (cmp !== 0) return cmp;
+  }
+
+  const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+  const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+  return timeA - timeB;
+}
+
+function ProductImage({
+  src,
+  alt,
+  imgClassName = "w-full h-full object-cover",
+  iconClassName = "w-5 h-5 text-slate-300",
+}: {
+  src?: string | null;
+  alt: string;
+  imgClassName?: string;
+  iconClassName?: string;
+}) {
+  const [imgErr, setImgErr] = useState(false);
+
+  useEffect(() => {
+    setImgErr(false);
+  }, [src]);
+
+  if (src && !imgErr) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={imgClassName}
+        onError={() => setImgErr(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-slate-50">
+      <Package className={iconClassName} />
+    </div>
+  );
+}
 
 function isQuestionProduct(item: { name?: string; category?: string }): boolean {
   const cat = (item.category || "").trim().toLowerCase();
@@ -41,36 +113,74 @@ function ListProductRow({
   product: Product, index: number, cartQty: number,
   updateCartQty: (p: Product, q: number) => void, setDetailProduct: (p: Product) => void
 }) {
+  const productCode = getCleanProductCode(product);
+
   return (
     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors bg-white/70">
       <td className="p-2 hidden sm:table-cell">
-        <div className="w-10 h-10 bg-white rounded flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-2xs border border-slate-100 relative">
-          {product.imageUrl ? (
-            <img
+        <div
+          onClick={() => setDetailProduct(product)}
+          className="w-11 h-11 bg-white rounded-lg flex items-center justify-center flex-shrink-0 mx-auto overflow-hidden shadow-2xs border border-slate-200 relative cursor-pointer hover:border-primary/40 transition-colors"
+        >
+          <ProductImage
+            src={product.imageUrl}
+            alt={product.name}
+            imgClassName="w-full h-full object-cover"
+            iconClassName="w-5 h-5 text-slate-300"
+          />
+        </div>
+      </td>
+      <td className="p-2 text-center hidden sm:table-cell">
+        {productCode ? (
+          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs sm:text-sm font-black font-mono">
+            {productCode}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-300 font-bold">—</span>
+        )}
+      </td>
+      <td className="p-2 sm:p-2.5">
+        <div className="flex items-center gap-2.5">
+          {/* Mobile thumbnail */}
+          <div
+            onClick={() => setDetailProduct(product)}
+            className="w-10 h-10 bg-white rounded-lg flex sm:hidden items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200 cursor-pointer"
+          >
+            <ProductImage
               src={product.imageUrl}
               alt={product.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const p = e.currentTarget.parentElement;
-                if (p) {
-                  const fb = p.querySelector('.img-fb');
-                  if (fb) (fb as HTMLElement).style.display = 'flex';
-                }
-              }}
+              imgClassName="w-full h-full object-cover"
+              iconClassName="w-4 h-4 text-slate-300"
             />
-          ) : null}
-          <div className={`img-fb w-full h-full items-center justify-center bg-slate-50 ${product.imageUrl ? 'hidden' : 'flex'}`}>
-            <Package className="w-5 h-5 text-slate-300" />
+          </div>
+          <div className="min-w-0 flex-1">
+            {productCode && (
+              <div className="sm:hidden mb-0.5">
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black font-mono">
+                  আইডি: {productCode}
+                </span>
+              </div>
+            )}
+            <h3
+              className="font-bold text-slate-800 text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2"
+              onClick={() => setDetailProduct(product)}
+            >
+              {product.name}
+            </h3>
+            {product.className && (
+              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                {product.className}{product.subject ? ` - ${product.subject}` : ''}
+              </p>
+            )}
           </div>
         </div>
       </td>
-      <td className="p-2 text-center text-xs sm:text-sm font-bold text-slate-700 hidden sm:table-cell">{String(index + 1).padStart(2, '0')}</td>
-      <td className="p-2 sm:p-2.5">
-        <h3 className="font-bold text-slate-800 text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2" onClick={() => setDetailProduct(product)}>{product.name}</h3>
-      </td>
       <td className="p-2 text-center text-xs font-bold text-slate-600 hidden sm:table-cell">
-        {product.category}
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {(product.category || '').split(',').map(c => c.trim()).filter(Boolean).map(c => (
+            <span key={c} className="bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">{c}</span>
+          ))}
+        </div>
       </td>
       <td className="p-2 sm:p-2.5 text-center font-bold text-xs sm:text-sm text-slate-800">{product.price.toFixed(2)}</td>
       <td className="p-2 sm:p-2.5">
@@ -98,37 +208,34 @@ function ProductDetailModal({
   onAddToCart: (p: Product) => void;
   isFav: boolean; onToggleFav: () => void;
 }) {
-  const r = STAR_RATINGS[product.id] || { rating: 4.2, reviews: 18 };
+  const productCode = getCleanProductCode(product);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="relative">
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 h-56 flex items-center justify-center rounded-t-2xl overflow-hidden relative">
-            {product.imageUrl ? (
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="w-full h-full object-contain p-4"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const p = e.currentTarget.parentElement;
-                  if (p) {
-                    const fb = p.querySelector('.modal-img-fb');
-                    if (fb) (fb as HTMLElement).style.display = 'flex';
-                  }
-                }}
-              />
-            ) : null}
-            <div className={`modal-img-fb w-full h-full items-center justify-center ${product.imageUrl ? 'hidden' : 'flex'}`}>
-              <Package className="w-24 h-24 text-slate-300" />
-            </div>
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 h-64 flex items-center justify-center rounded-t-2xl overflow-hidden relative">
+            <ProductImage
+              src={product.imageUrl}
+              alt={product.name}
+              imgClassName="w-full h-full object-contain p-4"
+              iconClassName="w-24 h-24 text-slate-300"
+            />
           </div>
           <button onClick={onClose} className="absolute top-3 right-3 bg-white/80 hover:bg-white p-2 rounded-full shadow transition-colors">
             <X className="w-4 h-4 text-slate-600" />
           </button>
         </div>
         <div className="p-6">
-          <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{product.category}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {productCode && (
+              <span className="text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full font-mono">
+                আইডি: {productCode}
+              </span>
+            )}
+            {(product.category || '').split(',').map(c => c.trim()).filter(Boolean).map(c => (
+              <span key={c} className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{c}</span>
+            ))}
+          </div>
           <h2 className="text-2xl font-black text-slate-800 mt-3 mb-1">{product.name}</h2>
           {product.className && (
             <p className="text-sm font-medium text-slate-500 mb-2">
@@ -1526,18 +1633,42 @@ export default function StorePage() {
     return r === "AGENT" || r === "CENTER" || r === "EXAM_CENTER" || r === "ADMIN";
   }, [currentUser]);
 
-  useEffect(() => {
-    setIsMounted(true);
-    fetch("/api/store/products")
+  const fetchStoreProducts = React.useCallback((silent = false) => {
+    if (!silent) setLoading(true);
+    fetch(`/api/store/products?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+    })
       .then(r => r.json())
       .then(data => {
         const raw = Array.isArray(data) ? data : [];
-        // Only show books and stationery in store, exclude question papers
         const storeOnly = raw.filter((p: Product) => !isQuestionProduct(p));
         setProducts(storeOnly);
+        // Sync cached cart product metadata (imageUrl, barcode, price, name, weight)
+        setCart(prev => {
+          if (prev.length === 0) return prev;
+          const byId = new Map(storeOnly.map((p: Product) => [p.id, p]));
+          return prev.map(item => {
+            const fresh = byId.get(item.product.id);
+            return fresh ? { ...item, product: fresh } : item;
+          });
+        });
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
+    fetchStoreProducts(false);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchStoreProducts(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     // Load view mode from localStorage (default to table/list)
     try {
       const savedView = localStorage.getItem("store_view_mode");
@@ -1561,7 +1692,11 @@ export default function StorePage() {
         setCart(cleanCart);
       }
     } catch { }
-  }, []);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [fetchStoreProducts]);
 
   useEffect(() => {
     if (isMounted) {
@@ -1613,7 +1748,10 @@ export default function StorePage() {
   const grandTotal = cartTotal + deliveryInfo.deliveryCharge;
 
   const categories = useMemo(() => {
-    const raw = Array.from(new Set(products.map(p => p.category)));
+    const splitCats = products.flatMap(p =>
+      (p.category || "").split(",").map(c => c.trim()).filter(Boolean)
+    );
+    const raw = Array.from(new Set(splitCats));
     return raw.filter(cat => !isQuestionProduct({ category: cat }));
   }, [products]);
   const highestPrice = useMemo(() => products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000, [products]);
@@ -1622,14 +1760,35 @@ export default function StorePage() {
 
   const filtered = useMemo(() => {
     let list = products.filter(p => !isQuestionProduct(p));
-    if (search) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
-    if (selectedCategories.size > 0) list = list.filter(p => selectedCategories.has(p.category));
+    if (search.trim()) {
+      const qLower = search.trim().toLowerCase();
+      const qEn = bnToEnDigits(qLower);
+      list = list.filter(p => {
+        const code = getCleanProductCode(p).toLowerCase();
+        const codeEn = bnToEnDigits(code);
+        return (
+          p.name.toLowerCase().includes(qLower) ||
+          code.includes(qLower) ||
+          codeEn.includes(qEn) ||
+          (p.category && p.category.toLowerCase().includes(qLower)) ||
+          (p.className && p.className.toLowerCase().includes(qLower))
+        );
+      });
+    }
+    if (selectedCategories.size > 0) {
+      list = list.filter(p => {
+        const productCats = (p.category || "").split(",").map(c => c.trim()).filter(Boolean);
+        return productCats.some(c => selectedCategories.has(c)) || selectedCategories.has(p.category);
+      });
+    }
     if (showOnlyInStock) list = list.filter(p => p.stock > 0);
     if (showOnlyFavourites) list = list.filter(p => favourites.has(p.id));
     if (minPrice) list = list.filter(p => p.price >= parseFloat(minPrice));
     if (maxPrice) list = list.filter(p => p.price <= parseFloat(maxPrice));
     if (ratingFilter > 0) list = list.filter(p => getProductRating(p.id).rating >= ratingFilter);
-    if (sortBy === "price-asc") list.sort((a, b) => a.price - b.price);
+
+    if (sortBy === "default") list.sort(compareProductsByCode);
+    else if (sortBy === "price-asc") list.sort((a, b) => a.price - b.price);
     else if (sortBy === "price-desc") list.sort((a, b) => b.price - a.price);
     else if (sortBy === "name") list.sort((a, b) => a.name.localeCompare(b.name));
     else if (sortBy === "rating") list.sort((a, b) => getProductRating(b.id).rating - getProductRating(a.id).rating);
@@ -1661,8 +1820,7 @@ export default function StorePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
                 value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="পণ্য খুঁজুন..."
-                lang="bn"
+                placeholder="পণ্যের নাম বা আইডি দিয়ে খুঁজুন..."
                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
               />
               {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>}
@@ -1677,7 +1835,7 @@ export default function StorePage() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
               className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 hidden md:block">
-              <option value="default">ডিফল্ট</option>
+              <option value="default">আইডি / ক্রমানুসারে</option>
               <option value="price-asc">মূল্য: কম থেকে বেশি</option>
               <option value="price-desc">মূল্য: বেশি থেকে কম</option>
               <option value="name">নামানুসারে</option>
@@ -1811,28 +1969,22 @@ export default function StorePage() {
                   const isFav = favourites.has(product.id);
                   const cartItem = cart.find(c => c.product.id === product.id);
                   const cartQty = cartItem ? cartItem.qty : 0;
+                  const productCode = getCleanProductCode(product);
 
                   return (
                     <div key={product.id} onClick={() => setDetailProduct(product)} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-row sm:flex-col cursor-pointer">
                       <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 flex items-center justify-center overflow-hidden border-r sm:border-r-0 sm:border-b border-slate-100">
-                        {product.imageUrl ? (
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const p = e.currentTarget.parentElement;
-                              if (p) {
-                                const fb = p.querySelector('.card-img-fb');
-                                if (fb) (fb as HTMLElement).style.display = 'flex';
-                              }
-                            }}
-                          />
-                        ) : null}
-                        <div className={`card-img-fb w-full h-full items-center justify-center ${product.imageUrl ? 'hidden' : 'flex'}`}>
-                          <Package className="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform" />
-                        </div>
+                        <ProductImage
+                          src={product.imageUrl}
+                          alt={product.name}
+                          imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          iconClassName="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform"
+                        />
+                        {productCode && (
+                          <span className="absolute top-2 left-2 text-[10px] sm:text-xs text-emerald-900 font-black font-mono bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-md border border-emerald-200 shadow-sm z-10">
+                            আইডি: {productCode}
+                          </span>
+                        )}
                         <span className="absolute bottom-2 left-2 text-[10px] sm:text-xs text-primary font-bold bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm z-10 max-w-[calc(100%-16px)] truncate">
                           {product.category}
                         </span>
@@ -1902,7 +2054,7 @@ export default function StorePage() {
                     <thead className="sticky top-0 z-10 bg-[#2f8c5b] shadow-xs">
                       <tr className="bg-[#2f8c5b] text-white text-xs sm:text-sm">
                         <th className="p-2.5 font-bold text-center border-r border-white/20 w-14 sm:w-20 hidden sm:table-cell bg-[#2f8c5b]">ছবি</th>
-                        <th className="p-2.5 font-bold text-center border-r border-white/20 w-16 hidden sm:table-cell bg-[#2f8c5b]">কোড</th>
+                        <th className="p-2.5 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell bg-[#2f8c5b]">আইডি</th>
                         <th className="p-2.5 sm:p-3 font-bold text-left sm:text-center border-r border-white/20 bg-[#2f8c5b]">পণ্যের নাম</th>
                         <th className="p-2.5 font-bold text-center border-r border-white/20 w-24 hidden sm:table-cell bg-[#2f8c5b]">ক্যাটাগরি</th>
                         <th className="p-2.5 sm:p-3 font-bold text-center border-r border-white/20 w-20 sm:w-28 bg-[#2f8c5b]">দর (৳)</th>
@@ -1988,15 +2140,12 @@ export default function StorePage() {
                     >
                       {/* Thumbnail */}
                       <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
-                        {item.product.imageUrl ? (
-                          <img
-                            src={item.product.imageUrl}
-                            alt={item.product.name}
-                            className="w-full h-full object-contain p-0.5"
-                          />
-                        ) : (
-                          <Package className="w-4 h-4 text-slate-300" />
-                        )}
+                        <ProductImage
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          imgClassName="w-full h-full object-contain p-0.5"
+                          iconClassName="w-4 h-4 text-slate-300"
+                        />
                       </div>
 
                       {/* Info & Controls */}
@@ -2206,15 +2355,12 @@ export default function StorePage() {
                       className="flex gap-2 p-2 bg-white border border-slate-200/70 rounded-xl shadow-xs transition-all items-center"
                     >
                       <div className="w-11 h-11 bg-slate-50 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
-                        {item.product.imageUrl ? (
-                          <img
-                            src={item.product.imageUrl}
-                            alt={item.product.name}
-                            className="w-full h-full object-contain p-1"
-                          />
-                        ) : (
-                          <Package className="w-5 h-5 text-slate-300" />
-                        )}
+                        <ProductImage
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          imgClassName="w-full h-full object-contain p-1"
+                          iconClassName="w-5 h-5 text-slate-300"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start gap-1">
