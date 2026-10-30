@@ -352,6 +352,7 @@ export default function InspectionForm({
   const [gpsLoading, setGpsLoading] = useState(false);
   const [geofenceBreachReason, setGeofenceBreachReason] = useState("");
   const [photos, setPhotos] = useState<{ url: string; caption?: string }[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -897,18 +898,32 @@ export default function InspectionForm({
     }
   }, [detectAndAutoFillLocation, initialApplication]);
 
-  // Photo Upload Simulation / Base64
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, caption: string) => {
+  // Cloud Photo Upload (Cloudinary / Cloudflare via /api/upload)
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, caption: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        setPhotos((prev) => [...prev, { url: reader.result as string, caption }]);
-        toast.success("ছবি সফলভাবে যুক্ত হয়েছে");
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "inspections");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) {
+        setPhotos((prev) => [...prev, { url: data.url, caption }]);
+        toast.success("ছবি সফলভাবে ক্লাউডে যুক্ত হয়েছে");
+      } else {
+        throw new Error(data.error || "ছবি আপলোড ব্যর্থ হয়েছে");
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast.error(err?.message || "ছবি আপলোড করতে সমস্যা হয়েছে");
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = "";
+    }
   };
 
   // Section 1 Checklist Selection State & Toggle Handler
@@ -2108,13 +2123,23 @@ export default function InspectionForm({
               <span className="font-semibold text-slate-700 block">সরেজমিন অবকাঠামোর ছবি:</span>
               {!isViewingExistingReport && (
                 <div className="flex gap-2">
-                  <label className="flex-1 cursor-pointer bg-white hover:bg-slate-100 py-2 rounded-xl text-center text-slate-700 text-xs font-semibold border border-slate-300 border-dashed flex items-center justify-center gap-1.5 transition">
-                    <Camera className="w-3.5 h-3.5 text-emerald-600" />
-                    ছবি তুলুন
+                  <label className={`flex-1 cursor-pointer bg-white hover:bg-slate-100 py-2 rounded-xl text-center text-slate-700 text-xs font-semibold border border-slate-300 border-dashed flex items-center justify-center gap-1.5 transition ${uploadingPhoto ? "opacity-60 pointer-events-none" : ""}`}>
+                    {uploadingPhoto ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
+                        <span>ক্লাউডে আপলোড হচ্ছে...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>ছবি তুলুন / আপলোড করুন</span>
+                      </>
+                    )}
                     <input
                       type="file"
                       accept="image/*"
                       capture="environment"
+                      disabled={uploadingPhoto}
                       className="hidden"
                       onChange={(e) => handlePhotoUpload(e, "front_view")}
                     />
@@ -2124,8 +2149,18 @@ export default function InspectionForm({
               {photos.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto pt-1 no-scrollbar">
                   {photos.map((p, idx) => (
-                    <div key={idx} className="relative w-12 h-12 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                    <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-200 shrink-0 group">
                       <img src={p.url} alt="inspection" className="w-full h-full object-cover" />
+                      {!isViewingExistingReport && (
+                        <button
+                          type="button"
+                          onClick={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-xs cursor-pointer"
+                          title="মুছুন"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

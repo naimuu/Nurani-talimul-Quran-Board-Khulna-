@@ -408,8 +408,17 @@ export default function SliderMediaSidebar({
               </div>
             ) : (
               slides.map((slide, index) => {
-                const isUrl = slide.imageUrl.startsWith("http://") || slide.imageUrl.startsWith("https://");
-                const isUpload = slide.imageUrl.startsWith("/uploads/") || slide.imageUrl.startsWith("uploads/") || slide.imageUrl.startsWith("/api/uploads/");
+                const isCloud =
+                  slide.imageUrl.includes("res.cloudinary.com") ||
+                  slide.imageUrl.includes("imagedelivery.net") ||
+                  slide.imageUrl.includes(".r2.dev");
+                const isUrl =
+                  !isCloud &&
+                  (slide.imageUrl.startsWith("http://") || slide.imageUrl.startsWith("https://"));
+                const isUpload =
+                  slide.imageUrl.startsWith("/uploads/") ||
+                  slide.imageUrl.startsWith("uploads/") ||
+                  slide.imageUrl.startsWith("/api/uploads/");
                 const isPreset = slide.imageUrl.startsWith("/images/hero/");
 
                 return (
@@ -446,7 +455,9 @@ export default function SliderMediaSidebar({
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span
                             className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${
-                              isUrl
+                              isCloud
+                                ? "bg-sky-100 text-sky-800"
+                                : isUrl
                                 ? "bg-blue-100 text-blue-800"
                                 : isUpload
                                 ? "bg-purple-100 text-purple-800"
@@ -455,7 +466,9 @@ export default function SliderMediaSidebar({
                                 : "bg-slate-200 text-slate-800"
                             }`}
                           >
-                            {isUrl
+                            {isCloud
+                              ? "☁️ ক্লাউড ইমেজ"
+                              : isUrl
                               ? "🌐 ওয়েব লিংক"
                               : isUpload
                               ? "📁 ফাইল আপলোড"
@@ -682,7 +695,7 @@ export default function SliderMediaSidebar({
                 টিপস:
               </span>
               <p className="text-[11px] text-slate-500">
-                ফাইল আপলোড সফল হলে তা স্বয়ংক্রিয়ভাবে <code>/uploads/</code> ফোল্ডারে সংরক্ষিত হবে এবং স্লাইডার তালিকায় যুক্ত হয়ে যাবে।
+                ফাইল আপলোড সফল হলে তা স্বয়ংক্রিয়ভাবে ক্লাউড স্টোরেজে (Cloudflare / Cloudinary) স্থায়ীভাবে সংরক্ষিত হবে এবং স্লাইডার তালিকায় যুক্ত হয়ে যাবে।
               </p>
             </div>
           </div>

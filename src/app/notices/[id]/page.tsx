@@ -2,8 +2,6 @@ import { PrismaClient } from "@prisma/client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Calendar, FileText, Download } from "lucide-react";
-import { existsSync } from "fs";
-import { join } from "path";
 
 const prisma = new PrismaClient();
 
@@ -25,34 +23,46 @@ export default async function NoticeDetailsPage({
       year: "numeric",
     });
 
-    // Extract attachment URL (document link, uploaded image, or explicit field)
-    const docLinkMatch = notice.content.match(/href="([^"]*(?:\/uploads\/[^"]+|\.(?:pdf|doc|docx|xls|xlsx|zip|jpg|jpeg|png|webp)[^"]*))"/i);
+    // Extract attachment URL (Cloudflare / Cloudinary / GridFS / document link / uploaded image)
+    const docLinkMatch = notice.content.match(
+      /href="([^"]*(?:res\.cloudinary\.com|imagedelivery\.net|\.r2\.dev|\/api\/uploads\/|\/uploads\/|\.(?:pdf|doc|docx|xls|xlsx|zip|jpg|jpeg|png|webp))[^"]*)"/i
+    );
     const imgMatch = notice.content.match(/<img[^>]+src="([^">]+)"/i);
-    
-    const downloadUrl = (notice as any).attachmentUrl || (docLinkMatch ? docLinkMatch[1] : (imgMatch ? imgMatch[1] : null));
-    const isPdf = downloadUrl?.toLowerCase().includes(".pdf");
-    const isImage = downloadUrl && (downloadUrl.startsWith("data:image/") || downloadUrl.toLowerCase().includes(".jpg") || downloadUrl.toLowerCase().includes(".jpeg") || downloadUrl.toLowerCase().includes(".png") || downloadUrl.toLowerCase().includes(".webp") || downloadUrl.toLowerCase().includes(".gif") || downloadUrl.toLowerCase().includes(".svg"));
 
-    // Verify if the local file exists on disk (if it is a local upload path)
-    let fileExists = true;
-    if (downloadUrl && (downloadUrl.startsWith("/uploads/") || downloadUrl.startsWith("uploads/"))) {
-      const relativePath = downloadUrl.startsWith("/") ? downloadUrl.slice(1) : downloadUrl;
-      const absolutePath = join(process.cwd(), "public", relativePath);
-      fileExists = existsSync(absolutePath);
-    }
+    const downloadUrl =
+      (notice as any).attachmentUrl ||
+      (docLinkMatch ? docLinkMatch[1] : imgMatch ? imgMatch[1] : null);
+    const lowerUrl = (downloadUrl || "").toLowerCase();
+    const isPdf = lowerUrl.includes(".pdf");
+    const isImage =
+      Boolean(downloadUrl) &&
+      !isPdf &&
+      (downloadUrl.startsWith("data:image/") ||
+        lowerUrl.includes("/image/upload/") ||
+        lowerUrl.includes("imagedelivery.net") ||
+        /\.(jpg|jpeg|png|webp|gif|svg)(\?|$)/i.test(lowerUrl));
 
     // Clean the injected attachment link from displayed content
     let cleanContent = notice.content;
     if (downloadUrl) {
       // Remove the clean link format inserted by the editor
-      cleanContent = cleanContent.replace(/<p><strong>📎 Attached Document: <\/strong>.*?<\/p>/gi, '');
+      cleanContent = cleanContent.replace(
+        /<p><strong>📎 Attached Document: <\/strong>.*?<\/p>/gi,
+        ""
+      );
       // Remove old-style div attachment blocks
-      cleanContent = cleanContent.replace(/<div style="margin-top: 20px;[\s\S]*?<\/div>[\s\S]*?<\/div>[\s\S]*?<\/div>/gi, '');
+      cleanContent = cleanContent.replace(
+        /<div style="margin-top: 20px;[\s\S]*?<\/div>[\s\S]*?<\/div>[\s\S]*?<\/div>/gi,
+        ""
+      );
       // Remove any remaining orphaned download links to uploads
-      cleanContent = cleanContent.replace(/<[a-z0-9]+>[^<]*<a href="\/uploads\/[^"]+?".*?>.*?<\/a>.*?<\/[a-z0-9]+>/gi, '');
+      cleanContent = cleanContent.replace(
+        /<[a-z0-9]+>[^<]*<a href="(?:\/api)?\/uploads\/[^"]+?".*?>.*?<\/a>.*?<\/[a-z0-9]+>/gi,
+        ""
+      );
     }
 
-    const hasAttachment = Boolean(downloadUrl && fileExists);
+    const hasAttachment = Boolean(downloadUrl);
 
     return (
       <div className="min-h-[calc(100vh-320px)] bg-slate-50 py-6 md:py-8">

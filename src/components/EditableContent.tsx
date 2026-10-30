@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import "react-quill/dist/quill.snow.css";
-import { Edit2, Save, X } from "lucide-react";
+import { Edit2, Save, X, UploadCloud, Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +33,33 @@ export default function EditableContent({
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleCloudImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "pages");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "ছবি আপলোড ব্যর্থ হয়েছে");
+      }
+      setContent((prev) => `<p><img src="${data.url}" alt="${title || slug}" /></p>` + prev);
+      toast.success("ছবি সফলভাবে ক্লাউডে আপলোড ও যুক্ত হয়েছে!");
+    } catch (err: any) {
+      toast.error(err?.message || "ছবি আপলোড করতে সমস্যা হয়েছে");
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = "";
+    }
+  };
 
   // Check auth and fetch content
   useEffect(() => {
@@ -208,9 +235,26 @@ export default function EditableContent({
           )}
           
           <div className="min-h-[320px]">
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              মূল বিষয়বস্তু / বার্তা (Body Content):
-            </label>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <label className="block text-xs font-bold text-slate-700">
+                মূল বিষয়বস্তু / বার্তা (Body Content):
+              </label>
+              <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold cursor-pointer transition-colors ${isUploadingImage ? "opacity-60 pointer-events-none" : ""}`}>
+                {isUploadingImage ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <UploadCloud className="w-3.5 h-3.5" />
+                )}
+                <span>{isUploadingImage ? "আপলোড হচ্ছে..." : "ছবি আপলোড করুন (Cloud)"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isUploadingImage}
+                  onChange={handleCloudImageUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
             <ReactQuill 
               theme="snow" 
               value={content} 

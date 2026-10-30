@@ -37,6 +37,7 @@ export default function NoticeEditor({
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("folder", "notices");
 
     try {
       const res = await fetch("/api/upload", {
@@ -44,18 +45,18 @@ export default function NoticeEditor({
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || "Upload failed");
 
-      const data = await res.json();
-      
-      // Instead of complex HTML that Quill strips, we insert a clean, simple link.
-      // This will look neat inside the editor as "📎 Attached Document: filename.pdf"
-      const downloadHtml = `<p><br></p><p><strong>📎 Attached Document: </strong><a href="${data.url}" target="_blank" rel="noopener noreferrer">${file.name}</a></p><p><br></p>`;
+      const isImageFile = file.type?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(file.name);
+      const insertedHtml = isImageFile
+        ? `<p><br></p><p><img src="${data.url}" alt="${file.name}" /></p><p><strong>📎 Attached Document: </strong><a href="${data.url}" target="_blank" rel="noopener noreferrer">${file.name}</a></p><p><br></p>`
+        : `<p><br></p><p><strong>📎 Attached Document: </strong><a href="${data.url}" target="_blank" rel="noopener noreferrer">${file.name}</a></p><p><br></p>`;
 
-      setContent((prev) => prev + downloadHtml);
-      toast.success("File attached successfully!");
-    } catch (err) {
-      toast.error("Failed to upload file");
+      setContent((prev) => prev + insertedHtml);
+      toast.success("ফাইল সফলভাবে ক্লাউডে আপলোড ও সংযুক্ত হয়েছে!");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload file");
       console.error(err);
     } finally {
       setIsUploading(false);
@@ -129,14 +130,15 @@ export default function NoticeEditor({
                 onChange={handleFileUpload}
                 disabled={isUploading}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                accept=".pdf,.doc,.docx,.jpg,.png"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
               />
               <button
+                type="button"
                 disabled={isUploading}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-lg transition-colors disabled:opacity-50"
               >
                 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                {isUploading ? "Uploading..." : "Attach Document"}
+                {isUploading ? "Uploading..." : "Attach Image / Document"}
               </button>
             </div>
           </div>

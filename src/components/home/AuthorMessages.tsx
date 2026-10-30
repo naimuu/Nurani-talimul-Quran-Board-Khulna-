@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Quote, Plus, Edit2, Trash2, X, Save, UserCheck, ShieldAlert, Sparkles } from "lucide-react";
+import { Quote, Plus, Edit2, Trash2, X, Save, UserCheck, ShieldAlert, Sparkles, UploadCloud, Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 export interface AuthorPerson {
@@ -34,6 +34,33 @@ export default function AuthorMessages() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<AuthorPerson | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleAuthorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "authors");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "ছবি আপলোড ব্যর্থ হয়েছে");
+      }
+      setFormImage(data.url);
+      toast.success("ছবি সফলভাবে ক্লাউডে আপলোড হয়েছে!");
+    } catch (err: any) {
+      toast.error(err?.message || "ছবি আপলোড করতে সমস্যা হয়েছে");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  };
 
   // Form states for adding / editing person
   const [formId, setFormId] = useState("");
@@ -345,14 +372,31 @@ export default function AuthorMessages() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ছবির লিংক (Image URL)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    ছবির লিংক বা ক্লাউড আপলোড (Image)
+                  </label>
+                  <label className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold cursor-pointer transition-colors ${uploadingImage ? "opacity-60 pointer-events-none" : ""}`}>
+                    {uploadingImage ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-3 h-3" />
+                    )}
+                    <span>{uploadingImage ? "আপলোড হচ্ছে..." : "ছবি আপলোড করুন"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingImage}
+                      onChange={handleAuthorImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
                 <input
                   type="text"
                   value={formImage}
                   onChange={(e) => setFormImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder="https://res.cloudinary.com/..."
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-emerald-600"
                 />
               </div>
