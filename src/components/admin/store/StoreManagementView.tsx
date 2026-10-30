@@ -1,43 +1,55 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, CreditCard, ClipboardList, Layers, FileText, BookOpen } from 'lucide-react';
-import SaleTab from './SaleTab';
-import StockTab from './StockTab';
-import PaymentTab from './PaymentTab';
-import OrderTab from './OrderTab';
-import ReceiptTab from './ReceiptTab';
-import LedgerTab from './LedgerTab';
+import React, { useState, useEffect } from "react";
+import { ShoppingCart, Package, CreditCard, ClipboardList, Layers, FileText, BookOpen, Settings } from "lucide-react";
+import SaleTab from "./SaleTab";
+import StockTab from "./StockTab";
+import PaymentTab from "./PaymentTab";
+import OrderTab from "./OrderTab";
+import ReceiptTab from "./ReceiptTab";
+import LedgerTab from "./LedgerTab";
+import { PaymentDeliverySettingsModal } from "@/components/admin/PaymentAndDeliverySettings";
 
-export type StoreCategory = 'all' | 'stationary' | 'question';
+export type StoreCategory = "all" | "stationary" | "question";
 
 export default function StoreManagementView() {
-  const [activeTab, setActiveTab] = useState<'sale' | 'stock' | 'payment' | 'order' | 'receipt' | 'ledger'>('sale');
-  const [storeCategory, setStoreCategory] = useState<StoreCategory>('all');
+  const [activeTab, setActiveTab] = useState<"sale" | "stock" | "payment" | "order" | "receipt" | "ledger">("sale");
+  const [storeCategory, setStoreCategory] = useState<StoreCategory>("all");
+  const [showPaymentDeliveryModal, setShowPaymentDeliveryModal] = useState(false);
 
   useEffect(() => {
-    const savedTab = localStorage.getItem('store_active_tab');
-    if (savedTab === 'sale' || savedTab === 'stock' || savedTab === 'payment' || savedTab === 'order' || savedTab === 'receipt' || savedTab === 'ledger') {
+    const savedTab = localStorage.getItem("store_active_tab");
+    if (
+      savedTab === "sale" ||
+      savedTab === "stock" ||
+      savedTab === "payment" ||
+      savedTab === "order" ||
+      savedTab === "receipt" ||
+      savedTab === "ledger"
+    ) {
       setActiveTab(savedTab as any);
     }
-    const savedCat = localStorage.getItem('store_category_filter');
-    if (savedCat === 'all' || savedCat === 'stationary' || savedCat === 'question') {
+    const savedCat = localStorage.getItem("store_category_filter");
+    if (savedCat === "all" || savedCat === "stationary" || savedCat === "question") {
       setStoreCategory(savedCat as StoreCategory);
     }
   }, []);
 
-  const handleTabChange = (tab: 'sale' | 'stock' | 'payment' | 'order' | 'receipt' | 'ledger') => {
+  const handleTabChange = (tab: "sale" | "stock" | "payment" | "order" | "receipt" | "ledger") => {
     setActiveTab(tab);
-    localStorage.setItem('store_active_tab', tab);
+    localStorage.setItem("store_active_tab", tab);
   };
 
   const handleCategoryChange = (cat: StoreCategory) => {
     setStoreCategory(cat);
-    localStorage.setItem('store_category_filter', cat);
+    localStorage.setItem("store_category_filter", cat);
   };
 
-  const handleTabClick = (e: React.MouseEvent<HTMLButtonElement>, tab: 'sale' | 'stock' | 'payment' | 'order' | 'receipt' | 'ledger') => {
+  const handleTabClick = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    tab: "sale" | "stock" | "payment" | "order" | "receipt" | "ledger"
+  ) => {
     handleTabChange(tab);
-    e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   };
 
   return (
@@ -52,53 +64,64 @@ export default function StoreManagementView() {
             </p>
           </div>
 
-          {/* Global Category Filter Bar */}
-          <div className="inline-flex p-0.5 sm:p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs self-start lg:self-auto shrink-0">
+          <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto shrink-0">
             <button
-              onClick={() => handleCategoryChange('all')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                storeCategory === 'all'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
+              type="button"
+              onClick={() => setShowPaymentDeliveryModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold text-[#095738] transition-all cursor-pointer"
             >
-              <Layers className="w-3.5 h-3.5" />
-              <span>সকল</span>
+              <Settings className="w-3.5 h-3.5 text-emerald-700" />
+              <span>পেমেন্ট ও ডেলিভারি সেটিংস</span>
             </button>
 
-            <button
-              onClick={() => handleCategoryChange('stationary')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                storeCategory === 'stationary'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <Package className="w-3.5 h-3.5" />
-              <span>বই/স্টেশনারি</span>
-            </button>
+            {/* Global Category Filter Bar */}
+            <div className="inline-flex p-0.5 sm:p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+              <button
+                onClick={() => handleCategoryChange("all")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  storeCategory === "all"
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>সকল</span>
+              </button>
 
-            <button
-              onClick={() => handleCategoryChange('question')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                storeCategory === 'question'
-                  ? 'bg-purple-700 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>প্রশ্নপত্র</span>
-            </button>
+              <button
+                onClick={() => handleCategoryChange("stationary")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  storeCategory === "stationary"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>বই/স্টেশনারি</span>
+              </button>
+
+              <button
+                onClick={() => handleCategoryChange("question")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  storeCategory === "question"
+                    ? "bg-purple-700 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>প্রশ্নপত্র</span>
+              </button>
+            </div>
           </div>
         </div>
-        
+
         <div className="flex gap-4 sm:gap-6 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] text-xs sm:text-sm">
           <button
-            onClick={(e) => handleTabClick(e, 'sale')}
+            onClick={(e) => handleTabClick(e, "sale")}
             className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'sale' 
-                ? 'border-primary text-primary font-bold' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium'
+              activeTab === "sale"
+                ? "border-primary text-primary font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium"
             }`}
           >
             <ShoppingCart className="w-4 h-4" />
@@ -106,23 +129,23 @@ export default function StoreManagementView() {
           </button>
 
           <button
-            onClick={(e) => handleTabClick(e, 'order')}
+            onClick={(e) => handleTabClick(e, "order")}
             className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'order' 
-                ? 'border-amber-600 text-amber-600 font-bold' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium'
+              activeTab === "order"
+                ? "border-amber-600 text-amber-600 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium"
             }`}
           >
             <ClipboardList className="w-4 h-4" />
             <span>অর্ডার</span>
           </button>
-          
+
           <button
-            onClick={(e) => handleTabClick(e, 'stock')}
+            onClick={(e) => handleTabClick(e, "stock")}
             className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'stock' 
-                ? 'border-blue-600 text-blue-600 font-bold' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium'
+              activeTab === "stock"
+                ? "border-blue-600 text-blue-600 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium"
             }`}
           >
             <Package className="w-4 h-4" />
@@ -130,11 +153,11 @@ export default function StoreManagementView() {
           </button>
 
           <button
-            onClick={(e) => handleTabClick(e, 'payment')}
+            onClick={(e) => handleTabClick(e, "payment")}
             className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'payment' 
-                ? 'border-purple-600 text-purple-600 font-bold' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium'
+              activeTab === "payment"
+                ? "border-purple-600 text-purple-600 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium"
             }`}
           >
             <CreditCard className="w-4 h-4" />
@@ -142,11 +165,11 @@ export default function StoreManagementView() {
           </button>
 
           <button
-            onClick={(e) => handleTabClick(e, 'receipt')}
+            onClick={(e) => handleTabClick(e, "receipt")}
             className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'receipt' 
-                ? 'border-emerald-600 text-emerald-600 font-bold' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium'
+              activeTab === "receipt"
+                ? "border-emerald-600 text-emerald-600 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium"
             }`}
           >
             <ClipboardList className="w-4 h-4" />
@@ -154,11 +177,11 @@ export default function StoreManagementView() {
           </button>
 
           <button
-            onClick={(e) => handleTabClick(e, 'ledger')}
+            onClick={(e) => handleTabClick(e, "ledger")}
             className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'ledger' 
-                ? 'border-indigo-600 text-indigo-600 font-bold' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium'
+              activeTab === "ledger"
+                ? "border-indigo-600 text-indigo-600 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium"
             }`}
           >
             <BookOpen className="w-4 h-4" />
@@ -169,13 +192,18 @@ export default function StoreManagementView() {
 
       {/* Tab Content */}
       <div className="flex-1 px-3 py-4 md:p-6 bg-transparent md:bg-white overflow-visible">
-        {activeTab === 'sale' && <SaleTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
-        {activeTab === 'order' && <OrderTab initialCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
-        {activeTab === 'stock' && <StockTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
-        {activeTab === 'payment' && <PaymentTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
-        {activeTab === 'receipt' && <ReceiptTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
-        {activeTab === 'ledger' && <LedgerTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === "sale" && <SaleTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === "order" && <OrderTab initialCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === "stock" && <StockTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === "payment" && <PaymentTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === "receipt" && <ReceiptTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === "ledger" && <LedgerTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
       </div>
+
+      <PaymentDeliverySettingsModal
+        open={showPaymentDeliveryModal}
+        onClose={() => setShowPaymentDeliveryModal(false)}
+      />
     </div>
   );
 }

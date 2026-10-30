@@ -8,6 +8,10 @@ import Link from "next/link";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
 import { calculateDeliveryCost, DELIVERY_CONSTANTS } from "@/lib/deliveryCost";
 import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
+import DynamicPaymentSelector, {
+  getPaymentMethodUniqueKey,
+  resolveSelectedPaymentMethod,
+} from "@/components/shared/DynamicPaymentSelector";
 
 type Product = {
   id: string; name: string; category: string; price: number;
@@ -456,17 +460,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   const [senderNumber, setSenderNumber] = useState("");
   const [trxId, setTrxId] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
-  const [copied, setCopied] = useState(false);
   const [receiptVerifyStatus, setReceiptVerifyStatus] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
   const [receiptVerifyMsg, setReceiptVerifyMsg] = useState("");
   const [receiptBalance, setReceiptBalance] = useState(0);
-  const [remainingOption, setRemainingOption] = useState<'pay_now' | 'skip_receipt'>('pay_now');
   const [remainingSenderNumber, setRemainingSenderNumber] = useState("");
   const [remainingTrxId, setRemainingTrxId] = useState("");
-  const [remainingCopied, setRemainingCopied] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/settings?t=${Date.now()}`)
+    fetch(`/api/settings?t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data?.payments)) {
@@ -474,13 +475,13 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           setPaymentMethods(active);
           if (active.length > 0) {
             const firstMob = active.find((p: any) => p.type === "mobile" || p.type === "MOBILE_BANKING") || active[0];
-            setSelectedMethodId(firstMob.id || firstMob.provider);
+            setSelectedMethodId(getPaymentMethodUniqueKey(firstMob));
           }
         }
       })
       .catch(() => {});
 
-    fetch(`/api/delivery-options?t=${Date.now()}`)
+    fetch(`/api/delivery-options?t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -492,14 +493,32 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       .catch(() => {});
   }, []);
 
+  const fallbackDeliveryOptions = useMemo(
+    () => [
+      { type: "pathao", name: "পাঠাও", charge: 0, requiresName: false },
+      { type: "steadfast", name: "স্টিডফাস্ট", charge: 0, requiresName: false },
+      { type: "other_courier", name: "অন্যান্য কুরিয়ার", charge: 20, requiresName: true },
+      { type: "transport", name: "ট্রান্সপোর্ট", charge: 10, requiresName: true },
+    ],
+    []
+  );
+
+  const visibleDeliveryOptions = useMemo(() => {
+    const active = deliveryOptions.filter((d) => d.isActive !== false);
+    return active.length > 0 ? active : fallbackDeliveryOptions;
+  }, [deliveryOptions, fallbackDeliveryOptions]);
+
   const selectedDeliveryOption = useMemo(() => {
-    return deliveryOptions.find((d) => d.type === selectedDeliveryType) || {
-      name: "পাঠাও কুরিয়ার",
-      type: "pathao",
-      charge: 0,
-      requiresName: false,
-    };
-  }, [deliveryOptions, selectedDeliveryType]);
+    return (
+      visibleDeliveryOptions.find((d) => d.type === selectedDeliveryType) ||
+      visibleDeliveryOptions[0] || {
+        name: "পাঠাও",
+        type: "pathao",
+        charge: 0,
+        requiresName: false,
+      }
+    );
+  }, [visibleDeliveryOptions, selectedDeliveryType]);
 
   const deliveryCharge = Number(selectedDeliveryOption.charge) || 0;
   const grandTotal = total + deliveryCharge;
@@ -517,12 +536,13 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   }, [activeMethods]);
 
   const selectedMethod = useMemo(() => {
-    if (selectedMethodId) {
-      const found = activeMethods.find((p) => (p.id ? String(p.id) === String(selectedMethodId) : p.provider === selectedMethodId));
-      if (found) return found;
-    }
-    const currentList = selectedPaymentTab === "mobile" ? mobileMethods : bankMethods;
-    return currentList[0] || activeMethods[0] || null;
+    return resolveSelectedPaymentMethod(
+      selectedMethodId,
+      selectedPaymentTab,
+      activeMethods,
+      mobileMethods,
+      bankMethods
+    );
   }, [selectedMethodId, selectedPaymentTab, activeMethods, mobileMethods, bankMethods]);
 
   const [ilhak, setIlhak] = useState(initialState?.ilhak || "");
@@ -564,18 +584,6 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
   const [errorMsg, setErrorMsg] = useState("");
   const [paymentStep, setPaymentStep] = useState(initialState?.paymentStep || false);
   const modalBodyRef = useRef<HTMLDivElement>(null);
-
-  const handleCopyText = (text: string, isRemaining: boolean = false) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    if (isRemaining) {
-      setRemainingCopied(true);
-      setTimeout(() => setRemainingCopied(false), 2000);
-    } else {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
 
   const verifyReceipt = async () => {
     if (!receiptNumber.trim()) return;
@@ -750,8 +758,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       if (paymentOption === 'money_receipt') {
         if (!receiptNumber.trim()) throw new Error("মানি রিসিট নম্বর প্রদান করুন");
         if (receiptVerifyStatus !== 'valid') throw new Error("অর্ডার দেওয়ার আগে মানি রিসিট যাচাই করুন");
-        if (isPartialReceipt && remainingOption === 'pay_now') {
-          if (!remainingSenderNumber.trim()) throw new Error("বাকি টাকার প্রেরক নম্বর লিখুন");
+        if (isPartialReceipt) {
+          if (!remainingSenderNumber.trim()) throw new Error("বাকি টাকার প্রেরক নম্বর বা অ্যাকাউন্ট লিখুন");
           if (!remainingTrxId.trim()) throw new Error("বাকি টাকার জন্য TrxID প্রদান করুন");
         }
       }
@@ -785,8 +793,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
         : ` | [ডেলিভারি মাধ্যম: ${selectedDeliveryOption?.name || selectedDeliveryType}]`;
 
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
-      const effectiveSenderNumber = paymentOption === "pay_now" ? senderNumber.trim() : (isPartialReceipt && remainingOption === "pay_now" ? remainingSenderNumber.trim() : undefined);
-      const effectiveTrxId = paymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt && remainingOption === "pay_now" ? remainingTrxId.trim() : undefined);
+      const effectiveSenderNumber = paymentOption === "pay_now" ? senderNumber.trim() : (isPartialReceipt ? remainingSenderNumber.trim() : undefined);
+      const effectiveTrxId = paymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt ? remainingTrxId.trim() : undefined);
       const effectiveMethodName = selectedMethod?.name || selectedMethod?.provider || "Direct Payment";
 
       const res = await fetch("/api/store/orders", {
@@ -800,14 +808,16 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           instituteId: instituteName,
           items,
           notes: `${effectiveAddress}${deliveryNote}${ilhakText}${courierNote}`,
-          paymentOption: paymentOption === "money_receipt" && remainingOption !== "skip_receipt" ? "money_receipt" : "pay_now",
+          paymentOption,
           paymentProvider: effectiveMethodName,
           paymentMethod: effectiveMethodName,
+          remainingProvider: isPartialReceipt ? effectiveMethodName : undefined,
+          remainingTrxId: isPartialReceipt ? remainingTrxId.trim() : undefined,
           senderNumber: effectiveSenderNumber,
           trxId: effectiveTrxId,
-          receiptNumber: paymentOption === "money_receipt" && remainingOption !== "skip_receipt" ? receiptNumber.trim() : undefined,
+          receiptNumber: paymentOption === "money_receipt" ? receiptNumber.trim() : undefined,
           deliveryOptionType: selectedDeliveryType,
-          courierOrTransportName: courierOrTransportName.trim() || undefined,
+          courierOrTransportName: selectedDeliveryOption?.requiresName ? courierOrTransportName.trim() : undefined,
           deliveryCharge: deliveryCharge,
           totalAmount: grandTotal,
         })
@@ -828,8 +838,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg sm:max-w-xl overflow-hidden relative animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[92vh]">
         <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
           <div>
-            <h2 className="font-bold text-slate-800 text-lg">অর্ডার নিশ্চিত করুন</h2>
-            <p className="text-xs text-slate-500">মাদরাসা ও ডেলিভারির সঠিক তথ্য প্রদান করুন</p>
+            <h2 className="font-bold text-slate-800 text-lg">
+              {paymentStep ? "কিভাবে পেমেন্ট করতে চান?" : "অর্ডার নিশ্চিত করুন"}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {paymentStep
+                ? "মোবাইল ব্যাংকিং, ব্যাংক অ্যাকাউন্ট অথবা মানি রিসিটের মাধ্যমে পেমেন্ট সম্পন্ন করুন"
+                : "মাদরাসা ও ডেলিভারির সঠিক তথ্য প্রদান করুন"}
+            </p>
           </div>
           <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep, autoFilledFields })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
             <X className="w-5 h-5 text-slate-500" />
@@ -1006,13 +1022,9 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 </label>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {(deliveryOptions.length > 0 ? deliveryOptions.filter(d => d.isActive !== false) : [
-                    { type: "pathao", name: "পাঠাও কুরিয়ার", charge: 0, requiresName: false },
-                    { type: "steadfast", name: "স্টিডফাস্ট কুরিয়ার", charge: 0, requiresName: false },
-                    { type: "other_courier", name: "অন্যান্য কুরিয়ার", charge: 200, requiresName: true },
-                    { type: "transport", name: "পরিবহন / ট্রান্সপোর্ট", charge: 100, requiresName: true },
-                  ]).map((d: any) => {
+                  {visibleDeliveryOptions.map((d: any) => {
                     const isSelected = selectedDeliveryType === d.type;
+                    const optCharge = Number(d.charge) || 0;
                     return (
                       <button
                         key={d.type}
@@ -1034,8 +1046,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                             {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                           </span>
                         </div>
-                        <span className={`text-[11px] font-semibold ${Number(d.charge) === 0 ? "text-emerald-700" : "text-amber-700"}`}>
-                          {Number(d.charge) === 0 ? "ফ্রি (৳০)" : `চার্জ: +৳${d.charge}`}
+                        <span className={`text-[11px] font-semibold ${optCharge === 0 ? "text-emerald-700" : "text-amber-700"}`}>
+                          {optCharge === 0 ? "কোনো অতিরিক্ত চার্জ নেই (৳০)" : `কুরিয়ার / সার্ভিস বিল: +৳${optCharge}`}
                         </span>
                       </button>
                     );
@@ -1044,18 +1056,34 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
 
                 {selectedDeliveryOption?.requiresName && (
                   <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5 animate-in fade-in">
-                    <label className="block text-xs font-bold text-amber-950">
-                      {selectedDeliveryOption.name}-এর নাম লিখুন <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-amber-950">
+                        {selectedDeliveryType === "transport"
+                          ? "ট্রান্সপোর্টের নাম উল্লেখ করুন"
+                          : selectedDeliveryType === "other_courier"
+                          ? "কুরিয়ার সার্ভিসের নাম লিখুন"
+                          : `${selectedDeliveryOption.name}-এর নাম লিখুন`}{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      {deliveryCharge > 0 && (
+                        <span className="text-[10.5px] font-black bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded-md">
+                          বিলের সাথে +৳{deliveryCharge} যোগ হবে
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={courierOrTransportName}
                       onChange={(e) => setCourierOrTransportName(e.target.value)}
-                      placeholder="যেমন: সুন্দরবন কুরিয়ার / এসএ পরিবহন / দিগন্ত পরিবহন"
-                      className="w-full px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-semibold focus:outline-emerald-700 placeholder:text-slate-400"
+                      placeholder={
+                        selectedDeliveryType === "transport"
+                          ? "যেমন: দিগন্ত পরিবহন / হানিফ ট্রান্সপোর্ট / সোহাগ পরিবহন"
+                          : "যেমন: সুন্দরবন কুরিয়ার / এস এ পরিবহন / করতোয়া কুরিয়ার"
+                      }
+                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-semibold focus:outline-emerald-700 placeholder:text-slate-400"
                     />
                     <p className="text-[10px] text-amber-800">
-                      📌 আপনার সুবিধাজনক কুরিয়ার সার্ভিস বা বাসের নাম উল্লেখ করুন যাতে আমরা সঠিক মাধ্যমে পার্সেল পাঠাতে পারি।
+                      📌 আপনার সুবিধাজনক কুরিয়ার সার্ভিস বা ট্রান্সপোর্টের নাম উল্লেখ করুন যাতে সঠিক মাধ্যমে পার্সেল পাঠানো যায়।
                     </p>
                   </div>
                 )}
@@ -1067,9 +1095,15 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   <span className="font-semibold text-slate-800">৳{total.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
-                  <span>ডেলিভারি চার্জ ({selectedDeliveryOption.name}):</span>
-                  <span className={`font-bold ${deliveryCharge === 0 ? "text-emerald-700" : "text-slate-800"}`}>
-                    {deliveryCharge === 0 ? "ফ্রি (৳০)" : `+৳${deliveryCharge.toFixed(2)}`}
+                  <span>
+                    ডেলিভারি চার্জ ({selectedDeliveryOption.name}
+                    {selectedDeliveryOption.requiresName && courierOrTransportName.trim()
+                      ? ` — ${courierOrTransportName.trim()}`
+                      : ""}
+                    ):
+                  </span>
+                  <span className={`font-bold ${deliveryCharge === 0 ? "text-emerald-700" : "text-amber-700"}`}>
+                    {deliveryCharge === 0 ? "৳০ (কোনো চার্জ নেই)" : `+৳${deliveryCharge.toFixed(2)}`}
                   </span>
                 </div>
                 <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
@@ -1105,9 +1139,9 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
             </>
           ) : (
             <div className="animate-in slide-in-from-right-4 space-y-4">
-              <div className="text-center">
-                <h3 className="font-bold text-slate-800 text-sm sm:text-base">পেমেন্ট মাধ্যম ও বিবরণ</h3>
-                <p className="text-[11px] text-slate-500">সঠিক তথ্য দিয়ে দ্রুত অর্ডার নিশ্চিত করুন</p>
+              <div className="text-center bg-emerald-50/70 border border-emerald-200/80 rounded-xl py-2.5 px-3">
+                <h3 className="font-black text-emerald-950 text-sm sm:text-base">কিভাবে পেমেন্ট করতে চান?</h3>
+                <p className="text-[11px] text-emerald-800">পছন্দের মোবাইল ব্যাংকিং, ব্যাংক অ্যাকাউন্ট অথবা মানি রিসিট নির্বাচন করুন</p>
               </div>
 
               {errorMsg && (
@@ -1127,136 +1161,21 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                     onChange={() => setPaymentOption('pay_now')}
                     className="w-4.5 h-4.5 text-emerald-700 focus:ring-emerald-700"
                   />
-                  <span className="font-bold text-slate-800 text-sm">সরাসরি পেমেন্ট (Pay Now)</span>
+                  <span className="font-bold text-slate-800 text-sm">সরাসরি পেমেন্ট (মোবাইল ব্যাংকিং / ব্যাংক)</span>
                 </label>
 
                 {paymentOption === 'pay_now' && (
-                  <div className="pl-4 sm:pl-6 pr-1 pb-2 animate-in fade-in space-y-3">
-                    {/* Payment Type Tabs: Mobile Banking vs Bank */}
-                    <div className="flex border border-slate-200 rounded-xl p-1 bg-slate-50 gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedPaymentTab("mobile");
-                          if (mobileMethods.length > 0) setSelectedMethodId(mobileMethods[0].id || mobileMethods[0].provider);
-                        }}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                          selectedPaymentTab === "mobile"
-                            ? "bg-white text-emerald-800 shadow-xs border border-slate-200"
-                            : "text-slate-600 hover:text-slate-900"
-                        }`}
-                      >
-                        <Smartphone className="w-3.5 h-3.5" />
-                        <span>মোবাইল ব্যাংকিং ({mobileMethods.length})</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedPaymentTab("bank");
-                          if (bankMethods.length > 0) setSelectedMethodId(bankMethods[0].id || bankMethods[0].provider);
-                        }}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                          selectedPaymentTab === "bank"
-                            ? "bg-white text-emerald-800 shadow-xs border border-slate-200"
-                            : "text-slate-600 hover:text-slate-900"
-                        }`}
-                      >
-                        <Building2 className="w-3.5 h-3.5" />
-                        <span>ব্যাংক অ্যাকাউন্ট ({bankMethods.length})</span>
-                      </button>
-                    </div>
-
-                    {/* Method Selection Buttons */}
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {(selectedPaymentTab === "mobile" ? mobileMethods : bankMethods).map((m: any) => {
-                        const isCur = selectedMethod && ((m.id && selectedMethod.id === m.id) || selectedMethod.provider === m.provider);
-                        return (
-                          <button
-                            key={m.id || m.provider}
-                            type="button"
-                            onClick={() => setSelectedMethodId(m.id || m.provider)}
-                            className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all cursor-pointer ${
-                              isCur ? "border-emerald-700 bg-emerald-50 shadow-xs" : "border-slate-100 hover:border-slate-300 bg-white"
-                            }`}
-                          >
-                            <div className="h-8 flex items-center justify-center mb-1">
-                              {m.logo ? (
-                                <img src={m.logo} alt={m.name || m.provider} className="max-h-full max-w-full object-contain" />
-                              ) : (
-                                <Building2 className={`w-6 h-6 ${isCur ? "text-emerald-700" : "text-slate-500"}`} />
-                              )}
-                            </div>
-                            <span className={`text-[11px] font-bold truncate max-w-full ${isCur ? "text-emerald-800" : "text-slate-700"}`}>
-                              {m.name || m.provider}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Selected Method Details Card */}
-                    {selectedMethod && (
-                      <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-blue-950">{selectedMethod.name || selectedMethod.provider}</span>
-                              {selectedMethod.accountType && (
-                                <span className="text-[10px] bg-blue-200/70 text-blue-800 font-bold px-1.5 py-0.5 rounded">
-                                  {selectedMethod.accountType}
-                                </span>
-                              )}
-                            </div>
-                            {selectedMethod.branch && (
-                              <p className="text-[11px] text-blue-800 mt-0.5 font-medium">
-                                শাখা: {selectedMethod.branch} {selectedMethod.routingNo ? `| রাউটিং: ${selectedMethod.routingNo}` : ""}
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyText(selectedMethod.number || selectedMethod.accountNumber)}
-                            className="flex items-center gap-1 bg-white border border-blue-300 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 cursor-pointer transition-colors shadow-2xs"
-                            title="নম্বর কপি করুন"
-                          >
-                            {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copied ? "কপি হয়েছে" : "কপি করুন"}</span>
-                          </button>
-                        </div>
-
-                        <div className="bg-white p-2.5 rounded-lg border border-blue-100 flex items-center justify-between">
-                          <span className="text-xs text-slate-500 font-medium">হিসাব / মোবাইল নম্বর:</span>
-                          <span className="text-sm font-black text-blue-950 font-mono tracking-wider select-all">
-                            {selectedMethod.number || selectedMethod.accountNumber || "—"}
-                          </span>
-                        </div>
-
-                        {selectedMethod.qrCodeImage && (
-                          <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-blue-100">
-                            <img
-                              src={selectedMethod.qrCodeImage}
-                              alt="QR Code"
-                              className="w-16 h-16 object-contain rounded border border-slate-200 bg-white"
-                            />
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 block flex items-center gap-1">
-                                <QrCode className="w-3.5 h-3.5 text-blue-600" />
-                                <span>QR কোড স্ক্যান করে পেমেন্ট করুন</span>
-                              </span>
-                              <span className="text-[10px] text-slate-500">
-                                অ্যাপ দিয়ে সরাসরি স্ক্যান করে দ্রুত পেমেন্ট সম্পন্ন করতে পারেন।
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedMethod.instructions && (
-                          <p className="text-[11px] text-blue-900 bg-blue-100/60 p-2 rounded-lg leading-relaxed font-medium">
-                            💡 {selectedMethod.instructions}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                  <div className="pl-2 sm:pl-4 pr-1 pb-2 animate-in fade-in space-y-3">
+                    <DynamicPaymentSelector
+                      mobileMethods={mobileMethods}
+                      bankMethods={bankMethods}
+                      selectedPaymentTab={selectedPaymentTab}
+                      onSelectTab={setSelectedPaymentTab}
+                      selectedMethod={selectedMethod}
+                      onSelectMethodId={setSelectedMethodId}
+                      payableLabel="সর্বমোট প্রদেয় বিল:"
+                      payableAmount={grandTotal}
+                    />
 
                     {/* Sender Number & TrxID Inputs */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
@@ -1268,7 +1187,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                           type="text"
                           value={senderNumber}
                           onChange={(e) => setSenderNumber(e.target.value)}
-                          placeholder="যে নম্বর থেকে টাকা পাঠিয়েছেন"
+                          placeholder="যে নম্বর বা হিসাব থেকে টাকা পাঠিয়েছেন"
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-700 text-xs font-semibold"
                         />
                       </div>
@@ -1280,7 +1199,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                           type="text"
                           value={trxId}
                           onChange={(e) => setTrxId(e.target.value)}
-                          placeholder="TrxID লিখুন (যেমন: 9J4K2L8M1)"
+                          placeholder="TrxID / রেফারেন্স নম্বর লিখুন"
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-700 text-xs font-semibold"
                         />
                       </div>
@@ -1301,7 +1220,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 </label>
 
                 {paymentOption === 'money_receipt' && (
-                  <div className="pl-4 sm:pl-6 pr-1 pb-2 animate-in fade-in space-y-3">
+                  <div className="pl-2 sm:pl-4 pr-1 pb-2 animate-in fade-in space-y-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         মানি রিসিট নম্বর <span className="text-red-500">*</span>
@@ -1339,7 +1258,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       )}
                     </div>
 
-                    {/* Partial Balance Panel */}
+                    {/* Partial Balance Panel — Must Pay Remaining Balance Now */}
                     {receiptVerifyStatus === 'valid' && receiptBalance < grandTotal && (
                       <div className="border border-amber-200 rounded-xl overflow-hidden">
                         <div className="bg-amber-50 p-3 space-y-1.5">
@@ -1358,58 +1277,47 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                           </div>
                         </div>
 
-                        <div className="bg-white p-3 space-y-2">
-                          <p className="text-xs font-bold text-slate-700 mb-2">বাকি টাকা এখনই পরিশোধ করুন:</p>
+                        <div className="bg-white p-3 space-y-3">
+                          <p className="text-xs font-bold text-slate-800">
+                            বাকি ৳{(grandTotal - receiptBalance).toFixed(2)} পরিশোধের মাধ্যম নির্বাচন করুন:
+                          </p>
 
-                          <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${remainingOption === 'pay_now' ? 'border-emerald-700 bg-emerald-50' : 'border-slate-200'}`}>
-                            <input type="radio" checked={remainingOption === 'pay_now'} onChange={() => setRemainingOption('pay_now')} className="w-4 h-4 text-emerald-700" />
-                            <span className="font-bold">এখনই বাকি পেমেন্ট করব</span>
-                          </label>
+                          <DynamicPaymentSelector
+                            mobileMethods={mobileMethods}
+                            bankMethods={bankMethods}
+                            selectedPaymentTab={selectedPaymentTab}
+                            onSelectTab={setSelectedPaymentTab}
+                            selectedMethod={selectedMethod}
+                            onSelectMethodId={setSelectedMethodId}
+                            payableLabel="বাকি প্রদেয় টাকা:"
+                            payableAmount={grandTotal - receiptBalance}
+                            compact
+                          />
 
-                          {remainingOption === 'pay_now' && (
-                            <div className="pl-4 space-y-2.5 animate-in fade-in">
-                              {selectedMethod && (
-                                <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
-                                  <div>
-                                    <p className="text-[11px] text-blue-700 font-medium">
-                                      বাকি ৳{(grandTotal - receiptBalance).toFixed(2)} পাঠান:
-                                    </p>
-                                    <p className="text-xs font-black text-blue-900 font-mono">
-                                      {selectedMethod.number || selectedMethod.accountNumber} ({selectedMethod.name || selectedMethod.provider})
-                                    </p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyText(selectedMethod.number || selectedMethod.accountNumber, true)}
-                                    className="bg-white border border-blue-200 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 cursor-pointer"
-                                  >
-                                    {remainingCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                                  </button>
-                                </div>
-                              )}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <input
-                                  type="text"
-                                  value={remainingSenderNumber}
-                                  onChange={(e) => setRemainingSenderNumber(e.target.value)}
-                                  placeholder="প্রেরক নম্বর / অ্যাকাউন্ট *"
-                                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-700 text-xs font-semibold"
-                                />
-                                <input
-                                  type="text"
-                                  value={remainingTrxId}
-                                  onChange={(e) => setRemainingTrxId(e.target.value)}
-                                  placeholder="বাকি টাকার TrxID *"
-                                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-700 text-xs font-semibold"
-                                />
-                              </div>
-                            </div>
-                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={remainingSenderNumber}
+                              onChange={(e) => setRemainingSenderNumber(e.target.value)}
+                              placeholder="প্রেরক নম্বর / অ্যাকাউন্ট *"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-700 text-xs font-semibold"
+                            />
+                            <input
+                              type="text"
+                              value={remainingTrxId}
+                              onChange={(e) => setRemainingTrxId(e.target.value)}
+                              placeholder="বাকি টাকার TrxID *"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-700 text-xs font-semibold"
+                            />
+                          </div>
 
-                          <label className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${remainingOption === 'skip_receipt' ? 'border-amber-400 bg-amber-50' : 'border-slate-200'}`}>
-                            <input type="radio" checked={remainingOption === 'skip_receipt'} onChange={() => setRemainingOption('skip_receipt')} className="w-4 h-4 text-amber-500" />
-                            <span className="font-bold text-amber-800">রিসিট অপর্যাপ্ত — এখন ব্যবহার করব না</span>
-                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentOption("pay_now")}
+                            className="w-full py-2 px-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            মানি রিসিট বাদ দিয়ে সম্পূর্ণ বিল সরাসরি পেমেন্ট করুন
+                          </button>
                         </div>
                       </div>
                     )}

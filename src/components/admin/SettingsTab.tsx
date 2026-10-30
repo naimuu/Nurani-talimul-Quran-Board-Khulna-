@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Briefcase, Users, Phone, Building2, Upload, Link as LinkIcon, Globe, RefreshCw, ExternalLink, Layers, Sidebar as SidebarIcon, CreditCard, Truck, QrCode, ArrowUp, ArrowDown, CheckCircle, Eye, EyeOff } from "lucide-react";
 import SliderMediaSidebar from "@/components/admin/SliderMediaSidebar";
 import toast from "react-hot-toast";
+import { PaymentMethodsManager, DeliveryOptionsManager } from "@/components/admin/PaymentAndDeliverySettings";
 
 interface ContactInfo {
   id?: string;
@@ -179,8 +180,8 @@ export default function SettingsTab() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[500px]">
         {activeTab === "general" && <GeneralTab settings={settings} onSave={fetchData} />}
         {activeTab === "contacts" && <ContactsTab settings={settings} onSave={fetchData} />}
-        {activeTab === "payments" && <PaymentsTab settings={settings} onSave={fetchData} />}
-        {activeTab === "delivery" && <DeliveryTab />}
+        {activeTab === "payments" && <PaymentMethodsManager initialPayments={settings?.payments} onSaved={fetchData} />}
+        {activeTab === "delivery" && <DeliveryOptionsManager onSaved={fetchData} />}
         {activeTab === "positions" && <PositionsTab positions={positions} onSave={fetchData} />}
         {activeTab === "members" && <MembersTab members={members} positions={positions} onSave={fetchData} />}
       </div>

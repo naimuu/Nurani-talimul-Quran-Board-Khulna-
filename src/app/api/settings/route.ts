@@ -167,10 +167,54 @@ async function setCoverFlags(flags: {
   return merged;
 }
 
+const THREE_BANKS_SEED_SLUG = "payment-methods-3banks-v1";
+
+const DEFAULT_BANK_METHODS = [
+  {
+    type: "bank",
+    provider: "ইসলামী ব্যাংক",
+    name: "ইসলামী ব্যাংক",
+    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা",
+    accountNumber: "2050000000000",
+    accountType: "চলতি হিসাব",
+    branch: "খুলনা প্রধান শাখা",
+    routingNo: "125271822",
+    instructions: "ব্যাংক অ্যাকাউন্ট ডিপোজিট বা অনলাইন ট্রান্সফার করে ট্রানজেকশন স্লিপ বা রেফারেন্স নম্বর দিন।",
+    sortOrder: 4,
+    isActive: true,
+  },
+  {
+    type: "bank",
+    provider: "ডাচ-বাংলা ব্যাংক",
+    name: "ডাচ-বাংলা ব্যাংক",
+    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা",
+    accountNumber: "1200000000000",
+    accountType: "চলতি হিসাব",
+    branch: "খুলনা শাখা",
+    routingNo: "090271828",
+    instructions: "ডাচ-বাংলা ব্যাংক অ্যাকাউন্ট বা নেক্সাস পে-এর মাধ্যমে ট্রান্সফার করে ট্রানজেকশন স্লিপ বা রেফারেন্স নম্বর দিন।",
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    type: "bank",
+    provider: "ইসলামী ব্যাংক",
+    name: "ইসলামী ব্যাংক",
+    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা",
+    accountNumber: "2050000000001",
+    accountType: "সঞ্চয়ী হিসাব",
+    branch: "খুলনা শাখা",
+    routingNo: "125271822",
+    instructions: "ব্যাংক অ্যাকাউন্ট ডিপোজিট বা সেলফিন ট্রান্সফার করে ট্রানজেকশন স্লিপ বা রেফারেন্স নম্বর দিন।",
+    sortOrder: 6,
+    isActive: true,
+  },
+];
+
 const DEFAULT_PAYMENT_METHODS = [
   {
     type: "mobile",
-    provider: "bKash",
+    provider: "বিকাশ",
     name: "বিকাশ",
     accountNumber: "01700000000",
     accountType: "পার্সোনাল",
@@ -181,7 +225,7 @@ const DEFAULT_PAYMENT_METHODS = [
   },
   {
     type: "mobile",
-    provider: "Nagad",
+    provider: "নগদ",
     name: "নগদ",
     accountNumber: "01700000000",
     accountType: "পার্সোনাল",
@@ -192,7 +236,7 @@ const DEFAULT_PAYMENT_METHODS = [
   },
   {
     type: "mobile",
-    provider: "Rocket",
+    provider: "রকেট",
     name: "রকেট",
     accountNumber: "01700000000",
     accountType: "পার্সোনাল",
@@ -201,18 +245,7 @@ const DEFAULT_PAYMENT_METHODS = [
     sortOrder: 3,
     isActive: true,
   },
-  {
-    type: "bank",
-    provider: "Islami Bank",
-    name: "ইসলামী ব্যাংক",
-    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা",
-    accountNumber: "123456789",
-    branch: "খুলনা প্রধান শাখা",
-    routingNo: "125271822",
-    instructions: "ব্যাংক অ্যাকাউন্ট ডিপোজিট বা অনলাইন ট্রান্সফার করে ট্রানজেকশন স্লিপ বা রেফারেন্স নম্বর দিন।",
-    sortOrder: 4,
-    isActive: true,
-  },
+  ...DEFAULT_BANK_METHODS,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -239,6 +272,11 @@ export async function GET() {
           payments: { orderBy: { sortOrder: 'asc' } },
         },
       });
+      await prisma.pageContent.upsert({
+        where: { slug: THREE_BANKS_SEED_SLUG },
+        update: { content: JSON.stringify({ seeded: true }) },
+        create: { slug: THREE_BANKS_SEED_SLUG, content: JSON.stringify({ seeded: true }) },
+      }).catch(() => {});
     } else if (!settings.payments || settings.payments.length === 0) {
       // Auto-seed default payments if none exist
       for (const p of DEFAULT_PAYMENT_METHODS) {
@@ -249,6 +287,11 @@ export async function GET() {
           },
         });
       }
+      await prisma.pageContent.upsert({
+        where: { slug: THREE_BANKS_SEED_SLUG },
+        update: { content: JSON.stringify({ seeded: true }) },
+        create: { slug: THREE_BANKS_SEED_SLUG, content: JSON.stringify({ seeded: true }) },
+      }).catch(() => {});
       settings = await prisma.boardSettings.findFirst({
         where: { id: settings.id },
         include: {
@@ -256,10 +299,62 @@ export async function GET() {
           payments: { orderBy: { sortOrder: 'asc' } },
         },
       });
+    } else {
+      // One-time migration: ensure the 3 default bank options (Islami Bank, Dutch-Bangla Bank, Islami Bank) exist
+      const seedMarker = await prisma.pageContent.findUnique({ where: { slug: THREE_BANKS_SEED_SLUG } }).catch(() => null);
+      if (!seedMarker) {
+        const existingBanks = settings.payments.filter((p: any) => p.type === "bank" || p.type === "BANK");
+        if (existingBanks.length < 3) {
+          let nextOrder = settings.payments.reduce((m: number, p: any) => Math.max(m, Number(p.sortOrder) || 0), 0) + 1;
+          const hasDutch = existingBanks.some((b: any) =>
+            (b.name || "").includes("ডাচ") || (b.provider || "").toLowerCase().includes("dutch")
+          );
+          const islamiCount = existingBanks.filter((b: any) =>
+            (b.name || "").includes("ইসলামী") || (b.provider || "").toLowerCase().includes("islami")
+          ).length;
+
+          const banksToAdd: any[] = [];
+          if (islamiCount === 0) banksToAdd.push(DEFAULT_BANK_METHODS[0]);
+          if (!hasDutch) banksToAdd.push(DEFAULT_BANK_METHODS[1]);
+          if (islamiCount < 2 && existingBanks.length + banksToAdd.length < 3) {
+            banksToAdd.push(DEFAULT_BANK_METHODS[2]);
+          }
+          while (existingBanks.length + banksToAdd.length < 3) {
+            banksToAdd.push(DEFAULT_BANK_METHODS[banksToAdd.length % DEFAULT_BANK_METHODS.length]);
+          }
+
+          for (const bank of banksToAdd) {
+            await (prisma as any).paymentMethod.create({
+              data: {
+                ...bank,
+                sortOrder: nextOrder++,
+                boardSettingsId: settings.id,
+              },
+            });
+          }
+
+          settings = await prisma.boardSettings.findFirst({
+            where: { id: settings.id },
+            include: {
+              contacts: true,
+              payments: { orderBy: { sortOrder: 'asc' } },
+            },
+          });
+        }
+
+        await prisma.pageContent.upsert({
+          where: { slug: THREE_BANKS_SEED_SLUG },
+          update: { content: JSON.stringify({ seeded: true }) },
+          create: { slug: THREE_BANKS_SEED_SLUG, content: JSON.stringify({ seeded: true }) },
+        }).catch(() => {});
+      }
     }
 
     const flags = await getCoverFlags();
-    return NextResponse.json({ ...settings, ...flags });
+    return NextResponse.json(
+      { ...settings, ...flags },
+      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+    );
   } catch (error) {
     console.error('Error fetching settings:', error);
     return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
@@ -279,6 +374,11 @@ export async function PUT(request: Request) {
       }
       if (data.payments) {
         await prisma.paymentMethod.deleteMany({ where: { boardSettingsId: settings.id } });
+        await prisma.pageContent.upsert({
+          where: { slug: THREE_BANKS_SEED_SLUG },
+          update: { content: JSON.stringify({ seeded: true }) },
+          create: { slug: THREE_BANKS_SEED_SLUG, content: JSON.stringify({ seeded: true }) },
+        }).catch(() => {});
       }
 
       settings = await prisma.boardSettings.update({

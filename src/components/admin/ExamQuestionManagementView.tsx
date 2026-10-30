@@ -21,7 +21,9 @@ import {
   Check,
   ChevronDown,
   ExternalLink,
+  CreditCard,
 } from "lucide-react";
+import { PaymentDeliverySettingsModal } from "@/components/admin/PaymentAndDeliverySettings";
 import { useDialog } from "@/components/ui/DialogProvider";
 import {
   getCanonicalClassId,
@@ -386,6 +388,7 @@ export default function ExamQuestionManagementView() {
   // PDF Preview Modal
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewPdfTitle, setPreviewPdfTitle] = useState("");
+  const [showPaymentDeliveryModal, setShowPaymentDeliveryModal] = useState(false);
 
   // Fetch Curriculum Classes & Books
   const fetchCurriculum = async () => {
@@ -1356,8 +1359,19 @@ export default function ExamQuestionManagementView() {
           <h2 className="text-sm sm:text-lg font-bold text-slate-800 truncate">পরীক্ষা ও প্রশ্নপত্র পরিচালনা</h2>
         </div>
 
-        {/* Session Dropdown on the Right Side */}
-        <div className="relative inline-block text-left shrink-0" onClick={(e) => e.stopPropagation()}>
+        {/* Payment/Delivery Settings + Session Dropdown on the Right Side */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowPaymentDeliveryModal(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold text-[#095738] shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+            title="প্রশ্ন অর্ডারের পেমেন্ট মাধ্যম, QR কোড ও ডেলিভারি চার্জ সেটিংস"
+          >
+            <CreditCard className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <span>পেমেন্ট ও ডেলিভারি সেটিংস</span>
+          </button>
+
+          <div className="relative inline-block text-left shrink-0" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             onClick={() => setShowSessionDropdown(!showSessionDropdown)}
@@ -1460,8 +1474,9 @@ export default function ExamQuestionManagementView() {
                   <span>+ নতুন সেশন যোগ করুন</span>
                 </button>
               </div>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2879,6 +2894,10 @@ export default function ExamQuestionManagementView() {
         </>,
         document.body
       )}
+      <PaymentDeliverySettingsModal
+        open={showPaymentDeliveryModal}
+        onClose={() => setShowPaymentDeliveryModal(false)}
+      />
     </div>
   );
 }

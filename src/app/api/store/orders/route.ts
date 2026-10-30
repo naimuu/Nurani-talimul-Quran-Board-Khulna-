@@ -29,17 +29,26 @@ export async function POST(request: Request) {
       deliveryOptionType = "pathao",
       courierOrTransportName,
     } = await request.json();
-    
+
     if (!customerName || !items || items.length === 0) {
       return NextResponse.json({ error: "customerName and items are required" }, { status: 400 });
     }
 
-    // STRICT RULE: Reject "pay_later" completely from backend
-    if (paymentOption === "pay_later") {
+    // STRICT RULE: Reject "pay_later" or missing payment option completely from backend
+    if (!paymentOption || paymentOption === "pay_later" || (paymentOption !== "pay_now" && paymentOption !== "money_receipt")) {
       return NextResponse.json(
-        { error: "'পরে পেমেন্ট করব' অপশনটি অনুমোদিত নয়। অনুগ্রহ করে সরাসরি পেমেন্ট সম্পন্ন করুন।" },
+        { error: "'পরে পেমেন্ট করব' অপশনটি অনুমোদিত নয়। অনুগ্রহ করে সরাসরি পেমেন্ট অথবা মানি রিসিটের মাধ্যমে পেমেন্ট সম্পন্ন করুন।" },
         { status: 400 }
       );
+    }
+
+    if (paymentOption === "pay_now") {
+      if (!senderNumber || !String(senderNumber).trim() || !trxId || !String(trxId).trim()) {
+        return NextResponse.json(
+          { error: "পেমেন্টের প্রেরক নম্বর এবং ট্রানজেকশন আইডি (TrxID) প্রদান করা আবশ্যক।" },
+          { status: 400 }
+        );
+      }
     }
 
     // Auto-create or link User Account
@@ -79,7 +88,7 @@ export async function POST(request: Request) {
         const rawPassword = (password && String(password).trim().length >= 4)
           ? String(password).trim()
           : (phoneClean && phoneClean.length >= 6 ? phoneClean.slice(-6) : "123456");
-        
+
         const hashedPassword = await bcrypt.hash(rawPassword, 10);
         const finalEmail = emailClean || (phoneClean ? `${phoneClean}@nuraniboard.com` : `user_${Date.now()}@nuraniboard.com`);
 
@@ -110,15 +119,14 @@ export async function POST(request: Request) {
     // Verify Money Receipt before proceeding if selected
     let validReceipt: any = null;
     let paymentAmountFromReceipt = 0;
-    if (paymentOption === 'money_receipt') {
+    if (paymentOption === "money_receipt") {
       // Dynamic access to support both generated and runtime client
       const receiptModel = (prisma as any).moneyReceipt;
-      console.log('[DEBUG] prisma models available:', Object.keys(prisma).filter(k => !k.startsWith('_') && !k.startsWith('$')));
       if (!receiptModel) {
         return NextResponse.json({ error: "রিসিট সার্ভিস পাওয়া যাচ্ছে না। সার্ভার রিস্টার্ট করুন।" }, { status: 500 });
       }
       validReceipt = await receiptModel.findUnique({ where: { receiptNumber } });
-      if (!validReceipt || validReceipt.status !== 'Active') {
+      if (!validReceipt || validReceipt.status !== "Active") {
         return NextResponse.json({ error: "অবৈধ বা ব্যবহৃত মানি রিসিট নম্বর!" }, { status: 400 });
       }
       const availableBalance = validReceipt.amount - validReceipt.usedAmount;
@@ -150,7 +158,7 @@ export async function POST(request: Request) {
             className: item.className || null,
             visibility: "academic",
             barcode: `__NO_BARCODE_auto_${Date.now()}_${Math.random()}__`,
-          }
+          },
         });
       }
       if (!product) {
@@ -163,21 +171,24 @@ export async function POST(request: Request) {
             weight: Number(item.weight) || 0.25,
             visibility: "academic",
             barcode: `__NO_BARCODE_auto_${Date.now()}_${Math.random()}__`,
-          }
+          },
         });
       }
       const finalUnitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : product.price;
       itemsToCreate.push({ productId: product.id, quantity: item.quantity, unitPrice: finalUnitPrice });
-      itemsForDeliveryCalc.push({ product: { ...product, price: finalUnitPrice, weight: Number(item.weight) || product.weight || 0.25 }, quantity: item.quantity });
+      itemsForDeliveryCalc.push({
+        product: { ...product, price: finalUnitPrice, weight: Number(item.weight) || product.weight || 0.25 },
+        quantity: item.quantity,
+      });
       subtotal += finalUnitPrice * item.quantity;
     }
 
     // Resolve Delivery Option & Charge from Database/Defaults
     const selectedDeliveryType = (deliveryOptionType || "pathao").toLowerCase();
     let deliveryCharge = 0;
-    let courierName = "পাঠাও কুরিয়ার";
+    let courierName = "পাঠাও";
 
-    let dbDeliveryOption = await (prisma as any).deliveryOption.findUnique({
+    const dbDeliveryOption = await (prisma as any).deliveryOption.findUnique({
       where: { type: selectedDeliveryType },
     });
 
@@ -187,24 +198,26 @@ export async function POST(request: Request) {
     } else {
       if (selectedDeliveryType === "steadfast") {
         deliveryCharge = 0;
-        courierName = "স্টিডফাস্ট কুরিয়ার";
+        courierName = "স্টিডফাস্ট";
       } else if (selectedDeliveryType === "other_courier") {
-        deliveryCharge = 200;
+        deliveryCharge = 20;
         courierName = "অন্যান্য কুরিয়ার";
       } else if (selectedDeliveryType === "transport") {
-        deliveryCharge = 100;
+        deliveryCharge = 10;
         courierName = "ট্রান্সপোর্ট";
       } else {
         deliveryCharge = 0;
-        courierName = "পাঠাও কুরিয়ার";
+        courierName = "পাঠাও";
       }
     }
 
+    const needsCustomName =
+      Boolean(dbDeliveryOption?.requiresName) ||
+      selectedDeliveryType === "other_courier" ||
+      selectedDeliveryType === "transport";
+
     // Require custom name for other_courier and transport
-    if (
-      (dbDeliveryOption?.requiresName || selectedDeliveryType === "other_courier" || selectedDeliveryType === "transport") &&
-      (!courierOrTransportName || !courierOrTransportName.trim())
-    ) {
+    if (needsCustomName && (!courierOrTransportName || !courierOrTransportName.trim())) {
       return NextResponse.json(
         { error: `অনুগ্রহ করে নির্দিষ্ট ${courierName}-এর নাম লিখুন` },
         { status: 400 }
@@ -231,7 +244,7 @@ export async function POST(request: Request) {
           previousDueList.push({
             invoiceId: sale.invoiceId,
             date: sale.createdAt,
-            due: due
+            due: due,
           });
         }
       });
@@ -240,14 +253,25 @@ export async function POST(request: Request) {
     // Determine initial paidAmount
     let paidAmount = 0;
 
-    if (paymentOption === 'money_receipt' && validReceipt) {
+    if (paymentOption === "money_receipt" && validReceipt) {
       const availableBalance = validReceipt.amount - validReceipt.usedAmount;
       paymentAmountFromReceipt = Math.min(availableBalance, totalAmount + previousDue);
       paidAmount = paymentAmountFromReceipt;
+
+      if (paymentAmountFromReceipt < totalAmount) {
+        const remTrx = remainingTrxId || trxId;
+        if (!senderNumber || !String(senderNumber).trim() || !remTrx || !String(remTrx).trim()) {
+          return NextResponse.json(
+            { error: "মানি রিসিটের ব্যালেন্স অপর্যাপ্ত। অনুগ্রহ করে বাকি টাকার প্রেরক নম্বর ও ট্রানজেকশন আইডি (TrxID) দিন।" },
+            { status: 400 }
+          );
+        }
+      }
     }
 
-    const courierDetailName = courierOrTransportName ? ` (${courierOrTransportName.trim()})` : '';
-    const deliveryNoteSummary = deliveryCharge > 0 
+    const cleanCustomCourier = needsCustomName && courierOrTransportName ? courierOrTransportName.trim() : null;
+    const courierDetailName = cleanCustomCourier ? ` (${cleanCustomCourier})` : "";
+    const deliveryNoteSummary = deliveryCharge > 0
       ? ` | ডেলিভারি: ${courierName}${courierDetailName} (চার্জ: ${deliveryCharge} ৳, ওজন: ${totalWeight} কেজি)`
       : ` | ডেলিভারি: ${courierName}${courierDetailName} (ফ্রি ডেলিভারি, ওজন: ${totalWeight} কেজি)`;
     const finalNotes = (notes || "Online Order") + deliveryNoteSummary;
@@ -262,7 +286,7 @@ export async function POST(request: Request) {
         actorPhone: customerPhone || null,
         timestamp: new Date().toISOString(),
         notes: "অর্ডারটি সফলভাবে সিস্টেমে গ্রহণ করা হয়েছে",
-      }
+      },
     ];
 
     // Create a StoreSale with status 'Pending Order'
@@ -282,10 +306,10 @@ export async function POST(request: Request) {
           deliveryCharge,
           courierName,
           deliveryOptionType: selectedDeliveryType,
-          courierOrTransportName: courierOrTransportName ? courierOrTransportName.trim() : null,
+          courierOrTransportName: cleanCustomCourier,
           paymentMethod: paymentMethod || paymentProvider || "Online",
           senderNumber: senderNumber ? String(senderNumber).trim() : null,
-          trxId: trxId ? String(trxId).trim() : null,
+          trxId: (trxId || remainingTrxId) ? String(trxId || remainingTrxId).trim() : null,
           totalWeight,
           status: "Pending Order",
           notes: finalNotes,
@@ -309,10 +333,10 @@ export async function POST(request: Request) {
           deliveryCharge,
           courierName,
           deliveryOptionType: selectedDeliveryType,
-          courierOrTransportName: courierOrTransportName ? courierOrTransportName.trim() : null,
+          courierOrTransportName: cleanCustomCourier,
           paymentMethod: paymentMethod || paymentProvider || "Online",
           senderNumber: senderNumber ? String(senderNumber).trim() : null,
-          trxId: trxId ? String(trxId).trim() : null,
+          trxId: (trxId || remainingTrxId) ? String(trxId || remainingTrxId).trim() : null,
           totalWeight,
           status: "Pending Order",
           notes: finalNotes,
@@ -326,7 +350,7 @@ export async function POST(request: Request) {
     }
 
     // Handle Payment Options
-    if (paymentOption === 'pay_now') {
+    if (paymentOption === "pay_now") {
       await (prisma as any).storePayment.create({
         data: {
           saleId: sale.id,
@@ -337,10 +361,10 @@ export async function POST(request: Request) {
           status: "Pending",
           senderNumber: senderNumber ? String(senderNumber).trim() : null,
           trxId: trxId ? String(trxId).trim() : null,
-          notes: `Sender: ${senderNumber || 'N/A'}, TrxID: ${trxId}`
-        }
+          notes: `Sender: ${senderNumber || "N/A"}, TrxID: ${trxId}`,
+        },
       });
-    } else if (paymentOption === 'money_receipt' && validReceipt) {
+    } else if (paymentOption === "money_receipt" && validReceipt) {
       // 1. Create Payment Record
       await (prisma as any).storePayment.create({
         data: {
@@ -350,8 +374,8 @@ export async function POST(request: Request) {
           amount: paymentAmountFromReceipt,
           method: "Money Receipt",
           status: "Completed",
-          notes: `Receipt: ${receiptNumber}`
-        }
+          notes: `Receipt: ${receiptNumber}`,
+        },
       });
 
       // 2. Update Receipt Balance
@@ -360,8 +384,8 @@ export async function POST(request: Request) {
         where: { id: validReceipt.id },
         data: {
           usedAmount: newUsedAmount,
-          status: newUsedAmount >= validReceipt.amount ? "Fully Used" : "Active"
-        }
+          status: newUsedAmount >= validReceipt.amount ? "Fully Used" : "Active",
+        },
       });
 
       // 3. Create Receipt Usage History
@@ -369,15 +393,34 @@ export async function POST(request: Request) {
         data: {
           receiptId: validReceipt.id,
           invoiceId: sale.invoiceId,
-          usedAmount: paymentAmountFromReceipt
-        }
+          usedAmount: paymentAmountFromReceipt,
+        },
       });
+
+      // 4. If partial receipt, record the remaining immediate payment too
+      const remainingDue = Math.max(0, totalAmount - paymentAmountFromReceipt);
+      const remTrx = remainingTrxId || trxId;
+      if (remainingDue > 0 && remTrx) {
+        await (prisma as any).storePayment.create({
+          data: {
+            saleId: sale.id,
+            payer: customerName,
+            purpose: "Sale Payment (Remaining)",
+            amount: remainingDue,
+            method: remainingProvider || paymentMethod || paymentProvider || "Online",
+            status: "Pending",
+            senderNumber: senderNumber ? String(senderNumber).trim() : null,
+            trxId: String(remTrx).trim(),
+            notes: `Remaining after Receipt ${receiptNumber} | Sender: ${senderNumber || "N/A"}, TrxID: ${remTrx}`,
+          },
+        });
+      }
     }
 
     // Refetch sale to include new payments
     const updatedSale = await (prisma as any).storeSale.findUnique({
       where: { id: sale.id },
-      include: { items: { include: { product: true } }, payments: true }
+      include: { items: { include: { product: true } }, payments: true },
     });
 
     return NextResponse.json({
