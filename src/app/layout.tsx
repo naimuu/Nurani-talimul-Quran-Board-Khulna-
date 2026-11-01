@@ -22,12 +22,33 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "নূরানী বোর্ড খুলনা | পেশাদার ইসলামি শিক্ষা",
-  description: "নূরানী বোর্ড খুলনার অফিসিয়াল ওয়েবসাইট। বিশুদ্ধ ইসলামি শিক্ষা এবং প্রশাসন প্রদান।",
+  metadataBase: new URL("https://nooraniprokation.com"),
+  title: {
+    default: "নূরানী প্রকাশন | নূরানী বোর্ড খুলনা",
+    template: "%s | নূরানী বোর্ড খুলনা",
+  },
+  description: "নূরানী প্রকাশন ও নূরানী বোর্ড খুলনা এর অফিসিয়াল ওয়েবসাইট। নূরানী প্রকাশনীর যাবতীয় বই, শিক্ষা উপকরণ ও নূরানী শিক্ষা বোর্ডের সেবা।",
+  keywords: [
+    "নূরানী প্রকাশন",
+    "নূরানী বোর্ড খুলনা",
+    "নূরানী প্রকাশনী",
+    "noorani prokation",
+    "noorani prokashon",
+    "nooraniprokation.com",
+    "noorani board khulna"
+  ],
+  openGraph: {
+    title: "নূরানী প্রকাশন | নূরানী বোর্ড খুলনা",
+    description: "নূরানী প্রকাশন ও নূরানী বোর্ড খুলনার অফিসিয়াল ওয়েবসাইট।",
+    url: "https://nooraniprokation.com",
+    siteName: "নূরানী প্রকাশন | নূরানী বোর্ড খুলনা",
+    locale: "bn_BD",
+    type: "website",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     statusBarStyle: "default",
-    title: "নূরানী বোর্ড",
+    title: "নূরানী প্রকাশন",
   },
   other: {
     "mobile-web-app-capable": "yes",
