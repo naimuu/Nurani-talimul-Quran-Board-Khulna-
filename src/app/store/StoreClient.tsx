@@ -257,6 +257,27 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordSaveStatus, setPasswordSaveStatus] = useState<string | null>(null);
 
+  // Customer Type & Commission State
+  const [customerType, setCustomerType] = useState<"retail" | "madrasa" | "agent">("retail");
+  const [agentLookupCode, setAgentLookupCode] = useState("");
+  const [agentInfo, setAgentInfo] = useState<any>(null);
+  const [commissionRates, setCommissionRates] = useState({
+    retail: 0,
+    madrasa: 10,
+    defaultAgent: 15,
+  });
+
+  // Delivery Options State for Books
+  const [bookDeliveryOptions, setBookDeliveryOptions] = useState<any[]>([
+    { type: "pathao", name: "পাঠাও", charge: 0, requiresName: false },
+    { type: "steadfast", name: "স্টীডফাস্ট", charge: 0, requiresName: false },
+    { type: "self", name: "নিজে", charge: 0, requiresName: false },
+    { type: "other_courier", name: "অন্যান্য কুরিয়ার", charge: 20, requiresName: true },
+    { type: "transport", name: "ট্রান্সপোর্ট", charge: 10, requiresName: true },
+  ]);
+  const [selectedDeliveryType, setSelectedDeliveryType] = useState<string>("pathao");
+  const [courierOrTransportName, setCourierOrTransportName] = useState<string>("");
+
   const handleSetPassword = async () => {
     if (!customPasswordInput || customPasswordInput.trim().length < 4) {
       setPasswordSaveStatus("error:পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে");
@@ -295,6 +316,31 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
 
   useEffect(() => {
     fetch("/api/settings").then(r => r.json()).then(setBoardSettings).catch(() => {});
+
+    // Fetch book delivery options
+    fetch(`/api/delivery-options?category=book&t=${Date.now()}`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBookDeliveryOptions(data.filter((d: any) => d.isActive !== false));
+        }
+      })
+      .catch(() => {});
+
+    // Fetch commission rates
+    fetch(`/api/store/commissions?t=${Date.now()}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data) {
+          setCommissionRates({
+            retail: data.bookRetailCommissionPercent ?? 0,
+            madrasa: data.bookMadrasaCommissionPercent ?? 10,
+            defaultAgent: data.bookDefaultAgentCommissionPercent ?? 15,
+          });
+        }
+      })
+      .catch(() => {});
+
     try {
       const fav = JSON.parse(localStorage.getItem("store_favourites") || "[]");
       setFavourites(new Set(fav));
@@ -307,6 +353,27 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
       document.documentElement.style.overflow = "auto";
     };
   }, []);
+
+  const lookupAgent = async (code: string) => {
+    const trimmed = code.trim();
+    if (trimmed.length < 3) {
+      setAgentInfo(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/store/commissions?lookup=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.found && data.agent) {
+          setAgentInfo(data.agent);
+        } else {
+          setAgentInfo(null);
+        }
+      }
+    } catch {
+      setAgentInfo(null);
+    }
+  };
 
   const toggleFav = (id: string) => {
     setFavourites(prev => {
@@ -325,15 +392,68 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
     });
   };
 
+  const selectedDeliveryOption = useMemo(() => {
+    return (
+      bookDeliveryOptions.find((o) => o.type === selectedDeliveryType) ||
+      bookDeliveryOptions[0] || {
+        name: "পাঠাও",
+        type: "pathao",
+        charge: 0,
+        requiresName: false,
+      }
+    );
+  }, [bookDeliveryOptions, selectedDeliveryType]);
+
+  const finalDeliveryCharge = useMemo(() => {
+    const optType = selectedDeliveryOption?.type;
+    if (optType === "pathao" || optType === "steadfast" || optType === "self") {
+      return 0;
+    }
+    return Number(selectedDeliveryOption?.charge) || 0;
+  }, [selectedDeliveryOption]);
+
+  const appliedCommissionPercent = useMemo(() => {
+    if (customerType === "retail") return commissionRates.retail;
+    if (customerType === "madrasa") return commissionRates.madrasa;
+    if (customerType === "agent") {
+      return agentInfo?.bookCommissionPercent ?? commissionRates.defaultAgent;
+    }
+    return 0;
+  }, [customerType, agentInfo, commissionRates]);
+
+  const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const discountAmount = useMemo(() => {
+    if (appliedCommissionPercent <= 0) return 0;
+    return Math.round(cartTotal * (appliedCommissionPercent / 100));
+  }, [cartTotal, appliedCommissionPercent]);
+
+  const deliveryInfo = useMemo(() => calculateDeliveryCost(cart), [cart]);
+  const grandTotal = Math.max(0, cartTotal - discountAmount + finalDeliveryCharge);
+
   const submitOrder = async () => {
     if (!customerName) {
       setOrderError("দয়া করে আপনার নাম লিখুন।");
+      return;
+    }
+    if (selectedDeliveryOption?.requiresName && !courierOrTransportName.trim()) {
+      setOrderError(`অনুগ্রহ করে নির্দিষ্ট ${selectedDeliveryOption.name}-এর নাম লিখুন।`);
       return;
     }
     setOrderLoading(true);
     setOrderError("");
     try {
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
+      const typeLabel = customerType === "agent" ? "জিম্মাদার / এজেন্ট" : customerType === "madrasa" ? "মাদরাসা" : "খুচরা ক্রেতা";
+      const agentNote = agentInfo
+        ? ` | জিম্মাদার: ${agentInfo.name} (${agentInfo.phone}) | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)`
+        : (discountAmount > 0 ? ` | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)` : "");
+      const courierNote = selectedDeliveryOption.requiresName && courierOrTransportName.trim()
+        ? ` | [${selectedDeliveryOption.name}: ${courierOrTransportName.trim()}]`
+        : ` | [ডেলিভারি মাধ্যম: ${selectedDeliveryOption.name}]`;
+
+      const fullOrderNotes = `[বইয়ের অর্ডার] | গ্রাহক ধরন: ${typeLabel}${agentNote}${courierNote}`;
+
       const res = await fetch("/api/store/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -343,7 +463,12 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
           customerEmail: customerEmail.trim() || undefined,
           password: customerPassword.trim() || undefined,
           instituteId,
-          items
+          items,
+          discount: discountAmount,
+          deliveryOptionType: selectedDeliveryType,
+          courierOrTransportName: selectedDeliveryOption?.requiresName ? courierOrTransportName.trim() : undefined,
+          deliveryCharge: finalDeliveryCharge,
+          notes: fullOrderNotes,
         })
       });
       const data = await res.json();
@@ -384,10 +509,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
     await printOrderInvoice(orderToPrint, { mode: "customer" });
   };
 
-  const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
-  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-  const deliveryInfo = useMemo(() => calculateDeliveryCost(cart), [cart]);
-  const grandTotal = cartTotal + deliveryInfo.deliveryCharge;
+
 
   const categories = useMemo(() => {
     const cats = products.flatMap(p => (p.category || '').split(',').map(c => c.trim()).filter(Boolean));
@@ -811,15 +933,18 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                     </div>
                     <div className="flex justify-between text-slate-500 items-center">
                       <span className="flex items-center gap-1.5">
-                        <span>কুরিয়ার ({deliveryInfo.courierName})</span>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
-                          {deliveryInfo.totalWeightKg} কেজি
-                        </span>
+                        <span>ডেলিভারি চার্জ</span>
                       </span>
-                      {deliveryInfo.isFreeDelivery ? (
-                        <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-xs">ফ্রি ডেলিভারি 🎉</span>
+                      {selectedDeliveryOption.type === "pathao" || selectedDeliveryOption.type === "steadfast" ? (
+                        <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-200">
+                          চার্জ কুরিয়ার বাহককে
+                        </span>
+                      ) : selectedDeliveryOption.type === "self" ? (
+                        <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                          চার্জ নাই
+                        </span>
                       ) : (
-                        <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                        <span className="font-bold text-slate-800">৳{finalDeliveryCharge.toFixed(2)}</span>
                       )}
                     </div>
                   </div>
@@ -835,7 +960,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                   </button>
                   <p className="text-[11px] text-slate-500 bg-white p-2 rounded-lg border border-slate-200 leading-tight flex items-start gap-1">
                     <span className="shrink-0 text-xs">🚚</span>
-                    <span>{deliveryInfo.ruleNotice}</span>
+                    <span>পাঠাও ও স্টীডফাস্টে চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য, অফিস থেকে নিজে সংগ্রহে কোনো চার্জ নেই।</span>
                   </p>
                 </div>
               )}
@@ -906,15 +1031,18 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                     </div>
                     <div className="flex justify-between text-slate-500 items-center">
                       <span className="flex items-center gap-1.5">
-                        <span>কুরিয়ার ({deliveryInfo.courierName})</span>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
-                          {deliveryInfo.totalWeightKg} কেজি
-                        </span>
+                        <span>ডেলিভারি চার্জ</span>
                       </span>
-                      {deliveryInfo.isFreeDelivery ? (
-                        <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-xs">ফ্রি ডেলিভারি 🎉</span>
+                      {selectedDeliveryOption.type === "pathao" || selectedDeliveryOption.type === "steadfast" ? (
+                        <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-200">
+                          চার্জ কুরিয়ার বাহককে
+                        </span>
+                      ) : selectedDeliveryOption.type === "self" ? (
+                        <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                          চার্জ নাই
+                        </span>
                       ) : (
-                        <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
+                        <span className="font-bold text-slate-800">৳{finalDeliveryCharge.toFixed(2)}</span>
                       )}
                     </div>
                   </div>
@@ -930,7 +1058,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                   </button>
                   <p className="text-[11px] text-slate-500 bg-white p-2 rounded-lg border border-slate-200 leading-tight flex items-start gap-1">
                     <span className="shrink-0 text-xs">🚚</span>
-                    <span>{deliveryInfo.ruleNotice}</span>
+                    <span>পাঠাও ও স্টীডফাস্টে চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য, অফিস থেকে নিজে সংগ্রহে কোনো চার্জ নেই।</span>
                   </p>
                 </div>
               )}
@@ -947,9 +1075,82 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
               <h3 className="font-bold text-lg text-slate-800">অর্ডার নিশ্চিত করুন</h3>
               <button onClick={() => setCheckoutModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-6">
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
               {orderError && <p className="mb-4 text-red-500 text-sm bg-red-50 p-2 rounded">{orderError}</p>}
               <div className="flex flex-col gap-3">
+                {/* 1. Customer Type Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    ক্রেতার ধরন নির্বাচন করুন <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setCustomerType("retail")}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        customerType === "retail"
+                          ? "bg-white text-slate-900 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      খুচরা ক্রেতা
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCustomerType("madrasa")}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        customerType === "madrasa"
+                          ? "bg-white text-blue-900 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      মাদরাসা
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCustomerType("agent")}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        customerType === "agent"
+                          ? "bg-white text-[#095738] shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      জিম্মাদার / এজেন্ট
+                    </button>
+                  </div>
+                </div>
+
+                {/* If Agent selected: Agent ID / Phone input */}
+                {customerType === "agent" && (
+                  <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5 animate-in fade-in">
+                    <label className="block text-[11px] font-bold text-amber-950">
+                      এজেন্ট / জিম্মাদার আইডি বা মোবাইল নম্বর <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={agentLookupCode}
+                      onChange={(e) => {
+                        setAgentLookupCode(e.target.value);
+                        lookupAgent(e.target.value);
+                      }}
+                      placeholder="যেমন: 017... বা AG-101"
+                      className="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs font-bold bg-white focus:outline-emerald-600"
+                    />
+                    {agentInfo ? (
+                      <div className="text-[11px] font-bold text-emerald-800 flex items-center justify-between">
+                        <span>✓ জিম্মাদার: {agentInfo.name}</span>
+                        <span className="bg-emerald-700 text-white px-2 py-0.5 rounded font-black">
+                          {appliedCommissionPercent}% কমিশন
+                        </span>
+                      </div>
+                    ) : agentLookupCode.trim().length >= 4 ? (
+                      <p className="text-[10px] text-amber-800">
+                        * আইডি মিললে ব্যক্তিগত বিশেষ কমিশন, অন্যথায় ডিফল্ট কমিশন ({commissionRates.defaultAgent}%) প্রযোজ্য হবে।
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">আপনার নাম <span className="text-red-500">*</span></label>
                   <input value={customerName} onChange={e => setCustomerName(e.target.value)} type="text" placeholder="নাম লিখুন..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
@@ -993,29 +1194,113 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                   <label className="block text-xs font-bold text-slate-700 mb-1">প্রতিষ্ঠানের নাম বা ঠিকানা</label>
                   <input value={instituteId} onChange={e => setInstituteId(e.target.value)} type="text" placeholder="ঠিকানা..." className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-primary text-sm" />
                 </div>
-              </div>
 
-              {/* Order bill summary */}
-              <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-600">
-                  <span>পণ্যের মূল্য (সাবটোটাল):</span>
-                  <span className="font-bold text-slate-800">৳{cartTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 items-center">
-                  <span>কুরিয়ার চার্জ ({deliveryInfo.courierName}):</span>
-                  {deliveryInfo.isFreeDelivery ? (
-                    <span className="font-bold text-emerald-600">ফ্রি ডেলিভারি 🎉</span>
-                  ) : (
-                    <span className="font-bold text-slate-800">৳{deliveryInfo.deliveryCharge.toFixed(2)} ({deliveryInfo.totalWeightKg} কেজি)</span>
+                {/* 2. Delivery Options Selector (5 Methods) */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>ডেলিভারি মাধ্যম <span className="text-red-500">*</span></span>
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {selectedDeliveryOption.name}
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {bookDeliveryOptions.map((opt) => {
+                      const isSelected = selectedDeliveryType === opt.type;
+                      const isPathaoOrSteadfast = opt.type === "pathao" || opt.type === "steadfast";
+                      const isSelf = opt.type === "self";
+                      const optCharge = Number(opt.charge) || 0;
+
+                      return (
+                        <button
+                          key={opt.type}
+                          type="button"
+                          onClick={() => setSelectedDeliveryType(opt.type)}
+                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? "border-[#095738] bg-emerald-50/70 text-slate-900 font-bold ring-1 ring-[#095738]"
+                              : "border-slate-200 bg-white hover:border-slate-300 text-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span>{opt.name}</span>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#095738]" />}
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                            {isPathaoOrSteadfast
+                              ? "চার্জ কুরিয়ার বাহককে"
+                              : isSelf
+                              ? "চার্জ নাই (৳০)"
+                              : `+৳${optCharge}`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedDeliveryOption?.requiresName && (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1 animate-in fade-in">
+                      <label className="block text-[11px] font-bold text-amber-900">
+                        {selectedDeliveryType === "transport" ? "ট্রান্সপোর্টের নাম লিখুন" : "কুরিয়ার সার্ভিসের নাম লিখুন"} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={courierOrTransportName}
+                        onChange={(e) => setCourierOrTransportName(e.target.value)}
+                        placeholder={selectedDeliveryType === "transport" ? "যেমন: দিগন্ত পরিবহন" : "যেমন: সুন্দরবন কুরিয়ার"}
+                        className="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white focus:outline-emerald-600"
+                      />
+                    </div>
                   )}
                 </div>
+              </div>
+
+              {/* 3. Order Bill Summary */}
+              <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>পণ্যের মোট মূল্য (সাবটোটাল):</span>
+                  <span className="font-bold text-slate-800">৳{cartTotal.toFixed(2)}</span>
+                </div>
+
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                    <span>
+                      কমিশন ছাড় ({appliedCommissionPercent}% - {customerType === "agent" ? "জিম্মাদার" : customerType === "madrasa" ? "মাদরাসা" : "খুচরা"}):
+                    </span>
+                    <span>-৳{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-slate-600 items-center">
+                  <span>
+                    ডেলিভারি চার্জ ({selectedDeliveryOption.name}
+                    {selectedDeliveryOption?.requiresName && courierOrTransportName.trim()
+                      ? ` - ${courierOrTransportName.trim()}`
+                      : ""}):
+                  </span>
+                  {selectedDeliveryOption.type === "pathao" || selectedDeliveryOption.type === "steadfast" ? (
+                    <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-[11px] border border-emerald-200">
+                      চার্জ কুরিয়ার বাহককে
+                    </span>
+                  ) : selectedDeliveryOption.type === "self" ? (
+                    <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-[11px] border border-blue-200">
+                      চার্জ নাই
+                    </span>
+                  ) : (
+                    <span className="font-bold text-slate-800">+৳{finalDeliveryCharge.toFixed(2)}</span>
+                  )}
+                </div>
+
                 <div className="pt-1.5 border-t border-slate-200 flex justify-between font-bold text-sm text-slate-800">
-                  <span>সর্বমোট বিল:</span>
+                  <span>সর্বমোট প্রদেয় বিল:</span>
                   <span className="text-primary font-black text-base">৳{grandTotal.toFixed(2)}</span>
                 </div>
               </div>
               
-              <button onClick={submitOrder} disabled={orderLoading || !customerName} className="w-full mt-4 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors text-sm">
+              <button onClick={submitOrder} disabled={orderLoading || !customerName} className="w-full mt-4 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors text-sm cursor-pointer">
                 {orderLoading ? "অপেক্ষা করুন..." : "অর্ডার সাবমিট করুন"}
               </button>
             </div>

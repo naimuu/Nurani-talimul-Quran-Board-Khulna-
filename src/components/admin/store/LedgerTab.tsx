@@ -68,11 +68,11 @@ export default function LedgerTab({ storeCategory, onCategoryChange }: { storeCa
   // Helper to parse Zimadar details from notes
   const getZimadarInfo = (notes?: string) => {
     if (!notes || !notes.includes('[কেন্দ্র জিম্মাদার:')) return null;
-    const match = notes.match(/\[কেন্দ্র জিম্মাদার:\s*([^|\]]+)(?:\|\s*ফোন:\s*([^|\]]+))?(?:\|\s*অন্তর্ভুক্ত মাদরাসা:\s*([^|\]]+))?(?:\|\s*কমিশন:\s*([^|\]]+))?/i);
+    const match = notes.match(/\[কেন্দ্র জিম্মাদার:\s*([^|(\]]+)(?:(?:\(|\|\s*ফোন:)\s*([^|)\\]]+)\)?)?(?:\|\s*অন্তর্ভুক্ত মাদরাসা:\s*([^|\]]+))?(?:\|\s*কমিশন:\s*([^|\]]+))?/i);
     if (!match) return null;
     return {
       name: match[1]?.trim() || "",
-      phone: match[2]?.trim() || "",
+      phone: match[2]?.replace(/[()]/g, "").trim() || "",
       madrasas: match[3]?.trim() || "",
       commission: match[4]?.trim() || "",
     };

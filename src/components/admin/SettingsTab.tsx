@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Briefcase, Users, Phone, Building2, Upload, Link as LinkIcon, Globe, RefreshCw, ExternalLink, Layers, Sidebar as SidebarIcon, CreditCard, Truck, QrCode, ArrowUp, ArrowDown, CheckCircle, Eye, EyeOff } from "lucide-react";
 import SliderMediaSidebar from "@/components/admin/SliderMediaSidebar";
 import toast from "react-hot-toast";
-import { PaymentMethodsManager, DeliveryOptionsManager } from "@/components/admin/PaymentAndDeliverySettings";
+import { PaymentMethodsManager, DeliveryOptionsManager, CommissionsManager } from "@/components/admin/PaymentAndDeliverySettings";
 
 interface ContactInfo {
   id?: string;
@@ -656,7 +656,12 @@ function GeneralTab({ settings, onSave }: { settings: BoardSettings | null; onSa
           />
         </div>
 
-        {/* 6. কেন্দ্র জিম্মাদার কমিশন সেটিংস (ডায়নামিক) */}
+        {/* 6. পূর্ণাঙ্গ কমিশন নীতিমালা ও জিম্মাদার সেটিংস (ডায়নামিক) */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs mb-6">
+          <CommissionsManager />
+        </div>
+
+        {/* 6.১ কেন্দ্র জিম্মাদার কমিশন সেটিংস (ডায়নামিক) */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
             <div>

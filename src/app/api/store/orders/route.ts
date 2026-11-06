@@ -192,23 +192,24 @@ export async function POST(request: Request) {
       where: { type: selectedDeliveryType },
     });
 
-    if (dbDeliveryOption) {
+    if (selectedDeliveryType === "self") {
+      deliveryCharge = 0;
+      courierName = dbDeliveryOption?.name || "নিজে";
+    } else if (selectedDeliveryType === "pathao") {
+      deliveryCharge = 0;
+      courierName = dbDeliveryOption?.name || "পাঠাও";
+    } else if (selectedDeliveryType === "steadfast") {
+      deliveryCharge = 0;
+      courierName = dbDeliveryOption?.name || "স্টিডফাস্ট";
+    } else if (selectedDeliveryType === "other_courier") {
+      deliveryCharge = dbDeliveryOption ? Number(dbDeliveryOption.charge) || 20 : 20;
+      courierName = dbDeliveryOption?.name || "অন্যান্য কুরিয়ার";
+    } else if (selectedDeliveryType === "transport") {
+      deliveryCharge = dbDeliveryOption ? Number(dbDeliveryOption.charge) || 10 : 10;
+      courierName = dbDeliveryOption?.name || "ট্রান্সপোর্ট";
+    } else if (dbDeliveryOption) {
       deliveryCharge = Number(dbDeliveryOption.charge) || 0;
       courierName = dbDeliveryOption.name;
-    } else {
-      if (selectedDeliveryType === "steadfast") {
-        deliveryCharge = 0;
-        courierName = "স্টিডফাস্ট";
-      } else if (selectedDeliveryType === "other_courier") {
-        deliveryCharge = 20;
-        courierName = "অন্যান্য কুরিয়ার";
-      } else if (selectedDeliveryType === "transport") {
-        deliveryCharge = 10;
-        courierName = "ট্রান্সপোর্ট";
-      } else {
-        deliveryCharge = 0;
-        courierName = "পাঠাও";
-      }
     }
 
     const needsCustomName =

@@ -31,7 +31,8 @@ import {
   Download,
   Truck,
   Smartphone,
-  QrCode
+  QrCode,
+  Users
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementView";
@@ -143,6 +144,32 @@ export default function QuestionOrderPage() {
   const [zimadarPhone, setZimadarPhone] = useState("");
   const [zimadarMadrasasList, setZimadarMadrasasList] = useState<string[]>([""]);
 
+  // Tashkil / Referring Jimmadar state
+  const [referralZimadarCode, setReferralZimadarCode] = useState("");
+  const [referralAgentInfo, setReferralAgentInfo] = useState<any>(null);
+  const [isDeliveryMenuOpen, setIsDeliveryMenuOpen] = useState(false);
+
+  const lookupZimadarAgent = async (codeOrPhone: string) => {
+    const trimmed = codeOrPhone.trim();
+    if (trimmed.length < 3) {
+      setReferralAgentInfo(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/store/commissions?lookup=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.found && data.agent) {
+          setReferralAgentInfo(data.agent);
+        } else {
+          setReferralAgentInfo(null);
+        }
+      }
+    } catch {
+      setReferralAgentInfo(null);
+    }
+  };
+
   // UI & Submission state
   const [selectedDetailItem, setSelectedDetailItem] = useState<QuestionItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -182,7 +209,7 @@ export default function QuestionOrderPage() {
       })
       .catch(() => {});
 
-    fetch(`/api/delivery-options${cacheBust}`, { cache: "no-store" })
+    fetch(`/api/delivery-options?category=question&t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -596,17 +623,26 @@ export default function QuestionOrderPage() {
     return validMadrasasCount >= zimadarConfig.minMadrasas && totalAmount > zimadarConfig.minOrderAmount;
   }, [isZimadar, zimadarConfig, validMadrasasCount, totalAmount]);
 
+  const referralCommissionPercent = useMemo(() => {
+    if (!referralAgentInfo) return 0;
+    return referralAgentInfo.questionCommissionPercent ?? zimadarConfig.percent;
+  }, [referralAgentInfo, zimadarConfig.percent]);
+
   const commissionDiscount = useMemo(() => {
+    if (referralAgentInfo && referralCommissionPercent > 0) {
+      return Math.round(totalAmount * (referralCommissionPercent / 100));
+    }
     if (!isCommissionQualified) return 0;
     return Math.round(totalAmount * (zimadarConfig.percent / 100));
-  }, [isCommissionQualified, totalAmount, zimadarConfig.percent]);
+  }, [referralAgentInfo, referralCommissionPercent, isCommissionQualified, totalAmount, zimadarConfig.percent]);
 
   const fallbackDeliveryOptions = useMemo(
     () => [
-      { type: "pathao", name: "পাঠাও", charge: 0, requiresName: false },
-      { type: "steadfast", name: "স্টিডফাস্ট", charge: 0, requiresName: false },
-      { type: "other_courier", name: "অন্যান্য কুরিয়ার", charge: 20, requiresName: true },
-      { type: "transport", name: "ট্রান্সপোর্ট", charge: 10, requiresName: true },
+      { type: "pathao", name: "পাঠাও", charge: 0, requiresName: false, billNote: "চার্জ কুরিয়ার বাহককে" },
+      { type: "steadfast", name: "স্টীডফাস্ট", charge: 0, requiresName: false, billNote: "চার্জ কুরিয়ার বাহককে" },
+      { type: "self", name: "নিজে", charge: 0, requiresName: false, billNote: "চার্জ নাই" },
+      { type: "other_courier", name: "অন্যান্য কুরিয়ার", charge: 20, requiresName: true, billNote: "+৳২০" },
+      { type: "transport", name: "ট্রান্সপোর্ট", charge: 10, requiresName: true, billNote: "+৳১০" },
     ],
     []
   );
@@ -628,7 +664,13 @@ export default function QuestionOrderPage() {
     );
   }, [visibleDeliveryOptions, selectedDeliveryType]);
 
-  const deliveryCharge = Number(selectedDeliveryOption.charge) || 0;
+  const deliveryCharge = useMemo(() => {
+    const optType = selectedDeliveryOption?.type;
+    if (optType === "pathao" || optType === "steadfast" || optType === "self") {
+      return 0;
+    }
+    return Number(selectedDeliveryOption?.charge) || 0;
+  }, [selectedDeliveryOption]);
 
   const finalPayableAmount = useMemo(() => {
     return Math.max(0, totalAmount - commissionDiscount + deliveryCharge);
@@ -909,9 +951,12 @@ export default function QuestionOrderPage() {
         })
         .join(", ");
 
-      const zimadarNote = isZimadar
-        ? ` | [কেন্দ্র জিম্মাদার: ${zimadarName.trim() || ownerName.trim()} (ফোন: ${zimadarPhone.trim() || contactNo.trim()}) | মাদরাসা তালিকা (${validMadrasasCount}টি): ${zimadarMadrasasList.map((m) => m.trim()).filter(Boolean).join(", ")}${isCommissionQualified ? ` | কমিশন: ৳${commissionDiscount} (${zimadarConfig.percent}%)` : ""}]`
-        : "";
+      let zimadarNote = "";
+      if (referralAgentInfo) {
+        zimadarNote = ` | [কেন্দ্র জিম্মাদার: ${referralAgentInfo.name} (ফোন: ${referralAgentInfo.phone}) | কমিশন: ৳${commissionDiscount} (${referralCommissionPercent}%)]`;
+      } else if (isZimadar) {
+        zimadarNote = ` | [কেন্দ্র জিম্মাদার: ${zimadarName.trim() || ownerName.trim()} (ফোন: ${zimadarPhone.trim() || contactNo.trim()}) | মাদরাসা তালিকা (${validMadrasasCount}টি): ${zimadarMadrasasList.map((m) => m.trim()).filter(Boolean).join(", ")}${isCommissionQualified ? ` | কমিশন: ৳${commissionDiscount} (${zimadarConfig.percent}%)` : ""}]`;
+      }
 
       const courierNote = selectedDeliveryOption?.requiresName && courierOrTransportName.trim()
         ? ` | [${selectedDeliveryOption.name}: ${courierOrTransportName.trim()}]`
@@ -940,7 +985,7 @@ export default function QuestionOrderPage() {
           senderNumber: effectiveSenderNumber,
           trxId: effectiveTrxId,
           receiptNumber: paymentOption === "money_receipt" ? receiptNumber.trim() : undefined,
-          discount: isCommissionQualified ? commissionDiscount : 0,
+          discount: commissionDiscount,
           deliveryOptionType: selectedDeliveryType,
           courierOrTransportName: selectedDeliveryOption?.requiresName ? courierOrTransportName.trim() : undefined,
           deliveryCharge: deliveryCharge,
@@ -1864,132 +1909,80 @@ export default function QuestionOrderPage() {
                     />
                   </div>
 
-                  {/* ─── KENDRO ZIMADAR SECTION ────────────────────────────── */}
-                  <div className="pt-3 border-t border-slate-200 space-y-2.5">
-                    <label className="flex items-start gap-2.5 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-100/60 transition-colors">
+                  {/* ─── KENDRO ZIMADAR TASHKIL / REFERRAL SECTION ────────────────────────────── */}
+                  <div className="pt-3 border-t border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>তাশকিলকারী কেন্দ্র জিম্মাদার আইডি বা মোবাইল (ঐচ্ছিক)</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded">রেফারেন্স</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      কোনো কেন্দ্র জিম্মাদারের মাধ্যমে অনুপ্রাণিত (তাশকিল) হয়ে থাকলে তাঁর আইডি বা মোবাইল নম্বর লিখুন। এতে তিনি কমিশন সুবিধা পাবেন।
+                    </p>
+                    <div className="relative">
                       <input
-                        type="checkbox"
-                        checked={isZimadar}
+                        type="text"
+                        value={referralZimadarCode}
                         onChange={(e) => {
-                          const checked = e.target.checked;
-                          setIsZimadar(checked);
-                          if (checked) {
-                            if (!zimadarName) setZimadarName(ownerName);
-                            if (!zimadarPhone) setZimadarPhone(contactNo);
-                            if (zimadarMadrasasList.length === 0 || (zimadarMadrasasList.length === 1 && !zimadarMadrasasList[0])) {
-                              setZimadarMadrasasList([instituteName || ""]);
-                            }
-                          }
+                          const val = e.target.value;
+                          setReferralZimadarCode(val);
+                          lookupZimadarAgent(val);
                         }}
-                        className="mt-0.5 w-4 h-4 text-emerald-700 rounded focus:ring-emerald-600 cursor-pointer"
+                        placeholder="জিম্মাদারের মোবাইল নম্বর বা আইডি লিখুন (যেমন: 017...)"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600"
                       />
-                      <div className="flex-1">
-                        <span className="font-bold text-slate-900 text-xs sm:text-sm block">
-                          আমি কেন্দ্র জিম্মাদার (একাধিক মাদরাসার প্রশ্ন একসাথে অর্ডার করছি)
-                        </span>
-                        <span className="text-[11px] text-emerald-800">
-                          কমপক্ষে {zimadarConfig.minMadrasas}টি মাদরাসা এবং ৳{zimadarConfig.minOrderAmount.toLocaleString()}-এর বেশি অর্ডারে {zimadarConfig.percent}% বিশেষ কমিশন সুবিধা
+                    </div>
+
+                    {referralAgentInfo ? (
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-xs font-bold flex items-center justify-between animate-in fade-in">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span>তাশকিলকারী জিম্মাদার: {referralAgentInfo.name} ({referralAgentInfo.phone})</span>
+                        </div>
+                        <span className="bg-emerald-700 text-white text-[10.5px] px-2 py-0.5 rounded-md font-bold">
+                          {referralCommissionPercent}% কমিশন যুক্ত
                         </span>
                       </div>
-                    </label>
-
-                    {isZimadar && (
-                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-in fade-in duration-200">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">কেন্দ্র জিম্মাদারের নাম</label>
-                            <input
-                              type="text"
-                              value={zimadarName}
-                              onChange={(e) => setZimadarName(e.target.value)}
-                              placeholder={ownerName || "জিম্মাদারের নাম"}
-                              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-0.5">জিম্মাদারের মোবাইল নম্বর</label>
-                            <input
-                              type="tel"
-                              value={zimadarPhone}
-                              onChange={(e) => setZimadarPhone(e.target.value)}
-                              placeholder={contactNo || "01XXXXXXXXX"}
-                              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-[11px] font-bold text-slate-700">
-                              অন্তর্ভুক্ত মাদরাসার তালিকা ({validMadrasasCount}টি মাদরাসা এন্ট্রি)
-                            </label>
-                            <button
-                              type="button"
-                              onClick={addZimadarMadrasa}
-                              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-100 hover:bg-emerald-200/80 px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>মাদরাসা যোগ করুন</span>
-                            </button>
-                          </div>
-
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                            {zimadarMadrasasList.map((mName, idx) => (
-                              <div key={idx} className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-bold text-slate-400 w-5 text-center">{idx + 1}.</span>
-                                <input
-                                  type="text"
-                                  value={mName}
-                                  onChange={(e) => updateZimadarMadrasa(idx, e.target.value)}
-                                  placeholder={`মাদরাসা ${idx + 1}-এর নাম লিখুন`}
-                                  className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600"
-                                />
-                                {zimadarMadrasasList.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeZimadarMadrasa(idx)}
-                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
-                                    title="মুছুন"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Commission status badge */}
-                        {isCommissionQualified ? (
-                          <div className="p-2.5 bg-emerald-100 border border-emerald-300 rounded-lg text-emerald-900 text-xs font-bold flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
-                              <span>🎉 {zimadarConfig.percent}% কেন্দ্র জিম্মাদার কমিশন প্রযোজ্য!</span>
-                            </div>
-                            <span className="bg-emerald-800 text-white text-[11px] px-2 py-0.5 rounded-md font-black">
-                              -৳{commissionDiscount}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-[11px] font-medium leading-relaxed">
-                            ℹ️ <strong>কমিশন শর্ত:</strong> কমপক্ষে {zimadarConfig.minMadrasas}টি মাদরাসার নাম (বর্তমান: {validMadrasasCount}টি) এবং সর্বমোট বিল ৳{zimadarConfig.minOrderAmount.toLocaleString()}-এর বেশি (বর্তমান: ৳{totalAmount.toLocaleString()}) হলে স্বয়ংক্রিয়ভাবে {zimadarConfig.percent}% কমিশন ছাড় পাবেন।
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    ) : referralZimadarCode.trim().length >= 4 ? (
+                      <p className="text-[10.5px] text-slate-400">
+                        * নম্বর বা কোড মিলিয়ে জিম্মাদারের নাম স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে।
+                      </p>
+                    ) : null}
                   </div>
 
                   {/* Delivery Options Selector */}
                   <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
-                    <label className="block text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                      <Truck className="w-4 h-4 text-[#095738]" />
-                      <span>ডেলিভারি অপশন নির্বাচন করুন <span className="text-red-500">*</span></span>
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        <Truck className="w-4 h-4 text-[#095738]" />
+                        <span>ডেলিভারি মাধ্যম নির্বাচন করুন <span className="text-red-500">*</span></span>
+                      </label>
+                      <span className="text-[11px] font-bold text-[#095738] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                        {selectedDeliveryOption.name}
+                      </span>
+                    </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Interactive 5 Delivery Methods Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {visibleDeliveryOptions.map((d: any) => {
                         const isSelected = selectedDeliveryType === d.type;
+                        const isPathaoOrSteadfast = d.type === "pathao" || d.type === "steadfast";
+                        const isSelf = d.type === "self";
                         const optCharge = Number(d.charge) || 0;
+
+                        let badgeText = `+৳${optCharge}`;
+                        let badgeColor = "text-amber-700 bg-amber-50 border-amber-200";
+
+                        if (isPathaoOrSteadfast) {
+                          badgeText = "চার্জ কুরিয়ার বাহককে";
+                          badgeColor = "text-emerald-800 bg-emerald-50 border-emerald-200";
+                        } else if (isSelf) {
+                          badgeText = "চার্জ নাই (৳০)";
+                          badgeColor = "text-blue-800 bg-blue-50 border-blue-200";
+                        }
+
                         return (
                           <button
                             key={d.type}
@@ -2011,8 +2004,8 @@ export default function QuestionOrderPage() {
                                 {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                               </span>
                             </div>
-                            <span className={`text-[11px] font-semibold ${optCharge === 0 ? "text-emerald-700" : "text-amber-700"}`}>
-                              {optCharge === 0 ? "কোনো অতিরিক্ত চার্জ নেই (৳০)" : `কুরিয়ার / সার্ভিস বিল: +৳${optCharge}`}
+                            <span className={`text-[10.5px] font-bold px-1.5 py-0.5 rounded border inline-block ${badgeColor}`}>
+                              {badgeText}
                             </span>
                           </button>
                         );
@@ -2064,9 +2057,11 @@ export default function QuestionOrderPage() {
                       <span>প্রশ্নপত্রের মূল বিল:</span>
                       <span className="font-bold text-slate-800">৳{totalAmount.toFixed(2)}</span>
                     </div>
-                    {isCommissionQualified && (
+                    {commissionDiscount > 0 && (
                       <div className="flex items-center justify-between text-xs sm:text-sm text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
-                        <span>কেন্দ্র জিম্মাদার কমিশন ({zimadarConfig.percent}%):</span>
+                        <span>
+                          {referralAgentInfo ? `জিম্মাদার কমিশন (${referralCommissionPercent}%):` : `কেন্দ্র জিম্মাদার কমিশন (${zimadarConfig.percent}%):`}
+                        </span>
                         <span>-৳{commissionDiscount.toFixed(2)}</span>
                       </div>
                     )}
@@ -2078,8 +2073,18 @@ export default function QuestionOrderPage() {
                           : ""}
                         ):
                       </span>
-                      <span className={`font-bold ${deliveryCharge === 0 ? "text-emerald-700" : "text-amber-700"}`}>
-                        {deliveryCharge === 0 ? "৳০ (কোনো চার্জ নেই)" : `+৳${deliveryCharge.toFixed(2)}`}
+                      <span>
+                        {selectedDeliveryOption.type === "pathao" || selectedDeliveryOption.type === "steadfast" ? (
+                          <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-200">
+                            চার্জ কুরিয়ার বাহককে
+                          </span>
+                        ) : selectedDeliveryOption.type === "self" ? (
+                          <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                            চার্জ নাই
+                          </span>
+                        ) : (
+                          <span className="font-bold text-amber-700">+৳{deliveryCharge.toFixed(2)}</span>
+                        )}
                       </span>
                     </div>
                     <div className="pt-2 border-t border-slate-200 flex items-center justify-between">

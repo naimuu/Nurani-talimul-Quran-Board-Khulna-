@@ -100,6 +100,17 @@ export async function generateInvoiceHTML(
   );
   const deliveryCharge = Number(order.deliveryCharge) || 0;
   const courierName = order.courierName || "পাঠাও কুরিয়ার";
+  const optType = (order.deliveryOptionType || "").toLowerCase();
+  let deliveryChargeLabel = "চার্জ নাই";
+  if (optType === "pathao" || optType === "steadfast" || courierName.includes("পাঠাও") || courierName.includes("স্টিডফাস্ট")) {
+    deliveryChargeLabel = "চার্জ কুরিয়ার বাহককে";
+  } else if (optType === "self" || courierName.includes("নিজে")) {
+    deliveryChargeLabel = "চার্জ নাই";
+  } else if (deliveryCharge > 0) {
+    deliveryChargeLabel = `৳${deliveryCharge.toFixed(2)}`;
+  } else {
+    deliveryChargeLabel = "চার্জ নাই";
+  }
   const grandTotalBill = (Number(order.totalAmount) || 0) + (Number(order.currentTotalDue) || 0);
   const paidAmount = Number(order.paidAmount || 0);
   const totalDue = Math.max(0, grandTotalBill - paidAmount);
@@ -511,7 +522,7 @@ export async function generateInvoiceHTML(
           </div>
           <div class="info-item">
             <span class="label">ডেলিভারি চার্জ:</span>
-            <span class="value" style="font-weight: 800;">${deliveryCharge > 0 ? `৳${deliveryCharge.toFixed(2)}` : "৳০.০০ (ফ্রি)"}</span>
+            <span class="value" style="font-weight: 800;">${deliveryChargeLabel}</span>
           </div>
         </div>
       </div>
@@ -566,7 +577,7 @@ export async function generateInvoiceHTML(
           </div>
           <div class="totals-row">
             <span>ডেলিভারি চার্জ (${courierName}${order.courierOrTransportName ? ` - ${order.courierOrTransportName}` : ''}):</span>
-            <span>${deliveryCharge > 0 ? `৳${deliveryCharge.toFixed(2)}` : "৳০.০০ (ফ্রি)"}</span>
+            <span>${deliveryChargeLabel}</span>
           </div>
           ${order.discount ? `<div class="totals-row" style="color: #047857;"><span>বিশেষ ছাড় / কমিশন:</span><span>-৳${order.discount.toFixed(2)}</span></div>` : ""}
           
