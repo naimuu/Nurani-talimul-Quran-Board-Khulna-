@@ -346,6 +346,22 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
       setFavourites(new Set(fav));
     } catch { }
 
+    // Auto-detect referral link param (?ref=... or ?referral=...) or cached referral
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRef = urlParams.get("ref") || urlParams.get("referral");
+      const storedRef = localStorage.getItem("nbk_referral_code");
+      const activeRef = (urlRef || storedRef || "").trim();
+      if (activeRef) {
+        setCustomerType("agent");
+        setAgentLookupCode(activeRef);
+        lookupAgent(activeRef);
+        if (urlRef) {
+          localStorage.setItem("nbk_referral_code", urlRef.trim());
+        }
+      }
+    } catch { }
+
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
     return () => { 
@@ -446,7 +462,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
       const typeLabel = customerType === "agent" ? "জিম্মাদার / এজেন্ট" : customerType === "madrasa" ? "মাদরাসা" : "খুচরা ক্রেতা";
       const agentNote = agentInfo
-        ? ` | জিম্মাদার: ${agentInfo.name} (${agentInfo.phone}) | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)`
+        ? ` | [কেন্দ্র জিম্মাদার: ${agentInfo.name} (ফোন: ${agentInfo.phone})${agentInfo.code ? ` (কোড: ${agentInfo.code})` : ""} | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)]`
         : (discountAmount > 0 ? ` | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)` : "");
       const courierNote = selectedDeliveryOption.requiresName && courierOrTransportName.trim()
         ? ` | [${selectedDeliveryOption.name}: ${courierOrTransportName.trim()}]`
@@ -613,6 +629,32 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
           </div>
         </div>
       </div>
+
+      {/* REFERRAL ACTIVE BANNER */}
+      {agentInfo && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between shadow-xs z-30 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10.5px] font-bold">রেফারেল লিংক সক্রিয়</span>
+            <span>
+              আপনি কেন্দ্র জিম্মাদার <strong>{agentInfo.name}</strong> ({agentInfo.phone})-এর মাধ্যমে কেনাকাটা করছেন ({appliedCommissionPercent}% কমিশন প্রযোজ্য)।
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setAgentInfo(null);
+              setAgentLookupCode("");
+              setCustomerType("retail");
+              try {
+                localStorage.removeItem("nbk_referral_code");
+              } catch {}
+            }}
+            className="hover:bg-white/20 p-1 rounded-md transition-colors text-white cursor-pointer"
+            title="রেফারেল বাতিল করুন"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       <div className="w-full flex flex-col lg:flex-row flex-1 overflow-hidden relative bg-slate-50">
         {/* Mobile Overlay */}

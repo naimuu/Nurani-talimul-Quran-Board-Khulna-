@@ -372,6 +372,7 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
         { title: "পরীক্ষার নোটিশ", href: "/notices?type=exam_notice", icon: Bell },
         { title: "পরীক্ষার রুটিন", href: "/academic/routine", icon: Calendar },
         { title: "প্রশ্নের অর্ডার", href: "/academic/question-order", icon: BookMarked },
+        { title: "জিম্মাদার রেফারেল পোর্টাল", href: "/referral", icon: Users },
         {
           title: "বোর্ড পরীক্ষা",
           subtitle: "নিবন্ধন, ফি ও রেজাল্ট",

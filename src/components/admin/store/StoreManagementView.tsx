@@ -1,18 +1,19 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { ShoppingCart, Package, CreditCard, ClipboardList, Layers, FileText, BookOpen, Settings } from "lucide-react";
+import { ShoppingCart, Package, CreditCard, ClipboardList, Layers, FileText, BookOpen, Settings, Users } from "lucide-react";
 import SaleTab from "./SaleTab";
 import StockTab from "./StockTab";
 import PaymentTab from "./PaymentTab";
 import OrderTab from "./OrderTab";
 import ReceiptTab from "./ReceiptTab";
 import LedgerTab from "./LedgerTab";
+import ReferralManagementTab from "./ReferralManagementTab";
 import { PaymentDeliverySettingsModal } from "@/components/admin/PaymentAndDeliverySettings";
 
 export type StoreCategory = "all" | "stationary" | "question";
 
 export default function StoreManagementView() {
-  const [activeTab, setActiveTab] = useState<"sale" | "stock" | "payment" | "order" | "receipt" | "ledger">("sale");
+  const [activeTab, setActiveTab] = useState<"sale" | "stock" | "payment" | "order" | "receipt" | "ledger" | "referral">("sale");
   const [storeCategory, setStoreCategory] = useState<StoreCategory>("all");
   const [showPaymentDeliveryModal, setShowPaymentDeliveryModal] = useState(false);
 
@@ -24,7 +25,8 @@ export default function StoreManagementView() {
       savedTab === "payment" ||
       savedTab === "order" ||
       savedTab === "receipt" ||
-      savedTab === "ledger"
+      savedTab === "ledger" ||
+      savedTab === "referral"
     ) {
       setActiveTab(savedTab as any);
     }
@@ -34,7 +36,7 @@ export default function StoreManagementView() {
     }
   }, []);
 
-  const handleTabChange = (tab: "sale" | "stock" | "payment" | "order" | "receipt" | "ledger") => {
+  const handleTabChange = (tab: "sale" | "stock" | "payment" | "order" | "receipt" | "ledger" | "referral") => {
     setActiveTab(tab);
     localStorage.setItem("store_active_tab", tab);
   };
@@ -46,7 +48,7 @@ export default function StoreManagementView() {
 
   const handleTabClick = (
     e: React.MouseEvent<HTMLButtonElement>,
-    tab: "sale" | "stock" | "payment" | "order" | "receipt" | "ledger"
+    tab: "sale" | "stock" | "payment" | "order" | "receipt" | "ledger" | "referral"
   ) => {
     handleTabChange(tab);
     e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -187,6 +189,18 @@ export default function StoreManagementView() {
             <BookOpen className="w-4 h-4" />
             <span>ইনভয়েস লেজার</span>
           </button>
+
+          <button
+            onClick={(e) => handleTabClick(e, "referral")}
+            className={`flex items-center gap-1.5 pb-3 px-1 border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === "referral"
+                ? "border-emerald-700 text-emerald-800 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 font-medium"
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>রেফারেল ও কমিশন</span>
+          </button>
         </div>
       </div>
 
@@ -198,6 +212,7 @@ export default function StoreManagementView() {
         {activeTab === "payment" && <PaymentTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
         {activeTab === "receipt" && <ReceiptTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
         {activeTab === "ledger" && <LedgerTab storeCategory={storeCategory} onCategoryChange={handleCategoryChange} />}
+        {activeTab === "referral" && <ReferralManagementTab />}
       </div>
 
       <PaymentDeliverySettingsModal

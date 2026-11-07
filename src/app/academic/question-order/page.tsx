@@ -272,6 +272,19 @@ export default function QuestionOrderPage() {
 
       const savedMode = localStorage.getItem("question_view_mode");
       if (savedMode === "table" || savedMode === "card") setViewMode(savedMode);
+
+      // Auto-detect referral link param (?ref=... or ?referral=...) or cached referral
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRef = urlParams.get("ref") || urlParams.get("referral");
+      const storedRef = localStorage.getItem("nbk_referral_code");
+      const activeRef = (urlRef || storedRef || "").trim();
+      if (activeRef) {
+        setReferralZimadarCode(activeRef);
+        lookupZimadarAgent(activeRef);
+        if (urlRef) {
+          localStorage.setItem("nbk_referral_code", urlRef.trim());
+        }
+      }
     } catch (err) {
       console.error("Error loading question order cache", err);
     }
@@ -953,7 +966,7 @@ export default function QuestionOrderPage() {
 
       let zimadarNote = "";
       if (referralAgentInfo) {
-        zimadarNote = ` | [কেন্দ্র জিম্মাদার: ${referralAgentInfo.name} (ফোন: ${referralAgentInfo.phone}) | কমিশন: ৳${commissionDiscount} (${referralCommissionPercent}%)]`;
+        zimadarNote = ` | [কেন্দ্র জিম্মাদার: ${referralAgentInfo.name} (ফোন: ${referralAgentInfo.phone})${referralAgentInfo.code ? ` (কোড: ${referralAgentInfo.code})` : ""} | কমিশন: ৳${commissionDiscount} (${referralCommissionPercent}%)]`;
       } else if (isZimadar) {
         zimadarNote = ` | [কেন্দ্র জিম্মাদার: ${zimadarName.trim() || ownerName.trim()} (ফোন: ${zimadarPhone.trim() || contactNo.trim()}) | মাদরাসা তালিকা (${validMadrasasCount}টি): ${zimadarMadrasasList.map((m) => m.trim()).filter(Boolean).join(", ")}${isCommissionQualified ? ` | কমিশন: ৳${commissionDiscount} (${zimadarConfig.percent}%)` : ""}]`;
       }
@@ -1063,6 +1076,42 @@ export default function QuestionOrderPage() {
             </button>
           </div>
         </div>
+
+        {/* ─── REFERRAL ACTIVE BANNER ─────────────────────────────────── */}
+        {referralAgentInfo && (
+          <div className="mb-3 p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 rounded-2xl shadow-xs flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-emerald-950">রেফারেল লিংক সক্রিয়</span>
+                  <span className="text-[10px] bg-emerald-700 text-white font-bold px-2 py-0.5 rounded-full">
+                    {referralCommissionPercent}% কমিশন প্রযোজ্য
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  আপনি কেন্দ্র জিম্মাদার <strong>{referralAgentInfo.name}</strong> ({referralAgentInfo.phone})-এর মাধ্যমে যুক্ত আছেন।
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setReferralAgentInfo(null);
+                setReferralZimadarCode("");
+                try {
+                  localStorage.removeItem("nbk_referral_code");
+                } catch {}
+              }}
+              className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-emerald-100/70 transition-colors cursor-pointer"
+              title="রেফারেল বাতিল করুন"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* ─── 2. FILTER CONTROL BAR ─────────────────────────────────── */}
         <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs mb-3 space-y-2.5">
@@ -1950,6 +1999,17 @@ export default function QuestionOrderPage() {
                         * নম্বর বা কোড মিলিয়ে জিম্মাদারের নাম স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে।
                       </p>
                     ) : null}
+
+                    <div className="pt-1 text-right">
+                      <Link
+                        href="/referral"
+                        target="_blank"
+                        className="text-[11px] text-emerald-700 hover:text-emerald-900 font-bold hover:underline inline-flex items-center gap-1"
+                      >
+                        <span>কেন্দ্র জিম্মাদারদের জন্য: রেফারেল ড্যাশবোর্ড ও লিংক</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </div>
                   </div>
 
                   {/* Delivery Options Selector */}
