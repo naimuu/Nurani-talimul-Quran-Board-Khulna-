@@ -2,110 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import connectDB from "@/lib/mongodb";
 import User from "@/lib/models/User";
+import {
+  COMMISSION_SLUG,
+  getCommissionSettings,
+  CommissionSettingsData,
+  DEFAULT_COMMISSION_SETTINGS,
+} from "@/lib/commissions";
 
 export const dynamic = "force-dynamic";
-
-const COMMISSION_SLUG = "store-commission-settings-v2";
-
-export interface CustomAgent {
-  id: string;
-  name: string;
-  phone: string;
-  code?: string;
-  bookCommissionPercent: number;
-  questionCommissionPercent?: number;
-  isActive: boolean;
-  notes?: string;
-}
-
-export interface CommissionSettingsData {
-  bookRetailCommissionPercent: number; // খুচরা ক্রেতা কমিশন (%)
-  bookMadrasaCommissionPercent: number; // মাদরাসা কমিশন (%)
-  bookDefaultAgentCommissionPercent: number; // সাধারণ জিম্মাদার/এজেন্ট কমিশন (%)
-  questionCommissionPercent: number; // প্রশ্নপত্র জিম্মাদার কমিশন (%)
-  questionCommissionEnabled: boolean;
-  customAgents: CustomAgent[];
-}
-
-const DEFAULT_COMMISSION_SETTINGS: CommissionSettingsData = {
-  bookRetailCommissionPercent: 0,
-  bookMadrasaCommissionPercent: 10,
-  bookDefaultAgentCommissionPercent: 15,
-  questionCommissionPercent: 15,
-  questionCommissionEnabled: true,
-  customAgents: [
-    {
-      id: "agent_demo_1",
-      name: "মাওলানা মোস্তাফিজুর রহমান",
-      phone: "01711000001",
-      code: "AG-101",
-      bookCommissionPercent: 20,
-      questionCommissionPercent: 15,
-      isActive: true,
-      notes: "খুলনা সদর প্রধান জিম্মাদার",
-    },
-    {
-      id: "agent_demo_2",
-      name: "মাওলানা মোহাম্মদ নাঈম",
-      phone: "01711000002",
-      code: "AG-102",
-      bookCommissionPercent: 18,
-      questionCommissionPercent: 15,
-      isActive: true,
-      notes: "যশোর জেলা প্রতিনিধি",
-    },
-  ],
-};
-
-export async function getCommissionSettings(): Promise<CommissionSettingsData> {
-  try {
-    const record = await prisma.pageContent.findUnique({
-      where: { slug: COMMISSION_SLUG },
-    });
-
-    if (!record) {
-      await prisma.pageContent
-        .create({
-          data: {
-            slug: COMMISSION_SLUG,
-            content: JSON.stringify(DEFAULT_COMMISSION_SETTINGS),
-          },
-        })
-        .catch(() => {});
-      return DEFAULT_COMMISSION_SETTINGS;
-    }
-
-    const parsed = JSON.parse(record.content);
-    return {
-      bookRetailCommissionPercent:
-        typeof parsed.bookRetailCommissionPercent === "number"
-          ? parsed.bookRetailCommissionPercent
-          : DEFAULT_COMMISSION_SETTINGS.bookRetailCommissionPercent,
-      bookMadrasaCommissionPercent:
-        typeof parsed.bookMadrasaCommissionPercent === "number"
-          ? parsed.bookMadrasaCommissionPercent
-          : DEFAULT_COMMISSION_SETTINGS.bookMadrasaCommissionPercent,
-      bookDefaultAgentCommissionPercent:
-        typeof parsed.bookDefaultAgentCommissionPercent === "number"
-          ? parsed.bookDefaultAgentCommissionPercent
-          : DEFAULT_COMMISSION_SETTINGS.bookDefaultAgentCommissionPercent,
-      questionCommissionPercent:
-        typeof parsed.questionCommissionPercent === "number"
-          ? parsed.questionCommissionPercent
-          : DEFAULT_COMMISSION_SETTINGS.questionCommissionPercent,
-      questionCommissionEnabled:
-        parsed.questionCommissionEnabled !== undefined
-          ? Boolean(parsed.questionCommissionEnabled)
-          : DEFAULT_COMMISSION_SETTINGS.questionCommissionEnabled,
-      customAgents: Array.isArray(parsed.customAgents)
-        ? parsed.customAgents
-        : DEFAULT_COMMISSION_SETTINGS.customAgents,
-    };
-  } catch (err) {
-    console.error("Error reading commission settings:", err);
-    return DEFAULT_COMMISSION_SETTINGS;
-  }
-}
 
 export async function GET(request: Request) {
   try {
@@ -230,7 +134,7 @@ export async function PUT(request: Request) {
           data: { content: JSON.stringify(parsedFlags) },
         });
       }
-    } catch {}
+    } catch { }
 
     return NextResponse.json(updated, {
       headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },

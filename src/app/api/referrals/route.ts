@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCommissionSettings } from "@/app/api/store/commissions/route";
+import { getCommissionSettings, parseReferralInfo } from "@/lib/commissions";
 
 export const dynamic = "force-dynamic";
 
@@ -47,87 +47,6 @@ export interface JimmadarReferralProfile {
   currentBalance: number;
   referredOrders: ReferredOrder[];
   payouts: PayoutRecord[];
-}
-
-// Robust helper to parse referral details from order notes
-export function parseReferralInfo(notes: string | null | undefined): {
-  isReferred: boolean;
-  name: string;
-  phone: string;
-  code: string;
-  commission: number;
-  percent: number;
-} {
-  if (!notes || typeof notes !== "string") {
-    return { isReferred: false, name: "", phone: "", code: "", commission: 0, percent: 0 };
-  }
-
-  // Check if any jimmadar / referral indicator is present
-  const hasZimadarKeyword =
-    notes.includes("জিম্মাদার") ||
-    notes.includes("রেফারেল") ||
-    notes.includes("তাশকিল");
-
-  if (!hasZimadarKeyword) {
-    return { isReferred: false, name: "", phone: "", code: "", commission: 0, percent: 0 };
-  }
-
-  let name = "";
-  let phone = "";
-  let code = "";
-  let commission = 0;
-  let percent = 0;
-
-  // Extract commission amount: e.g. "কমিশন: ৳500" or "কমিশন: 500"
-  const commMatch = notes.match(/কমিশন:\s*৳?\s*([0-9]+(?:\.[0-9]+)?)/);
-  if (commMatch) {
-    commission = parseFloat(commMatch[1]) || 0;
-  }
-
-  // Extract commission percentage: e.g. "(15%)" or "15%"
-  const percentMatch = notes.match(/([0-9]+(?:\.[0-9]+)?)\s*%/);
-  if (percentMatch) {
-    percent = parseFloat(percentMatch[1]) || 0;
-  }
-
-  // Extract phone number (standard Bangladeshi 11 digits 01xxxxxxxxx or with +8801)
-  const phoneMatch = notes.match(/(?:\+?880|0)?1[3-9]\d{8}/);
-  if (phoneMatch) {
-    phone = phoneMatch[0].replace(/^\+88/, "");
-  }
-
-  // Extract code (e.g. AG-101 or code: xxx)
-  const codeMatch = notes.match(/(?:কোড|আইডি|Code|ID):\s*([a-zA-Z0-9\-_]+)/i) || notes.match(/(AG-\d+)/i);
-  if (codeMatch) {
-    code = codeMatch[1].trim();
-  }
-
-  // Extract name: e.g. "[কেন্দ্র জিম্মাদার: মাওলানা রফিক (ফোন: ..." or "| জিম্মাদার: হাফেজ করিম (017...)"
-  const bracketNameMatch = notes.match(/\[(?:কেন্দ্র\s*জিম্মাদার|রেফারেল\s*জিম্মাদার|জিম্মাদার|তাশকিলকারী\s*জিম্মাদার):\s*([^|(]+?)(?:\s*\(|\s*\||\])/);
-  if (bracketNameMatch && bracketNameMatch[1].trim()) {
-    name = bracketNameMatch[1].trim();
-  } else {
-    const pipeNameMatch = notes.match(/\|\s*(?:কেন্দ্র\s*জিম্মাদার|জিম্মাদার|রেফারেল):\s*([^|(]+?)(?:\s*\(|\s*\|)/);
-    if (pipeNameMatch && pipeNameMatch[1].trim()) {
-      name = pipeNameMatch[1].trim();
-    }
-  }
-
-  // Cleanup name if it contains labels
-  if (name) {
-    name = name.replace(/^(?:মাওলানা|হাফেজ|মুফতি|জনাব)\s+/i, (match) => match); // preserve respectful title
-    name = name.trim();
-  }
-
-  const isReferred = Boolean(phone || name || commission > 0);
-  return {
-    isReferred,
-    name: name || "জিম্মাদার",
-    phone: phone || "",
-    code: code || "",
-    commission,
-    percent,
-  };
 }
 
 async function getPayoutsLedger(): Promise<PayoutRecord[]> {
@@ -262,8 +181,8 @@ export async function GET(request: Request) {
       const orderType: "book" | "question" | "general" = sale.notes?.includes("[প্রশ্নের অর্ডার]")
         ? "question"
         : sale.notes?.includes("[বইয়ের অর্ডার]")
-        ? "book"
-        : "general";
+          ? "book"
+          : "general";
 
       const orderCommission = parsed.commission > 0
         ? parsed.commission
@@ -297,7 +216,7 @@ export async function GET(request: Request) {
       for (const [, profile] of Array.from(agentMap.entries())) {
         const profPhoneClean = profile.phone.replace(/\D/g, "");
         if ((pClean && profPhoneClean && (pClean === profPhoneClean || profPhoneClean.endsWith(pClean) || pClean.endsWith(profPhoneClean))) ||
-            (profile.name && payout.jimmadarName && profile.name.trim() === payout.jimmadarName.trim())) {
+          (profile.name && payout.jimmadarName && profile.name.trim() === payout.jimmadarName.trim())) {
           profile.payouts.push(payout);
           profile.totalPaid += Number(payout.amount) || 0;
           found = true;

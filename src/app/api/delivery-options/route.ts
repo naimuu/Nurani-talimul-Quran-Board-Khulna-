@@ -19,7 +19,7 @@ export interface DeliveryOptionItem {
   isActive: boolean;
 }
 
-export const DEFAULT_QUESTION_DELIVERY_OPTIONS: DeliveryOptionItem[] = [
+const DEFAULT_QUESTION_DELIVERY_OPTIONS: DeliveryOptionItem[] = [
   {
     name: "পাঠাও",
     type: "pathao",
@@ -77,7 +77,7 @@ export const DEFAULT_QUESTION_DELIVERY_OPTIONS: DeliveryOptionItem[] = [
   },
 ];
 
-export const DEFAULT_BOOK_DELIVERY_OPTIONS: DeliveryOptionItem[] = [
+const DEFAULT_BOOK_DELIVERY_OPTIONS: DeliveryOptionItem[] = [
   {
     name: "পাঠাও",
     type: "pathao",
@@ -141,7 +141,7 @@ async function getOptionsBySlug(slug: string, defaults: DeliveryOptionItem[]): P
     if (!record) {
       await prisma.pageContent.create({
         data: { slug, content: JSON.stringify(defaults) },
-      }).catch(() => {});
+      }).catch(() => { });
       return defaults;
     }
     const parsed = JSON.parse(record.content);
@@ -251,7 +251,7 @@ export async function PUT(request: Request) {
               sortOrder: Number(item.sortOrder) || 0,
               isActive: item.isActive !== undefined ? Boolean(item.isActive) : true,
             },
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
 
