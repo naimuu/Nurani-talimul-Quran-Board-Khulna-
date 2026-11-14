@@ -1027,11 +1027,11 @@ export default function QuestionOrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/70 py-4 sm:py-6 pb-28 sm:pb-16 font-sans">
-      <div className="max-w-[1540px] mx-auto px-3.5 sm:px-6 md:px-8">
+    <div className="min-h-screen bg-slate-50/70 py-2.5 sm:py-4 pb-28 sm:pb-16 font-sans">
+      <div className="w-full max-w-[1640px] mx-auto px-2 sm:px-4 md:px-6">
 
         {/* ─── BACK BUTTON + SYNC STATUS ────────────────────────────── */}
-        <div className="mb-2.5 sm:mb-3 flex items-center justify-between gap-2">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => {
@@ -1041,7 +1041,7 @@ export default function QuestionOrderPage() {
                 window.location.href = "/";
               }
             }}
-            className="group inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-600 hover:text-emerald-800 bg-white hover:bg-slate-50 px-3.5 py-1.5 sm:py-2 rounded-xl border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer"
+            className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-600 hover:text-emerald-800 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs transition-all active:scale-95 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-emerald-700 group-hover:-translate-x-0.5 transition-transform" />
             <span>পেছনে যান</span>
@@ -1060,7 +1060,7 @@ export default function QuestionOrderPage() {
               title="ডেটা রিফ্রেশ করুন"
               onClick={() => fetchData(false)}
               disabled={isLoading}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-60 cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-60 cursor-pointer"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1079,7 +1079,7 @@ export default function QuestionOrderPage() {
 
         {/* ─── REFERRAL ACTIVE BANNER ─────────────────────────────────── */}
         {referralAgentInfo && (
-          <div className="mb-3 p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 rounded-2xl shadow-xs flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="mb-2.5 p-2.5 sm:p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 rounded-2xl shadow-xs flex items-center justify-between gap-3 animate-in fade-in">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                 <Users className="w-4 h-4" />
@@ -1113,11 +1113,11 @@ export default function QuestionOrderPage() {
           </div>
         )}
 
-        {/* ─── 2. FILTER CONTROL BAR ─────────────────────────────────── */}
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs mb-3 space-y-2.5">
+        {/* ─── 2. COMPACT STREAMLINED FILTER CONTROL BAR ─────────────────────────────────── */}
+        <div className="bg-white rounded-2xl p-2 sm:p-2.5 border border-slate-200/80 shadow-xs mb-2.5 space-y-2">
 
           {/* ROW 1 — SESSION DROPDOWN + SEARCH + VIEW TOGGLE */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* SESSION DROPDOWN */}
             {examSessions.length > 0 && (
               <select
@@ -1127,7 +1127,7 @@ export default function QuestionOrderPage() {
                   setSelectedTerm("all");
                   setSelectedClassId("all");
                 }}
-                className="shrink-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer max-w-[150px] sm:max-w-[200px]"
+                className="shrink-0 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-emerald-600 focus:bg-white transition-colors cursor-pointer max-w-[130px] sm:max-w-[190px]"
               >
                 {examSessions.length > 1 && <option value="all">সকল সেশন</option>}
                 {examSessions.map((session) => {
@@ -1147,7 +1147,7 @@ export default function QuestionOrderPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="প্রশ্ন বা বিষয় খুঁজুন (যেমন: কুরআন, বাংলা...)"
-                className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-emerald-600 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-8 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-emerald-600 focus:bg-white transition-colors"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -1160,7 +1160,7 @@ export default function QuestionOrderPage() {
             <button
               type="button"
               onClick={() => changeViewMode(viewMode === "table" ? "card" : "table")}
-              className="px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shrink-0 transition-all active:scale-95 shadow-2xs"
+              className="p-2 sm:px-3 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shrink-0 transition-all active:scale-95 shadow-2xs cursor-pointer"
               title={viewMode === "table" ? "কার্ড ভিউতে পরিবর্তন করুন" : "টেবিল ভিউতে পরিবর্তন করুন"}
             >
               {viewMode === "table" ? (
@@ -1177,18 +1177,16 @@ export default function QuestionOrderPage() {
             </button>
           </div>
 
-          {/* ROW 2 — EXAM TABS */}
-
-          {/* EXAM STATUS PILLS WITH LIVE COUNTDOWN BADGES */}
+          {/* ROW 2 — EXAM TABS (Compact Pills) */}
           {examTerms.length > 0 && (
-            <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-1 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedTerm("all");
                   setSelectedClassId("all");
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 ${
+                className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                   selectedTerm === "all"
                     ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
                     : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
@@ -1206,7 +1204,7 @@ export default function QuestionOrderPage() {
                       setSelectedTerm(term);
                       setSelectedClassId("all");
                     }}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                    className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                       isSelected
                         ? "bg-[#095738] text-white border-[#095738] shadow-xs"
                         : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -1219,53 +1217,51 @@ export default function QuestionOrderPage() {
             </div>
           )}
 
-          {/* CLASS NAME AS TABS (WITH GENEROUS MOBILE PADDING & SMOOTH AUTO-CENTERING) */}
+          {/* ROW 3 — CLASS TABS (Compact Pills) */}
           {availableClasses.length > 0 && (
-            <div className="pt-2.5 border-t border-slate-100">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <button
+                onClick={(e) => {
+                  setSelectedClassId("all");
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                }}
+                className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                  selectedClassId === "all"
+                    ? "bg-amber-400 text-slate-950 border-amber-400 font-black shadow-xs ring-1 ring-amber-400/40"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                }`}
+              >
+                সকল শ্রেণি
+              </button>
+              {availableClasses.map((cls) => (
                 <button
+                  key={cls.id}
                   onClick={(e) => {
-                    setSelectedClassId("all");
+                    setSelectedClassId(cls.id);
                     e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
                   }}
-                  className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 active:scale-95 border ${
-                    selectedClassId === "all"
-                      ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs ring-2 ring-amber-400/40"
+                  className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                    selectedClassId === cls.id
+                      ? "bg-amber-400 text-slate-950 border-amber-400 font-black shadow-xs ring-1 ring-amber-400/40"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                   }`}
                 >
-                  সকল শ্রেণি
+                  {cls.name}
                 </button>
-                {availableClasses.map((cls) => (
-                  <button
-                    key={cls.id}
-                    onClick={(e) => {
-                      setSelectedClassId(cls.id);
-                      e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-                    }}
-                    className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 active:scale-95 border ${
-                      selectedClassId === cls.id
-                        ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs ring-2 ring-amber-400/40"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                    }`}
-                  >
-                    {cls.name}
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
           )}
 
         </div>
 
-        {/* ─── 4. DEFAULT CLEAN TABLE OR CARD VIEW ──────────────────────────── */}
+        {/* ─── 4. WIDE-FITTED CLEAN TABLE OR CARD VIEW ──────────────────────────── */}
         {isLoading ? (
-          <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 shadow-xs my-4 space-y-3">
+          <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 shadow-xs my-3 space-y-3">
             <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs sm:text-sm text-slate-500 font-semibold">প্রশ্নপত্র লোড হচ্ছে...</p>
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="bg-white p-10 sm:p-14 text-center rounded-2xl border border-slate-200 shadow-xs my-4 space-y-3">
+          <div className="bg-white p-10 sm:p-14 text-center rounded-2xl border border-slate-200 shadow-xs my-3 space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto text-[#095738]">
               <FileQuestion className="w-7 h-7" />
             </div>
@@ -1277,16 +1273,16 @@ export default function QuestionOrderPage() {
             </p>
           </div>
         ) : viewMode === "table" ? (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-[#095738] text-white">
-                    <th className="py-2.5 px-3 text-center w-10 font-bold">#</th>
+                    <th className="py-2.5 px-2.5 text-center w-8 sm:w-10 font-bold">#</th>
                     <th className="py-2.5 px-3 font-bold min-w-[200px]">প্রশ্নপত্রের নাম ও বিবরণ</th>
-                    <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap">মূল্য</th>
-                    <th className="py-2.5 px-3 text-center font-bold min-w-[130px]">সেট (সংখ্যা)</th>
-                    <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap pr-4">মোট</th>
+                    <th className="py-2.5 px-2.5 sm:px-3 text-right font-bold whitespace-nowrap">মূল্য</th>
+                    <th className="py-2.5 px-2.5 sm:px-3 text-center font-bold min-w-[120px]">সেট (সংখ্যা)</th>
+                    <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap pr-3 sm:pr-4">মোট</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1299,7 +1295,7 @@ export default function QuestionOrderPage() {
                           currentQty > 0 ? "bg-emerald-50/70 font-semibold" : "hover:bg-slate-50/70"
                         }`}
                       >
-                        <td className="py-2.5 px-3 text-center text-slate-400 font-bold">
+                        <td className="py-2.5 px-2.5 text-center text-slate-400 font-bold">
                           {idx + 1}
                         </td>
                         <td 
@@ -1308,7 +1304,7 @@ export default function QuestionOrderPage() {
                         >
                           <div className="flex items-start justify-between gap-1">
                             <div>
-                              <h4 className="text-xs sm:text-sm flex items-center gap-1.5">
+                              <h4 className="text-xs sm:text-sm flex items-center gap-1.5 flex-wrap">
                                 <span className="text-[#095738] font-black">{item.className}</span>
                                 <span className="text-slate-300 font-normal">—</span>
                                 <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
@@ -1321,15 +1317,15 @@ export default function QuestionOrderPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-slate-800 whitespace-nowrap">
+                        <td className="py-2.5 px-2.5 sm:px-3 text-right font-bold text-slate-800 whitespace-nowrap font-mono">
                           ৳{item.pricePerSet}
                         </td>
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-2.5 px-2.5 sm:px-3 text-center">
                           {currentQty === 0 ? (
                             <button
                               type="button"
                               onClick={() => updateQty(item, 1)}
-                              className="px-3 py-1.5 bg-emerald-50 hover:bg-[#095738] text-[#095738] hover:text-white border border-emerald-300 hover:border-[#095738] rounded-lg font-bold text-xs flex items-center gap-1 mx-auto transition-all active:scale-95 shadow-2xs cursor-pointer"
+                              className="px-3 py-1.5 bg-emerald-50 hover:bg-[#095738] text-[#095738] hover:text-white border border-emerald-300 hover:border-[#095738] rounded-xl font-bold text-xs flex items-center gap-1 mx-auto transition-all active:scale-95 shadow-2xs cursor-pointer"
                               title="যোগ করুন"
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -1364,7 +1360,7 @@ export default function QuestionOrderPage() {
                             </div>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-right pr-4 font-black text-emerald-900 whitespace-nowrap">
+                        <td className="py-2.5 px-3 text-right pr-3 sm:pr-4 font-black text-emerald-900 whitespace-nowrap font-mono">
                           ৳{(currentQty * item.pricePerSet).toFixed(2)}
                         </td>
                       </tr>
@@ -1375,7 +1371,7 @@ export default function QuestionOrderPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-3.5">
             {filteredItems.map((item) => {
               const currentQty = cart[item.id]?.qty || 0;
               const matchingExam = getExamInfo(item.examTerm);
@@ -1384,8 +1380,8 @@ export default function QuestionOrderPage() {
                 <div
                   key={item.id}
                   onClick={() => setSelectedDetailItem(item)}
-                  className={`bg-white rounded-2xl p-4 border transition-all flex flex-col justify-between cursor-pointer hover:border-emerald-500 hover:shadow-md active:scale-[0.99] group ${
-                    currentQty > 0 ? "border-emerald-600 bg-emerald-50/20 ring-1 ring-emerald-500/30 shadow-xs" : "border-slate-200 shadow-xs"
+                  className={`bg-white rounded-2xl p-3.5 sm:p-4 border transition-all flex flex-col justify-between cursor-pointer hover:border-emerald-500 hover:shadow-md active:scale-[0.99] group ${
+                    currentQty > 0 ? "border-emerald-600 bg-emerald-50/20 ring-1 ring-emerald-500/30 shadow-xs" : "border-slate-200/80 shadow-xs"
                   }`}
                 >
                   <div>
@@ -1410,7 +1406,7 @@ export default function QuestionOrderPage() {
                     </h3>
 
                     {/* Less Important: Muted / Subdued Opacity Description */}
-                    <p className="text-[11.5px] text-slate-400 font-normal leading-relaxed line-clamp-2 mt-1.5 mb-3.5">
+                    <p className="text-[11.5px] text-slate-400 font-normal leading-relaxed line-clamp-2 mt-1.5 mb-3">
                       {item.description}
                     </p>
                   </div>
@@ -1423,7 +1419,7 @@ export default function QuestionOrderPage() {
                     <div>
                       <span className="text-[10px] text-slate-400 block font-normal leading-none mb-0.5">প্রতি সেট</span>
                       {/* Important: Full Opacity Price */}
-                      <span className="text-base font-black text-slate-900 leading-none">৳{item.pricePerSet}</span>
+                      <span className="text-base font-black text-slate-900 leading-none font-mono">৳{item.pricePerSet}</span>
                     </div>
 
                     {/* Quantity Selector: First only + button, then show count and - */}
@@ -1431,18 +1427,18 @@ export default function QuestionOrderPage() {
                       <button
                         type="button"
                         onClick={() => updateQty(item, 1)}
-                        className="h-9 sm:h-10 px-3.5 sm:px-4 bg-emerald-50 hover:bg-[#095738] text-[#095738] hover:text-white border border-emerald-300 hover:border-[#095738] active:scale-95 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-2xs group/btn cursor-pointer"
+                        className="h-8 sm:h-9 px-3.5 sm:px-4 bg-emerald-50 hover:bg-[#095738] text-[#095738] hover:text-white border border-emerald-300 hover:border-[#095738] active:scale-95 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-2xs group/btn cursor-pointer"
                         title="তালিকায় যোগ করুন"
                       >
-                        <Plus className="w-4 h-4 text-emerald-700 group-hover/btn:text-white transition-colors" />
+                        <Plus className="w-3.5 h-3.5 text-emerald-700 group-hover/btn:text-white transition-colors" />
                         <span>যোগ করুন</span>
                       </button>
                     ) : (
-                      <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in duration-150">
+                      <div className="flex items-center gap-1 shrink-0 animate-in fade-in duration-150">
                         <button
                           type="button"
                           onClick={() => updateQty(item, -1)}
-                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-bold text-base sm:text-lg flex items-center justify-center transition-all border bg-white border-slate-200 text-slate-800 hover:bg-slate-100 hover:border-slate-300 active:scale-95 shadow-2xs cursor-pointer"
+                          className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl font-bold text-base flex items-center justify-center transition-all border bg-white border-slate-200 text-slate-800 hover:bg-slate-100 hover:border-slate-300 active:scale-95 shadow-2xs cursor-pointer"
                           title="কমান"
                         >
                           -
@@ -1453,12 +1449,12 @@ export default function QuestionOrderPage() {
                           value={currentQty || ""}
                           placeholder="0"
                           onChange={(e) => setDirectQty(item, parseInt(e.target.value) || 0)}
-                          className="w-14 sm:w-16 h-9 sm:h-10 text-center font-black text-sm sm:text-base bg-white rounded-xl border border-emerald-600 text-slate-950 ring-1 ring-emerald-600/20 focus:outline-emerald-600 focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 shadow-2xs"
+                          className="w-12 sm:w-14 h-8 sm:h-9 text-center font-black text-sm bg-white rounded-xl border border-emerald-600 text-slate-950 ring-1 ring-emerald-600/20 focus:outline-emerald-600 focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 shadow-2xs"
                         />
                         <button
                           type="button"
                           onClick={() => updateQty(item, 1)}
-                          className="w-9 h-9 sm:w-10 sm:h-10 bg-[#095738] hover:bg-[#07472d] active:scale-95 text-white rounded-xl font-bold text-base sm:text-lg flex items-center justify-center transition-all shadow-2xs border border-[#095738] cursor-pointer"
+                          className="w-8 h-8 sm:w-9 sm:h-9 bg-[#095738] hover:bg-[#07472d] active:scale-95 text-white rounded-xl font-bold text-base flex items-center justify-center transition-all shadow-2xs border border-[#095738] cursor-pointer"
                           title="বাড়ান"
                         >
                           +
@@ -1598,23 +1594,23 @@ export default function QuestionOrderPage() {
               </div>
             )}
 
-            {/* FLOATING COLLAPSED BOTTOM BAR (Whole Card Clickable & Perfect Centered Alignment) */}
+            {/* FLOATING COLLAPSED BOTTOM BAR (Glassmorphic) */}
             <div className="fixed bottom-2.5 left-2.5 right-2.5 sm:bottom-4 sm:left-auto sm:right-6 sm:w-88 z-40 animate-in slide-in-from-bottom-3 duration-200">
               <div 
                 onClick={() => setIsCartDrawerOpen(!isCartDrawerOpen)}
-                className="bg-[#052e23] text-white px-3.5 py-2.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-[#07382b] transition-all active:scale-[0.99] select-none"
+                className="bg-slate-900/70 backdrop-blur-xl saturate-180 text-white px-3.5 py-2.5 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.35)] border border-white/20 ring-1 ring-white/10 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-slate-900/80 transition-all active:scale-[0.99] select-none"
                 title="নির্বাচিত তালিকার বিস্তারিত দেখতে ক্লিক করুন"
               >
                 {/* Left Info Area */}
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-sm">
                     {isCartDrawerOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                   </div>
                   <div className="min-w-0">
                     <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1 truncate">
                       মোট: {totalItemCount} সেট
                     </span>
-                    <span className="text-sm sm:text-base font-black text-white leading-tight block">৳{totalAmount.toFixed(2)}</span>
+                    <span className="text-sm sm:text-base font-black text-white leading-tight block font-mono">৳{totalAmount.toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -1626,7 +1622,7 @@ export default function QuestionOrderPage() {
                     setPaymentStep(false);
                     setIsCheckoutOpen(true);
                   }}
-                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-transform active:scale-95 flex items-center justify-center gap-1.5 shrink-0 shadow-md cursor-pointer whitespace-nowrap leading-none"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-transform active:scale-95 flex items-center justify-center gap-1.5 shrink-0 shadow-md shadow-emerald-500/25 cursor-pointer whitespace-nowrap leading-none"
                 >
                   <span className="leading-none pt-0.5">অর্ডার করুন</span>
                   <ArrowRight className="w-4 h-4 text-slate-950 shrink-0" />

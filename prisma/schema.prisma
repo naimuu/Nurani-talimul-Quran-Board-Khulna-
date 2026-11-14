@@ -135,6 +135,7 @@ model StoreCategory {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String   @unique
   isClassWise Boolean  @default(false)
+  subTabs     String[] @default([])
   createdAt   DateTime @default(now())
 }
 

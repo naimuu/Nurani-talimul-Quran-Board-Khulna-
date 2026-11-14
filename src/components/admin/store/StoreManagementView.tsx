@@ -9,6 +9,7 @@ import ReceiptTab from "./ReceiptTab";
 import LedgerTab from "./LedgerTab";
 import ReferralManagementTab from "./ReferralManagementTab";
 import { PaymentDeliverySettingsModal } from "@/components/admin/PaymentAndDeliverySettings";
+import CategoryManagementModal from "./CategoryManagementModal";
 
 export type StoreCategory = "all" | "stationary" | "question";
 
@@ -16,6 +17,7 @@ export default function StoreManagementView() {
   const [activeTab, setActiveTab] = useState<"sale" | "stock" | "payment" | "order" | "receipt" | "ledger" | "referral">("sale");
   const [storeCategory, setStoreCategory] = useState<StoreCategory>("all");
   const [showPaymentDeliveryModal, setShowPaymentDeliveryModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   useEffect(() => {
     const savedTab = localStorage.getItem("store_active_tab");
@@ -67,6 +69,15 @@ export default function StoreManagementView() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowCategoryModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-bold text-blue-700 transition-all cursor-pointer"
+            >
+              <Layers className="w-3.5 h-3.5 text-blue-600" />
+              <span>ক্যাটাগরি ও সাব-ট্যাব সেটিংস</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setShowPaymentDeliveryModal(true)}
@@ -218,6 +229,11 @@ export default function StoreManagementView() {
       <PaymentDeliverySettingsModal
         open={showPaymentDeliveryModal}
         onClose={() => setShowPaymentDeliveryModal(false)}
+      />
+
+      <CategoryManagementModal
+        open={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
       />
     </div>
   );

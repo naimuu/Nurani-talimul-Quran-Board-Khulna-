@@ -390,7 +390,20 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
         },
       ]
     },
-    { title: "বই ও স্টেশনারী", subtitle: "অনলাইন প্রকাশনা শপ", href: "/store", icon: ShoppingBag },
+    {
+      title: "বই ও স্টেশনারী",
+      subtitle: "অনলাইন প্রকাশনা শপ",
+      href: "/store",
+      icon: ShoppingBag,
+      subItems: [
+        { title: "সকল বই ও প্রকাশনা", href: "/store", icon: BookOpen, subtitle: "বোর্ডের সকল পাঠ্যবই ও প্রকাশনা" },
+        { title: "বই সেট", href: "/store?category=বই সেট", icon: Layers, subtitle: "শ্রেণীভিত্তিক বই সেট" },
+        { title: "বই ও সিলেবাস সেট", href: "/store?category=বই ও সিলেবাস সেট", icon: BookMarked, subtitle: "সিলেবাস সহ পূর্ণাঙ্গ সেট" },
+        { title: "স্টেশনারী ও খাতা", href: "/store?category=স্টেশনারী", icon: ClipboardList, subtitle: "খাতা, কিতাবাত ও অফিস সামগ্রী" },
+        { title: "প্রশ্নপত্র অর্ডার", href: "/academic/question-order", icon: FileText, subtitle: "অনলাইনে পরীক্ষার প্রশ্নপত্র অর্ডার" },
+        { title: "অর্ডার ট্র্যাকিং", href: "#track", icon: Search, subtitle: "বই ও প্রশ্ন অর্ডারের অবস্থা যাচাই" },
+      ]
+    },
     {
       title: "প্রশিক্ষণ",
       subtitle: "মুয়াল্লিম ও কুরআন কোর্স",
@@ -595,6 +608,12 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                               ) : (
                                 <Link
                                   href={sub.href}
+                                  onClick={(e) => {
+                                    if (sub.href === "#track") {
+                                      e.preventDefault();
+                                      setIsTrackModalOpen(true);
+                                    }
+                                  }}
                                   className="flex items-center gap-2.5 px-3 py-2.5 text-[14px] font-medium text-slate-700 hover:bg-emerald-50 hover:text-[#095738] rounded-xl transition-colors"
                                 >
                                   <div className="w-7 h-7 rounded-lg bg-emerald-100/70 text-[#095738] flex items-center justify-center flex-shrink-0">
@@ -897,7 +916,15 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                               <Link
                                 key={nIdx}
                                 href={nested.href}
-                                onClick={closeMobileDropdown}
+                                onClick={(e) => {
+                      if (sub.href === "#track") {
+                        e.preventDefault();
+                        closeMobileDropdown();
+                        setIsTrackModalOpen(true);
+                      } else {
+                        closeMobileDropdown();
+                      }
+                    }}
                                 className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/80 transition"
                               >
                                 <div className="flex items-center gap-2 min-w-0">
@@ -918,7 +945,15 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                   <Link
                     key={sIdx}
                     href={sub.href}
-                    onClick={closeMobileDropdown}
+                    onClick={(e) => {
+                      if (sub.href === "#track") {
+                        e.preventDefault();
+                        closeMobileDropdown();
+                        setIsTrackModalOpen(true);
+                      } else {
+                        closeMobileDropdown();
+                      }
+                    }}
                     className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/80 border border-transparent hover:border-emerald-100 transition group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -1221,7 +1256,15 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                                                 <Link
                                                   key={nIdx}
                                                   href={nested.href}
-                                                  onClick={() => setIsMobileMenuOpen(false)}
+                                                  onClick={(e) => {
+                                          if (sub.href === "#track") {
+                                            e.preventDefault();
+                                            setIsMobileMenuOpen(false);
+                                            setIsTrackModalOpen(true);
+                                          } else {
+                                            setIsMobileMenuOpen(false);
+                                          }
+                                        }}
                                                   className="flex items-center justify-between text-xs text-emerald-100 hover:text-amber-300 py-2 px-2.5 min-h-[40px] font-medium rounded-lg hover:bg-white/[0.08] transition-colors touch-pan-y"
                                                 >
                                                   <div className="flex items-center gap-2">
@@ -1238,7 +1281,15 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
                                     ) : (
                                       <Link
                                         href={sub.href}
-                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        onClick={(e) => {
+                                          if (sub.href === "#track") {
+                                            e.preventDefault();
+                                            setIsMobileMenuOpen(false);
+                                            setIsTrackModalOpen(true);
+                                          } else {
+                                            setIsMobileMenuOpen(false);
+                                          }
+                                        }}
                                         className="flex items-center justify-between text-xs sm:text-[13px] text-emerald-100 hover:text-white bg-white/[0.06] hover:bg-emerald-500/20 active:bg-emerald-500/30 py-2.5 px-3 min-h-[44px] rounded-xl font-bold transition-all border border-white/[0.08] shadow-2xs touch-pan-y"
                                       >
                                         <div className="flex items-center gap-2.5">

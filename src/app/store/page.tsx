@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
-import { calculateDeliveryCost, DELIVERY_CONSTANTS } from "@/lib/deliveryCost";
+
 import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
 import DynamicPaymentSelector, {
   getPaymentMethodUniqueKey,
@@ -158,24 +158,27 @@ function ListProductRow({
             />
           </div>
           <div className="min-w-0 flex-1">
-            {productCode && (
-              <div className="sm:hidden mb-0.5">
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black font-mono">
-                  আইডি: {productCode}
-                </span>
-              </div>
-            )}
             <h3
               className="font-bold text-slate-800 text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2"
               onClick={() => setDetailProduct(product)}
             >
               {product.name}
             </h3>
-            {product.className && (
-              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                {product.className}{product.subject ? ` - ${product.subject}` : ''}
-              </p>
-            )}
+            <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-slate-500 mt-0.5">
+              {productCode && (
+                <span className="sm:hidden font-mono font-medium">
+                  আইডি: {productCode}
+                </span>
+              )}
+              {productCode && product.className && (
+                <span className="sm:hidden text-slate-300">•</span>
+              )}
+              {product.className && (
+                <span className="font-medium truncate">
+                  {product.className}{product.subject ? ` - ${product.subject}` : ''}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </td>
@@ -206,63 +209,123 @@ function ListProductRow({
 }
 
 function ProductDetailModal({
-  product, onClose, onAddToCart, isFav, onToggleFav
+  product, onClose, onAddToCart, isFav, onToggleFav, cartQty, onUpdateQty
 }: {
   product: Product; onClose: () => void;
   onAddToCart: (p: Product) => void;
   isFav: boolean; onToggleFav: () => void;
+  cartQty: number;
+  onUpdateQty: (qty: number) => void;
 }) {
   const productCode = getCleanProductCode(product);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="relative">
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 h-64 flex items-center justify-center rounded-t-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div 
+        className="relative bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100" 
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Sticky Fixed Close Button at Top-Right (Remains visible even when scrolling body) */}
+        <button 
+          onClick={onClose} 
+          className="absolute top-3 right-3 z-30 bg-white/90 hover:bg-white text-slate-600 hover:text-slate-900 p-2 rounded-full shadow-md border border-slate-200/80 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+          title="বন্ধ করুন"
+        >
+          <X className="w-4 h-4 sm:w-5 sm:h-5" />
+        </button>
+
+        {/* Scrollable Body (Image + Info + Details/Syllabus) */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 h-56 sm:h-64 flex items-center justify-center overflow-hidden relative border-b border-slate-100">
             <ProductImage
               src={product.imageUrl}
               alt={product.name}
               imgClassName="w-full h-full object-contain p-4"
-              iconClassName="w-24 h-24 text-slate-300"
+              iconClassName="w-20 h-20 text-slate-300"
             />
           </div>
-          <button onClick={onClose} className="absolute top-3 right-3 bg-white/80 hover:bg-white p-2 rounded-full shadow transition-colors">
-            <X className="w-4 h-4 text-slate-600" />
-          </button>
+
+          <div className="p-5 sm:p-6 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {(product.category || '').split(',').map(c => c.trim()).filter(Boolean).map(c => (
+                <span key={c} className="text-xs font-bold text-emerald-700 bg-emerald-50/80 border border-emerald-200/60 px-3 py-1 rounded-full">{c}</span>
+              ))}
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug">{product.name}</h2>
+            <div className="flex items-center gap-2 flex-wrap text-xs sm:text-sm text-slate-500 font-medium">
+              {productCode && (
+                <span className="font-mono text-slate-600">
+                  আইডি: {productCode}
+                </span>
+              )}
+              {productCode && product.className && <span className="text-slate-300">•</span>}
+              {product.className && (
+                <span className="text-slate-500">
+                  {product.className}{product.subject ? ` — ${product.subject}` : ''}
+                </span>
+              )}
+            </div>
+
+            {product.description && (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">বিবরণ / সূচিপত্র:</h4>
+                <div className="text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100">
+                  {product.description}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            {productCode && (
-              <span className="text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full font-mono">
-                আইডি: {productCode}
+
+        {/* Fixed Footer: Price & Quantity Stepper / Add to Cart Button */}
+        <div className="p-4 sm:p-5 bg-white border-t border-slate-200/80 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <span className="text-2xl sm:text-3xl font-black text-emerald-800 font-mono">৳{product.price}</span>
+              <span className="text-slate-500 text-xs sm:text-sm ml-2">প্রতি {product.unit || 'টি'}</span>
+            </div>
+            {cartQty > 0 && (
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                কার্ট মোট: ৳{(product.price * cartQty).toFixed(2)}
               </span>
             )}
-            {(product.category || '').split(',').map(c => c.trim()).filter(Boolean).map(c => (
-              <span key={c} className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{c}</span>
-            ))}
           </div>
-          <h2 className="text-2xl font-black text-slate-800 mt-3 mb-1">{product.name}</h2>
-          {product.className && (
-            <p className="text-sm font-medium text-slate-500 mb-2">
-              {product.className}{product.subject ? ` - ${product.subject}` : ''}
-            </p>
-          )}
-          {product.description && (
-            <p className="text-slate-500 mt-3 text-sm leading-relaxed whitespace-pre-wrap">
-              {product.description}
-            </p>
-          )}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
-            <div>
-              <span className="text-3xl font-black text-primary">৳{product.price}</span>
-              <span className="text-slate-400 text-sm ml-2">প্রতি {product.unit}</span>
+
+          {cartQty > 0 ? (
+            <div className="flex items-center gap-3 bg-emerald-50/90 rounded-2xl p-1.5 border border-emerald-300">
+              <button
+                type="button"
+                onClick={() => onUpdateQty(cartQty - 1)}
+                className="w-11 h-11 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-800 font-black text-2xl rounded-xl flex items-center justify-center border border-emerald-200 shadow-2xs active:scale-90 transition-all cursor-pointer"
+                title="পরিমাণ কমান"
+              >
+                −
+              </button>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-[10.5px] font-bold text-emerald-800 uppercase tracking-wider">কার্টে পরিমাণ</span>
+                <span className="text-xl font-black text-emerald-950 font-mono leading-tight">
+                  {cartQty} <span className="text-xs font-bold text-slate-600 font-sans">{product.unit || 'টি'}</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUpdateQty(cartQty + 1)}
+                className="w-11 h-11 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-2xl rounded-xl flex items-center justify-center shadow-md shadow-emerald-700/25 active:scale-90 transition-all cursor-pointer"
+                title="পরিমাণ বাড়ান"
+              >
+                +
+              </button>
             </div>
-          </div>
-          <button
-            onClick={() => { onAddToCart(product); onClose(); }}
-            className="mt-4 w-full flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
-          >
-            <ShoppingCart className="w-5 h-5" /> কার্টে যোগ করুন
-          </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAddToCart(product)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-sm sm:text-base shadow-md shadow-emerald-700/25 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              <span>কার্টে যোগ করুন</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -274,21 +337,17 @@ function DeliveryPolicyAlertModal({
   onClose,
   onProceedToOrder,
   mode = "first_visit",
-  cartTotal = 0,
-  deliveryInfo
+  cartTotal = 0
 }: {
   isOpen: boolean;
   onClose: () => void;
   onProceedToOrder?: () => void;
   mode?: "first_visit" | "before_order" | "manual";
   cartTotal?: number;
-  deliveryInfo?: any;
 }) {
   if (!isOpen) return null;
 
   const isBeforeOrder = mode === "before_order";
-  const isFree = deliveryInfo?.isFreeDelivery ?? (cartTotal >= 5000);
-  const remainingForFree = Math.max(0, 5000 - cartTotal);
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
@@ -334,73 +393,38 @@ function DeliveryPolicyAlertModal({
 
         {/* Content Body */}
         <div className="p-5 sm:p-6 space-y-4 text-xs sm:text-sm text-slate-700 max-h-[75vh] overflow-y-auto">
-          {/* Status Box if before order */}
-          {isBeforeOrder && (
-            <div className={`p-3.5 rounded-2xl border ${
-              isFree 
-                ? "bg-emerald-50 border-emerald-200 text-emerald-900" 
-                : "bg-amber-50/80 border-amber-200 text-amber-900"
-            }`}>
-              <div className="flex items-start gap-2.5">
-                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                  isFree ? "bg-emerald-600 text-white" : "bg-amber-500 text-white"
-                }`}>
-                  {isFree ? <CheckCircle className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
-                </div>
-                <div className="leading-relaxed">
-                  {isFree ? (
-                    <p className="font-bold text-emerald-800">
-                      🎉 অভিনন্দন! আপনার বর্তমান অর্ডারের মূল্য ৳{cartTotal.toFixed(2)} (৫,০০০ ৳ বা তদূর্ধ্ব) হওয়ায় ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!
-                    </p>
-                  ) : (
-                    <div>
-                      <p className="font-bold text-amber-900">
-                        আপনার বর্তমান অর্ডারের মূল্য: ৳{cartTotal.toFixed(2)}। ৫,০০০ ৳ এর কম হওয়ায় পাঠাও কুরিয়ার ফি প্রযোজ্য: ৳{deliveryInfo?.deliveryCharge?.toFixed(2) || "১৮০"} (মোট ওজন: {deliveryInfo?.totalWeightKg || 0} কেজি)।
-                      </p>
-                      {remainingForFree > 0 && (
-                        <p className="mt-1 text-xs font-semibold text-emerald-700 bg-white/80 p-1.5 rounded-lg border border-emerald-200 inline-block">
-                          💡 আর মাত্র ৳{remainingForFree.toFixed(2)} টাকার পণ্য যোগ করলেই ডেলিভারি সম্পূর্ণ ফ্রি পাবেন!
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Delivery Policy Breakdown */}
           <div className="space-y-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
             <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
-              <span>📋 কুরিয়ার ও ডেলিভারির প্রধান নিয়মাবলী:</span>
+              <span>📋 উপলব্ধ ডেলিভারি মাধ্যমসমূহ:</span>
             </h4>
             
             <div className="space-y-2">
-              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-slate-100 shadow-2xs">
                 <span className="text-base leading-none">🚚</span>
                 <div>
-                  <strong className="text-slate-900">পাঠাও কুরিয়ার:</strong> ৫,০০০ টাকার কম অর্ডার হলে দ্রুততম সময়ে <strong>“পাঠাও কুরিয়ার”</strong>-এর মাধ্যমে ডেলিভারি পাঠানো হবে (সর্বোচ্চ ১৫ কেজি পর্যন্ত)।
+                  <strong className="text-slate-900">পাঠাও কুরিয়ার:</strong> দ্রুততম সময়ে হোম বা পয়েন্ট ডেলিভারি (চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য)।
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
-                <span className="text-base leading-none">💰</span>
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                <span className="text-base leading-none">📦</span>
                 <div>
-                  <strong className="text-slate-900">কুরিয়ার খরচ নির্ধারণ:</strong> প্রথম ২ কেজি ১৮০ ৳, পরবর্তী প্রতি কেজির জন্য মাত্র ২৫ ৳ যুক্ত হবে।
+                  <strong className="text-slate-900">স্টিডফাস্ট কুরিয়ার:</strong> নির্ভরযোগ্য পার্সেল সার্ভিস (চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য)।
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
-                <span className="text-base leading-none">🎁</span>
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
+                <span className="text-base leading-none">🏢</span>
                 <div>
-                  <strong className="text-emerald-900">ফ্রি ডেলিভারি অফার:</strong> ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে কোনো কুরিয়ার চার্জ লাগবে না (সম্পূর্ণ ফ্রি ডেলিভারি)।
+                  <strong className="text-emerald-900">বোর্ড কার্যালয় থেকে সংগ্রহ (নিজে):</strong> বোর্ড প্রকাশনা সেলস কাউন্টার থেকে সরাসরি বই সংগ্রহ (চার্জ নেই)।
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 p-2 rounded-xl bg-white border border-slate-100 shadow-2xs">
-                <span className="text-base leading-none">⚖️</span>
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-slate-100 shadow-2xs">
+                <span className="text-base leading-none">🚛</span>
                 <div>
-                  <strong className="text-slate-900">স্বয়ংক্রিয় ওজন ও বিল হিসাব:</strong> কার্টে বই ও স্টেশনারী যোগ করার সাথে সাথে স্বয়ংক্রিয়ভাবে মোট ওজন ও কুরিয়ার ফি হিসাব হয়ে যায়।
+                  <strong className="text-slate-900">অন্যান্য কুরিয়ার ও ট্রান্সপোর্ট:</strong> সুন্দরবন, এস এ পরিবহন বা বাস/ট্রান্সপোর্টের মাধ্যমে ডেলিভারি সুবিধা রয়েছে।
                 </div>
               </div>
             </div>
@@ -481,7 +505,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       })
       .catch(() => {});
 
-    fetch(`/api/delivery-options?t=${Date.now()}`, { cache: "no-store" })
+    fetch(`/api/delivery-options?category=book&t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -497,6 +521,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
     () => [
       { type: "pathao", name: "পাঠাও", charge: 0, requiresName: false },
       { type: "steadfast", name: "স্টিডফাস্ট", charge: 0, requiresName: false },
+      { type: "self", name: "নিজে", charge: 0, requiresName: false },
       { type: "other_courier", name: "অন্যান্য কুরিয়ার", charge: 20, requiresName: true },
       { type: "transport", name: "ট্রান্সপোর্ট", charge: 10, requiresName: true },
     ],
@@ -1024,7 +1049,21 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 <div className="grid grid-cols-2 gap-2">
                   {visibleDeliveryOptions.map((d: any) => {
                     const isSelected = selectedDeliveryType === d.type;
+                    const isPathaoOrSteadfast = d.type === "pathao" || d.type === "steadfast";
+                    const isSelf = d.type === "self";
                     const optCharge = Number(d.charge) || 0;
+
+                    let badgeText = `+৳${optCharge}`;
+                    let badgeColor = "text-amber-700 bg-amber-50 border-amber-200";
+
+                    if (isPathaoOrSteadfast) {
+                      badgeText = "চার্জ কুরিয়ার বাহককে";
+                      badgeColor = "text-emerald-800 bg-emerald-50 border-emerald-200";
+                    } else if (isSelf) {
+                      badgeText = "চার্জ নাই";
+                      badgeColor = "text-blue-800 bg-blue-50 border-blue-200";
+                    }
+
                     return (
                       <button
                         key={d.type}
@@ -1046,8 +1085,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                             {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                           </span>
                         </div>
-                        <span className={`text-[11px] font-semibold ${optCharge === 0 ? "text-emerald-700" : "text-amber-700"}`}>
-                          {optCharge === 0 ? "কোনো অতিরিক্ত চার্জ নেই (৳০)" : `কুরিয়ার / সার্ভিস বিল: +৳${optCharge}`}
+                        <span className={`text-[10.5px] font-bold px-1.5 py-0.5 rounded border inline-block ${badgeColor}`}>
+                          {badgeText}
                         </span>
                       </button>
                     );
@@ -1102,8 +1141,18 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       : ""}
                     ):
                   </span>
-                  <span className={`font-bold ${deliveryCharge === 0 ? "text-emerald-700" : "text-amber-700"}`}>
-                    {deliveryCharge === 0 ? "৳০ (কোনো চার্জ নেই)" : `+৳${deliveryCharge.toFixed(2)}`}
+                  <span>
+                    {selectedDeliveryOption.type === "pathao" || selectedDeliveryOption.type === "steadfast" ? (
+                      <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-200">
+                        চার্জ কুরিয়ার বাহককে
+                      </span>
+                    ) : selectedDeliveryOption.type === "self" ? (
+                      <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                        চার্জ নাই
+                      </span>
+                    ) : (
+                      <span className="font-bold text-amber-700">+৳{deliveryCharge.toFixed(2)}</span>
+                    )}
                   </span>
                 </div>
                 <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
@@ -1484,7 +1533,7 @@ export default function StorePage() {
               <div class="grand-total"><span>সর্বমোট প্রদেয়:</span><span>${(orderToPrint.totalAmount + (orderToPrint.previousDue || 0)).toFixed(2)} ৳</span></div>
             </div>
             <div style="margin-top: 25px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 11px; color: #166534;">
-              <strong>🚚 কুরিয়ার নীতিমালা:</strong> ৫,০০০ টাকার কম অর্ডারে “পাঠাও কুরিয়ার”-এর মাধ্যমে পাঠানো হয় (প্রথম ২ কেজি ১৮০ ৳, পরের প্রতি কেজি ২৫ ৳, সর্বোচ্চ ১৫ কেজি)। ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি।
+              <strong>🚚 কুরিয়ার ও ডেলিভারি নীতিমালা:</strong> নির্ধারিত ডেলিভারি মাধ্যমে (পাঠাও, স্টীডফাস্ট, নিজস্ব সংগ্রহ, কুরিয়ার বা ট্রান্সপোর্ট) পার্সেল পাঠানো হয়।
             </div>
           </body>
         </html>
@@ -1500,7 +1549,9 @@ export default function StorePage() {
     }
   };
   const [search, setSearch] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedSubTab, setSelectedSubTab] = useState<string>("");
+  const [dbCategories, setDbCategories] = useState<{ id: string; name: string; isClassWise?: boolean; subTabs?: string[] }[]>([]);
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [sortBy, setSortBy] = useState<"default" | "price-asc" | "price-desc" | "name" | "rating">("default");
   const [showOnlyInStock, setShowOnlyInStock] = useState(false);
@@ -1517,6 +1568,18 @@ export default function StorePage() {
   const [ratingFilter, setRatingFilter] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Fetch DB Categories for sub-tabs and class-wise configuration
+  const fetchDbCategories = React.useCallback(() => {
+    fetch(`/api/store/categories?t=${Date.now()}`)
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setDbCategories(d); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchDbCategories();
+  }, [fetchDbCategories]);
+
   // Current authenticated user
   const [currentUser, setCurrentUser] = useState<{ id?: string; role?: string; email?: string; name?: string; madrasaId?: string } | null>(null);
 
@@ -1524,6 +1587,25 @@ export default function StorePage() {
   const [isDeliveryAlertOpen, setIsDeliveryAlertOpen] = useState(false);
   const [deliveryAlertMode, setDeliveryAlertMode] = useState<"first_visit" | "before_order" | "manual">("before_order");
   const [isDeliveryBannerDismissed, setIsDeliveryBannerDismissed] = useState(false);
+  const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
+
+  // Read URL query parameters (e.g. ?category=... or ?track=true or ?sub=...)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const catParam = urlParams.get("category");
+      if (catParam) {
+        setSelectedCategory(catParam);
+      }
+      const subParam = urlParams.get("sub");
+      if (subParam) {
+        setSelectedSubTab(subParam);
+      }
+      if (urlParams.get("track") === "true") {
+        setIsTrackModalOpen(true);
+      }
+    }
+  }, []);
 
   // Fetch logged in session
   useEffect(() => {
@@ -1641,27 +1723,98 @@ export default function StorePage() {
   };
 
   const handleOpenOrder = () => {
-    // Only show center/agent delivery rules modal if Agent, Center or Admin is logged in
-    if (isAgentOrCenter) {
-      setDeliveryAlertMode("before_order");
-      setIsDeliveryAlertOpen(true);
-    } else {
-      setIsOrderModalOpen(true);
-    }
+    setIsOrderModalOpen(true);
   };
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-  const deliveryInfo = useMemo(() => calculateDeliveryCost(cart), [cart]);
-  const grandTotal = cartTotal + deliveryInfo.deliveryCharge;
+  const grandTotal = cartTotal;
 
-  const categories = useMemo(() => {
-    const splitCats = products.flatMap(p =>
+  const allCategories = useMemo(() => {
+    const fromProducts = products.flatMap(p =>
       (p.category || "").split(",").map(c => c.trim()).filter(Boolean)
     );
-    const raw = Array.from(new Set(splitCats));
-    return raw.filter(cat => !isQuestionProduct({ category: cat }));
-  }, [products]);
+    const fromDb = dbCategories.map(c => c.name.trim()).filter(Boolean);
+    const set = new Set([...fromDb, ...fromProducts]);
+    return Array.from(set).filter(cat => !isQuestionProduct({ category: cat }));
+  }, [products, dbCategories]);
+
+  // Active category configuration from DB
+  const activeCategoryConfig = useMemo(() => {
+    if (!selectedCategory) return null;
+    return dbCategories.find(c => c.name.toLowerCase() === selectedCategory.toLowerCase()) || null;
+  }, [selectedCategory, dbCategories]);
+
+  // Products belonging to the selected category (or all products if none selected)
+  const categoryScopedProducts = useMemo(() => {
+    let list = products.filter(p => !isQuestionProduct(p));
+    if (selectedCategory) {
+      list = list.filter(p => {
+        const productCats = (p.category || "").split(",").map(c => c.trim()).filter(Boolean);
+        return productCats.includes(selectedCategory) || (p.category || "").includes(selectedCategory);
+      });
+    }
+    return list;
+  }, [products, selectedCategory]);
+
+  // Standard curriculum order for class sub-tabs
+  const classOrder = [
+    "প্লে", "প্লে শ্রেণি", "প্লে শ্রেণী", "শিশু", "শিশু শ্রেণি", "শিশু শ্রেণী",
+    "প্রথম", "প্রথম শ্রেণি", "প্রথম শ্রেণী", "১ম শ্রেণি", "১ম শ্রেণী",
+    "দ্বিতীয়", "দ্বিতীয় শ্রেণি", "দ্বিতীয় শ্রেণী", "২য় শ্রেণি", "২য় শ্রেণী",
+    "তৃতীয়", "তৃতীয় শ্রেণি", "তৃতীয় শ্রেণী", "৩য় শ্রেণি", "৩য় শ্রেণী",
+    "চতুর্থ", "চতুর্থ শ্রেণি", "চতুর্থ শ্রেণী", "৪র্থ শ্রেণি", "৪র্থ শ্রেণী",
+    "পঞ্চম", "পঞ্চম শ্রেণি", "পঞ্চম শ্রেণী", "৫ম শ্রেণি", "৫ম শ্রেণী",
+    "মুয়াল্লিম", "হিফয", "সাধারণ"
+  ];
+
+  // Auto subtabs from classes of products in this category
+  const autoClassSubTabs = useMemo(() => {
+    const classes = Array.from(
+      new Set(
+        categoryScopedProducts
+          .map(p => (p.className || "").trim())
+          .filter(Boolean)
+      )
+    );
+
+    return classes.sort((a, b) => {
+      const idxA = classOrder.indexOf(a);
+      const idxB = classOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b, "bn");
+    });
+  }, [categoryScopedProducts]);
+
+  // Combined subtabs: Admin custom subtabs + Auto class subtabs
+  const availableSubTabs = useMemo(() => {
+    const list: string[] = [];
+    const seen = new Set<string>();
+
+    // 1. Admin configured custom sub-tabs for this category
+    if (activeCategoryConfig?.subTabs && Array.isArray(activeCategoryConfig.subTabs)) {
+      activeCategoryConfig.subTabs.forEach(st => {
+        const trimmed = String(st).trim();
+        if (trimmed && !seen.has(trimmed)) {
+          seen.add(trimmed);
+          list.push(trimmed);
+        }
+      });
+    }
+
+    // 2. Class subtabs (auto for books or any category with classes or if marked isClassWise)
+    autoClassSubTabs.forEach(cls => {
+      if (cls && !seen.has(cls)) {
+        seen.add(cls);
+        list.push(cls);
+      }
+    });
+
+    return list;
+  }, [activeCategoryConfig, autoClassSubTabs]);
+
   const highestPrice = useMemo(() => products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000, [products]);
 
   const getProductRating = (id: string) => STAR_RATINGS[id] || { rating: 4 + Math.random(), reviews: Math.floor(Math.random() * 50) + 5 };
@@ -1683,12 +1836,45 @@ export default function StorePage() {
         );
       });
     }
-    if (selectedCategories.size > 0) {
+
+    // 1. Exclusive Category Filter (Only one active at a time)
+    if (selectedCategory) {
       list = list.filter(p => {
         const productCats = (p.category || "").split(",").map(c => c.trim()).filter(Boolean);
-        return productCats.some(c => selectedCategories.has(c)) || selectedCategories.has(p.category);
+        return productCats.includes(selectedCategory) || (p.category || "").includes(selectedCategory);
       });
     }
+
+    // 2. Sub-Tab Filter (Class or Custom Sub-tab)
+    if (selectedSubTab) {
+      const target = selectedSubTab.trim().toLowerCase();
+      const aliases: string[] = [target];
+      if (target.includes("১ম") || target.includes("1st")) aliases.push("প্রথম");
+      if (target.includes("প্রথম")) aliases.push("১ম");
+      if (target.includes("২য়") || target.includes("2nd")) aliases.push("দ্বিতীয়");
+      if (target.includes("দ্বিতীয়")) aliases.push("২য়");
+      if (target.includes("৩য়") || target.includes("3rd")) aliases.push("তৃতীয়");
+      if (target.includes("তৃতীয়")) aliases.push("৩য়");
+      if (target.includes("৪র্থ") || target.includes("4th")) aliases.push("চতুর্থ");
+      if (target.includes("চতুর্থ")) aliases.push("৪র্থ");
+      if (target.includes("৫ম") || target.includes("5th")) aliases.push("পঞ্চম");
+      if (target.includes("পঞ্চম")) aliases.push("৫ম");
+
+      list = list.filter(p => {
+        const pClass = (p.className || "").trim().toLowerCase();
+        const pName = (p.name || "").toLowerCase();
+        const pDesc = (p.description || "").toLowerCase();
+        const pSubj = (p.subject || "").toLowerCase();
+        return aliases.some(alias => (
+          pClass === alias ||
+          pClass.includes(alias) ||
+          pName.includes(alias) ||
+          pDesc.includes(alias) ||
+          pSubj.includes(alias)
+        ));
+      });
+    }
+
     if (showOnlyInStock) list = list.filter(p => p.stock > 0);
     if (showOnlyFavourites) list = list.filter(p => favourites.has(p.id));
     if (minPrice) list = list.filter(p => p.price >= parseFloat(minPrice));
@@ -1698,25 +1884,16 @@ export default function StorePage() {
     if (sortBy === "default") list.sort(compareProductsByCode);
     else if (sortBy === "price-asc") list.sort((a, b) => a.price - b.price);
     else if (sortBy === "price-desc") list.sort((a, b) => b.price - a.price);
-    else if (sortBy === "name") list.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "name") list.sort((a, b) => a.name.localeCompare(b.name, "bn"));
     else if (sortBy === "rating") list.sort((a, b) => getProductRating(b.id).rating - getProductRating(a.id).rating);
     return list;
-  }, [products, search, selectedCategories, showOnlyInStock, showOnlyFavourites, favourites, minPrice, maxPrice, sortBy, ratingFilter]);
-
-  const toggleCategory = (cat: string) => {
-    setSelectedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
-      return next;
-    });
-  };
+  }, [products, search, selectedCategory, selectedSubTab, showOnlyInStock, showOnlyFavourites, favourites, minPrice, maxPrice, sortBy, ratingFilter]);
 
   return (
-    <div className="w-full flex-1 flex flex-col bg-slate-50 min-h-screen">
-      {/* Top Header */}
+    <div className="w-full flex-1 flex flex-col bg-slate-50 min-h-screen xl:min-h-0 xl:h-[calc(100dvh-6.75rem)] xl:max-h-[calc(100dvh-6.75rem)] xl:overflow-hidden">
+      {/* Fixed Top Header (Search, Categories & Sub-Tabs) */}
       <div className="bg-white border-b border-slate-200 z-30 shadow-xs flex-shrink-0 sticky top-0">
-        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-2.5 sm:py-3 flex items-center justify-between gap-3">
+        <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
           <h1 className="text-lg font-black text-slate-800 whitespace-nowrap hidden sm:block">বই ও স্টেশনারি</h1>
 
           {/* Search & Filters */}
@@ -1782,43 +1959,100 @@ export default function StorePage() {
             </button>
           </div>
         </div>
-      </div>
 
-      <div className="w-full flex flex-col xl:flex-row flex-1 bg-slate-50 items-start px-2 sm:px-4 lg:px-6 py-2 sm:py-3 gap-3 min-h-0">
+        {/* Horizontal Category Tabs Row */}
+        <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 pb-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-max px-0.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                setSelectedCategory("");
+                setSelectedSubTab("");
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+              }}
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${
+                !selectedCategory 
+                  ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20' 
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              সকল
+            </button>
+            {allCategories.map(cat => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={(e) => {
+                    if (isSelected) {
+                      setSelectedCategory("");
+                      setSelectedSubTab("");
+                    } else {
+                      setSelectedCategory(cat);
+                      setSelectedSubTab(""); // Automatically deselect previous sub-tab and other category
+                    }
+                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  }}
+                  className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${
+                    isSelected 
+                      ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20' 
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        {/* Main Content */}
-        <div className="flex-1 min-w-0 w-full flex flex-col min-h-0">
-          {/* Horizontal Category Tabs (Mobile & Desktop) */}
-          <div className="w-full overflow-x-auto pb-2.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-shrink-0">
-            <div className="flex items-center gap-1.5 sm:gap-2 w-max">
+        {/* Sub-Tabs Row (Auto Class-Wise & Admin Sub-Tabs) */}
+        {availableSubTabs.length > 0 && (
+          <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 pb-2 pt-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-max px-0.5">
+              <span className="text-[11px] font-bold text-slate-400 mr-1 flex items-center gap-1">
+                <span>সাব-ট্যাব / শ্রেণি:</span>
+              </span>
               <button
-                onClick={(e) => {
-                  setSelectedCategories(new Set());
-                  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                }}
-                className={`px-4 py-1.5 sm:px-5 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${selectedCategories.size === 0 ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
+                type="button"
+                onClick={() => setSelectedSubTab("")}
+                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                  !selectedSubTab
+                    ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-800 hover:bg-slate-50"
+                }`}
               >
-                সকল
+                সবগুলো
               </button>
-              {categories.map(cat => {
-                const isSelected = selectedCategories.has(cat);
+              {availableSubTabs.map(sub => {
+                const isSubSelected = selectedSubTab === sub;
                 return (
                   <button
-                    key={cat}
-                    onClick={(e) => {
-                      toggleCategory(cat);
-                      e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                    }}
-                    className={`px-4 py-1.5 sm:px-5 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-colors border ${isSelected ? 'bg-primary border-primary text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'}`}
+                    key={sub}
+                    type="button"
+                    onClick={() => setSelectedSubTab(isSubSelected ? "" : sub)}
+                    className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                      isSubSelected
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-1 ring-emerald-600/30"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-800 hover:bg-slate-50"
+                    }`}
                   >
-                    {cat}
+                    {sub}
                   </button>
                 );
               })}
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Delivery Policy Announcement Banner (Only for logged-in Agent & Center) */}
+      {/* Main Workspace (Scrollable Products on Left, Fixed Cart on Right) */}
+      <div className="w-full flex flex-col xl:flex-row flex-1 min-h-0 bg-slate-50 items-start xl:items-stretch px-2 sm:px-4 lg:px-6 py-2 gap-3 xl:overflow-hidden">
+
+        {/* Main Products Section - THE ONLY PART THAT SCROLLS ON DESKTOP */}
+        <div className="flex-1 min-w-0 w-full flex flex-col min-h-0 xl:h-full xl:overflow-y-auto xl:pr-1">
+          {/* Notice Banner */}
           {isAgentOrCenter && !isDeliveryBannerDismissed && (
             <div className="mb-3.5 p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/70 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm flex-shrink-0 animate-in fade-in">
               <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
@@ -1826,7 +2060,7 @@ export default function StorePage() {
                   <Truck className="w-4 h-4" />
                 </div>
                 <div className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                  <span className="font-bold text-emerald-800">এজেন্ট ও কেন্দ্রের ডেলিভারি নীতিমালা:</span> ৫,০০০ টাকার কম অর্ডার হলে <strong className="text-slate-900">“পাঠাও কুরিয়ার”</strong>-এর মাধ্যমে পাঠানো হবে (সর্বোচ্চ ১৫ কেজি পর্যন্ত)। কুরিয়ার খরচ: প্রথম ২ কেজি ১৮০ ৳, পরবর্তী প্রতি কেজি ২৫ ৳। <span className="inline-block font-bold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-300 ml-1">৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি!</span>
+                  <span className="font-bold text-emerald-800">বই ও প্রকাশনা ডেলিভারি:</span> অর্ডার করার সময় আপনার সুবিধাজনক মাধ্যম (<strong className="text-slate-900">পাঠাও, স্টিডফাস্ট, নিজস্ব সংগ্রহ, কুরিয়ার বা ট্রান্সপোর্ট</strong>) নির্বাচন করতে পারবেন।
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
@@ -1862,15 +2096,13 @@ export default function StorePage() {
                   <p className="text-sm mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করুন</p>
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,240px)] justify-stretch sm:justify-start gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-4.5">
                 {loading ? Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse flex flex-row sm:flex-col">
-                    <div className="w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 bg-slate-100" />
-                    <div className="p-3 sm:p-4 flex flex-col gap-2 flex-1">
-                      <div className="h-4 bg-slate-100 rounded w-3/4" />
-                      <div className="h-3 bg-slate-100 rounded w-1/2" />
-                      <div className="h-6 bg-slate-100 rounded w-1/3 mt-auto pt-2" />
-                    </div>
+                  <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse flex flex-col p-3 gap-2.5 shadow-2xs">
+                    <div className="w-full aspect-[4/3] bg-slate-100 rounded-xl" />
+                    <div className="h-4 bg-slate-100 rounded w-3/4 mt-1" />
+                    <div className="h-3 bg-slate-100 rounded w-1/2" />
+                    <div className="h-8 bg-slate-100 rounded w-full mt-auto" />
                   </div>
                 )) : filtered.map(product => {
                   const r = getProductRating(product.id);
@@ -1880,48 +2112,130 @@ export default function StorePage() {
                   const productCode = getCleanProductCode(product);
 
                   return (
-                    <div key={product.id} onClick={() => setDetailProduct(product)} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden group flex flex-row sm:flex-col cursor-pointer">
-                      <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 w-32 sm:w-full aspect-square sm:aspect-[4/3] flex-shrink-0 flex items-center justify-center overflow-hidden border-r sm:border-r-0 sm:border-b border-slate-100">
+                    <div 
+                      key={product.id} 
+                      className="group bg-white rounded-2xl border border-slate-200/80 hover:border-emerald-500/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
+                    >
+                      {/* Image Area */}
+                      <div 
+                        onClick={() => setDetailProduct(product)}
+                        className="relative bg-gradient-to-b from-slate-50 to-slate-100/50 w-full aspect-[4/3] flex items-center justify-center p-2.5 sm:p-3 overflow-hidden border-b border-slate-100 cursor-pointer"
+                      >
                         <ProductImage
                           src={product.imageUrl}
                           alt={product.name}
-                          imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          iconClassName="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 group-hover:scale-105 transition-transform"
+                          imgClassName="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-2xs"
+                          iconClassName="w-12 h-12 text-slate-300 group-hover:scale-105 transition-transform"
                         />
-                        {productCode && (
-                          <span className="absolute top-2 left-2 text-[10px] sm:text-xs text-emerald-900 font-black font-mono bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-md border border-emerald-200 shadow-sm z-10">
-                            আইডি: {productCode}
+                        {product.category && (
+                          <span className="absolute bottom-2 left-2 text-[9.5px] sm:text-[10px] font-bold text-slate-700 bg-white/95 backdrop-blur-xs px-2 py-0.5 rounded-md border border-slate-200/80 shadow-2xs z-10 max-w-[calc(100%-16px)] truncate">
+                            {product.category}
                           </span>
                         )}
-                        <span className="absolute bottom-2 left-2 text-[10px] sm:text-xs text-primary font-bold bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm z-10 max-w-[calc(100%-16px)] truncate">
-                          {product.category}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFav(product.id);
+                          }}
+                          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 cursor-pointer ${
+                            isFav 
+                              ? "bg-red-50 text-red-500 shadow-2xs border border-red-200" 
+                              : "bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white border border-slate-200/70 opacity-0 group-hover:opacity-100 shadow-2xs"
+                          }`}
+                          title={isFav ? "পছন্দের তালিকা থেকে সরান" : "পছন্দের তালিকায় রাখুন"}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${isFav ? "fill-current" : ""}`} />
+                        </button>
                       </div>
-                      <div className="flex flex-1 min-w-0">
-                        <div className="p-3 flex flex-col flex-1 min-w-0 border-r border-slate-50 border-dashed">
-                          <h3 className="font-bold text-slate-800 mb-1 line-clamp-2 sm:line-clamp-1">{product.name}</h3>
-                          {product.className && (
-                            <p className="text-xs sm:text-sm text-slate-500 font-medium truncate">
-                              {product.className}{product.subject ? ` - ${product.subject}` : ''}
-                            </p>
-                          )}
-                          <div className="mt-auto pt-2">
-                            <span className="text-xl font-black text-primary">৳{product.price}</span>
+
+                      {/* Content Area */}
+                      <div className="p-2.5 sm:p-3 flex flex-col flex-1 justify-between gap-2">
+                        <div className="space-y-1">
+                          <h3 
+                            onClick={() => setDetailProduct(product)}
+                            className="font-bold text-slate-800 text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-emerald-700 transition-colors cursor-pointer"
+                            title={product.name}
+                          >
+                            {product.name}
+                          </h3>
+
+                          {/* ID below title: simple clean text, no card or border */}
+                          <div className="flex items-center gap-1.5 flex-wrap text-[11px] sm:text-xs text-slate-500 font-medium">
+                            {productCode && (
+                              <span className="font-mono text-slate-500">
+                                আইডি: {productCode}
+                              </span>
+                            )}
+                            {productCode && product.className && (
+                              <span className="text-slate-300">•</span>
+                            )}
+                            {product.className && (
+                              <span className="text-slate-500 truncate">
+                                {product.className}{product.subject ? ` (${product.subject})` : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <div className="w-14 flex flex-col items-center justify-center bg-slate-50/50 p-2">
+
+                        {/* Price & Horizontal Quantity Controls */}
+                        <div className="pt-1 border-t border-slate-100/80 space-y-2 mt-auto">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-base sm:text-lg font-black text-emerald-800 font-mono">
+                              ৳{product.price}
+                            </span>
+                            {product.unit && (
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                /{product.unit}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Horizontal + and - Quantity Stepper */}
                           {cartQty > 0 ? (
-                            <div className="flex flex-col items-center gap-1 h-full justify-between w-full" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => updateCartQty(product, cartQty + 1)}
-                                className="w-full h-8 bg-primary rounded text-white text-xl font-medium flex items-center justify-center hover:bg-primary/90 transition-colors">+</button>
-                              <span className="w-full flex-1 flex items-center justify-center text-sm font-black text-slate-800 py-1">{cartQty}</span>
-                              <button onClick={() => updateCartQty(product, cartQty - 1)}
-                                className="w-full h-8 bg-slate-200 rounded text-slate-600 text-xl font-medium flex items-center justify-center hover:bg-slate-300 transition-colors">−</button>
+                            <div 
+                              className="flex items-center justify-between w-full bg-emerald-50/90 rounded-xl p-0.5 border border-emerald-300/80 shadow-2xs" 
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <button 
+                                type="button"
+                                onClick={() => updateCartQty(product, cartQty - 1)}
+                                className="w-7 h-7 sm:w-8 sm:h-8 bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center border border-emerald-200/80 shadow-2xs transition-all active:scale-90 cursor-pointer"
+                                title="পরিমাণ কমান"
+                              >
+                                −
+                              </button>
+                              <input
+                                type="number"
+                                min={1}
+                                value={cartQty || ""}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value);
+                                  updateCartQty(product, isNaN(val) ? 0 : Math.max(0, val));
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
+                                className="w-10 sm:w-12 h-7 sm:h-8 text-center text-xs sm:text-sm font-black text-emerald-950 font-mono bg-white border border-emerald-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                              <button 
+                                type="button"
+                                onClick={() => updateCartQty(product, cartQty + 1)}
+                                className="w-7 h-7 sm:w-8 sm:h-8 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-sm sm:text-base flex items-center justify-center shadow-2xs transition-all active:scale-90 cursor-pointer"
+                                title="পরিমাণ বাড়ান"
+                              >
+                                +
+                              </button>
                             </div>
                           ) : (
-                            <button onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-                              className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center hover:bg-primary hover:text-white transition-colors shadow-sm">
-                              <ShoppingCart className="w-5 h-5" />
+                            <button 
+                              type="button"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                addToCart(product); 
+                              }}
+                              className="w-full py-1.5 sm:py-2 px-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs sm:text-sm shadow-2xs shadow-emerald-700/20 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <ShoppingCart className="w-3.5 h-3.5" />
+                              <span>কার্টে যোগ করুন</span>
                             </button>
                           )}
                         </div>
@@ -1932,9 +2246,9 @@ export default function StorePage() {
               </div>
             </div>
           ) : (
-            <div className="w-full flex-1 flex flex-col min-h-0 mb-2">
+            <div className="w-full flex-1 flex flex-col min-h-0 mb-2 xl:mb-0 xl:h-full">
               {/* LIST VIEW */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full flex-1 flex flex-col min-h-0">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full flex-1 flex flex-col min-h-0 xl:h-full">
                 {/* Compact Top Header & Action Bar */}
                 <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200/80 px-3.5 py-2.5 flex items-center justify-between gap-2 flex-shrink-0">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -1957,7 +2271,7 @@ export default function StorePage() {
                 </div>
 
                 {/* Table Area with internal scroll: only rows scroll behind the thead */}
-                <div className="overflow-auto w-full flex-1 min-h-[calc(100dvh-210px)] sm:min-h-[calc(100dvh-190px)] max-h-[calc(100dvh-190px)] sm:max-h-[calc(100dvh-170px)]">
+                <div className="overflow-auto w-full flex-1 min-h-0">
                   <table className="w-full text-left border-collapse min-w-full sm:min-w-[750px]">
                     <thead className="sticky top-0 z-10 bg-[#2f8c5b] shadow-xs">
                       <tr className="bg-[#2f8c5b] text-white text-xs sm:text-sm">
@@ -2004,14 +2318,14 @@ export default function StorePage() {
           )}
         </div>
 
-        {/* Right Sidebar - Cart */}
+        {/* Right Sidebar - Cart (Fixed & Screen-Fit on Desktop) */}
         <aside className={`
-          hidden xl:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out bg-white rounded-2xl border border-slate-200 shadow-sm sticky top-16 self-start h-[calc(100dvh-80px)] max-h-[calc(100dvh-80px)] overflow-hidden
+          hidden xl:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden xl:h-full xl:self-stretch
           ${rightSidebarOpen ? "w-80 2xl:w-[330px] opacity-100" : "w-0 border-l-0 opacity-0 overflow-hidden"}
         `}>
-          <div className="flex flex-col h-full w-80 2xl:w-[330px] flex-shrink-0 min-h-0 overflow-hidden">
+          <div className="flex flex-col h-full w-80 2xl:w-[330px] flex-shrink-0 min-h-0 overflow-hidden relative">
             {/* Header */}
-            <div className="flex-shrink-0 px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <div className="flex-shrink-0 px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 sticky top-0 z-10">
               <h3 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
                 <ShoppingBag className="w-4 h-4 text-emerald-700" />
                 <span>আমার কার্ট</span>
@@ -2035,7 +2349,7 @@ export default function StorePage() {
             {/* Cart Items List */}
             <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col space-y-1.5 overscroll-contain">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[140px] text-slate-400">
+                <div className="flex flex-col items-center justify-center py-8 text-slate-400">
                   <ShoppingBag className="w-8 h-8 mb-1.5 text-slate-200" />
                   <p className="font-medium text-xs">কার্ট খালি আছে</p>
                 </div>
@@ -2115,84 +2429,68 @@ export default function StorePage() {
               )}
             </div>
 
-            {/* Bottom Summary & Checkout */}
+            {/* Sticky Bottom Footer: Summary & Checkout Button */}
             {cart.length > 0 && (
-              <div className="mt-auto flex-shrink-0 p-2.5 border-t border-slate-200 bg-white/95 z-10 relative space-y-1.5 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-                <div className="space-y-1 text-[11.5px] text-slate-600 border-b border-slate-200/70 pb-1.5">
+              <div className="sticky bottom-0 z-20 mt-auto flex-shrink-0 p-2 sm:p-2.5 border-t border-slate-200 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.08)] space-y-1">
+                <div className="space-y-0.5 text-[11px] text-slate-600 border-b border-slate-200/70 pb-1">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">পণ্যের মূল্য (সাবটোটাল):</span>
+                    <span className="text-slate-500">পণ্যের মূল্য:</span>
                     <span className="font-bold text-slate-800 font-mono">৳{cartTotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-1 text-slate-500">
-                      <span>কুরিয়ার ({deliveryInfo.courierName}):</span>
-                      <span className="text-[9.5px] px-1 py-0.2 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
-                        {deliveryInfo.totalWeightKg} কেজি
-                      </span>
+                  <div className="flex justify-between items-center text-[10.5px] text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Truck className="w-3 h-3 text-emerald-700" />
+                      <span>ডেলিভারি মাধ্যম:</span>
                     </span>
-                    {deliveryInfo.isFreeDelivery ? (
-                      <span className="font-bold text-emerald-700 text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">ফ্রি ডেলিভারি</span>
-                    ) : (
-                      <span className="font-bold text-slate-800 font-mono">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
-                    )}
+                    <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      চেকআউটে নির্বাচনযোগ্য
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex justify-between text-slate-800 items-baseline pt-0.5">
                   <div>
-                    <span className="font-bold text-xs block text-slate-700">সর্বমোট বিল</span>
-                    <span className="text-[9.5px] text-slate-400">ডেলিভারি সহ</span>
+                    <span className="font-bold text-xs block text-slate-700">সর্বমোট প্রদেয় বিল</span>
+                    <span className="text-[9px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>
                   </div>
-                  <span className="text-base font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
+                  <span className="text-sm sm:text-base font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
                 </div>
 
                 <button
                   onClick={handleOpenOrder}
-                  className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md shadow-emerald-700/20 active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md shadow-emerald-700/20 active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <ShoppingBag className="w-4 h-4" />
+                  <ShoppingBag className="w-3.5 h-3.5" />
                   <span>অর্ডার করুন</span>
                 </button>
-
-                {isAgentOrCenter && deliveryInfo.ruleNotice && (
-                  <p className="text-[9.5px] text-slate-500 bg-slate-50 p-1 rounded-md border border-slate-200/70 flex items-start gap-1 leading-tight">
-                    <span className="shrink-0 text-xs">🚚</span>
-                    <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
-                  </p>
-                )}
               </div>
             )}
           </div>
         </aside>
       </div>
 
-      {/* Mobile Floating Sticky Bottom Bar */}
-      {cart.length > 0 && (
+      {/* Mobile Floating Sticky Bottom Bar (Glassmorphic) */}
+      {!cartOpen && cart.length > 0 && (
         <div className="xl:hidden fixed bottom-3 left-3 right-3 sm:left-6 sm:right-6 z-40 animate-in slide-in-from-bottom-4 duration-200">
-          <div className="bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl border border-white/15 p-2.5 sm:p-3 flex items-center justify-between gap-2.5">
+          <div className="bg-slate-900/65 backdrop-blur-xl saturate-180 text-white rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.35)] border border-white/20 ring-1 ring-white/10 p-2.5 sm:p-3 flex items-center justify-between gap-2.5">
             {/* Left: Cart Info / Click to Open Drawer */}
             <div
               onClick={() => setCartOpen(true)}
               className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
             >
-              <div className="relative w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                <ShoppingBag className="w-5 h-5" />
-                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white font-black text-[10px] rounded-full px-1 flex items-center justify-center border-2 border-slate-900">
+              <div className="relative w-10 h-10 rounded-xl bg-emerald-600/90 backdrop-blur-md text-white flex items-center justify-center shrink-0 shadow-inner border border-white/20">
+                <ShoppingBag className="w-5 h-5 drop-shadow-xs" />
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white font-black text-[10px] rounded-full px-1 flex items-center justify-center border-2 border-slate-900 shadow-sm">
                   {cartCount}
                 </span>
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs sm:text-sm font-black text-white font-mono leading-tight">
+                  <span className="text-xs sm:text-sm font-black text-white font-mono leading-tight drop-shadow-xs">
                     ৳{grandTotal.toFixed(2)}
                   </span>
-                  {deliveryInfo.isFreeDelivery && (
-                    <span className="text-[9px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-1.5 py-0.2 rounded">
-                      ফ্রি ডেলিভারি
-                    </span>
-                  )}
                 </div>
-                <p className="text-[10px] sm:text-[11px] text-slate-300 truncate">
+                <p className="text-[10px] sm:text-[11px] text-emerald-100/80 truncate">
                   {cart.length} আইটেম ({cartCount} টি) • কার্ট দেখতে চাপুন
                 </p>
               </div>
@@ -2203,7 +2501,7 @@ export default function StorePage() {
               <button
                 type="button"
                 onClick={() => setCartOpen(true)}
-                className="px-2.5 py-2 bg-white/15 hover:bg-white/25 text-white rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer hidden sm:flex items-center gap-1"
+                className="px-2.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl font-bold text-xs backdrop-blur-md transition-all active:scale-95 cursor-pointer hidden sm:flex items-center gap-1"
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span>কার্ট</span>
@@ -2212,7 +2510,7 @@ export default function StorePage() {
               <button
                 type="button"
                 onClick={handleOpenOrder}
-                className="px-4 py-2 sm:px-5 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-black text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-4 py-2 sm:px-5 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-black text-xs sm:text-sm transition-all shadow-md shadow-emerald-500/30 backdrop-blur-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <span>অর্ডার করুন</span>
                 <ChevronRight className="w-4 h-4 text-slate-950" />
@@ -2232,37 +2530,79 @@ export default function StorePage() {
           onAddToCart={addToCart}
           isFav={favourites.has(detailProduct.id)}
           onToggleFav={() => toggleFav(detailProduct.id)}
+          cartQty={cart.find(c => c.product.id === detailProduct.id)?.qty || 0}
+          onUpdateQty={(q) => updateCartQty(detailProduct, q)}
         />
       )}
 
-      {/* Cart Drawer */}
+      {/* Mobile Bottom Sheet Cart Drawer (Opens from below) */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setCartOpen(false)} />
-          <div className="relative w-full max-w-xs sm:max-w-sm bg-white h-full shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
-              <h2 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <ShoppingBag className="w-4 h-4 text-emerald-700" />
-                <span>আমার কার্ট</span>
-              </h2>
-              <button onClick={() => setCartOpen(false)} className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors">
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end xl:hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in" 
+            onClick={() => setCartOpen(false)} 
+          />
+
+          {/* Bottom Sheet Modal Panel */}
+          <div className="relative w-full max-w-xl mx-auto max-h-[85dvh] bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 border-t border-slate-200/80 z-10 pb-2">
+            {/* Grab Handle */}
+            <div className="pt-2.5 pb-1 flex justify-center shrink-0 cursor-grab active:cursor-grabbing" onClick={() => setCartOpen(false)}>
+              <div className="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 rounded-full transition-colors" />
             </div>
-            <div className="flex-1 overflow-y-auto p-2.5 flex flex-col">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                  <ShoppingBag className="w-4 h-4 text-emerald-700" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800 leading-none">আমার কার্ট</h2>
+                  {cart.length > 0 && (
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {cart.reduce((a, c) => a + c.qty, 0)} টি পণ্য যোগ করা হয়েছে
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {cart.length > 0 && (
+                  <button
+                    onClick={() => setCart([])}
+                    title="কার্ট খালি করুন"
+                    className="text-[11px] text-red-500 hover:text-red-700 font-bold px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    খালি করুন
+                  </button>
+                )}
+                <button 
+                  onClick={() => setCartOpen(false)} 
+                  className="p-1.5 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition-colors"
+                  title="বন্ধ করুন"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Cart Items List */}
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col space-y-2 overscroll-contain">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-slate-400">
-                  <ShoppingBag className="w-9 h-9 mb-1.5 text-slate-200" />
-                  <p className="font-medium text-xs">কার্ট খালি আছে</p>
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <ShoppingBag className="w-12 h-12 mb-2 text-slate-200" />
+                  <p className="font-bold text-sm">কার্ট খালি আছে</p>
+                  <p className="text-xs text-slate-400 mt-0.5">পণ্য যোগ করতে তালিকায় যান</p>
                 </div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {cart.map((item, i) => (
                     <div
                       key={i}
-                      className="flex gap-2 p-2 bg-white border border-slate-200/70 rounded-xl shadow-xs transition-all items-center"
+                      className="flex gap-2.5 p-2 bg-white border border-slate-200/80 rounded-2xl shadow-2xs items-center"
                     >
-                      <div className="w-11 h-11 bg-slate-50 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                      <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center shrink-0 overflow-hidden border border-slate-100">
                         <ProductImage
                           src={item.product.imageUrl}
                           alt={item.product.name}
@@ -2278,8 +2618,9 @@ export default function StorePage() {
                           <button
                             onClick={() => setCart(prev => prev.filter(c => c.product.id !== item.product.id))}
                             className="text-slate-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50 shrink-0"
+                            title="মুছে ফেলুন"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                         <p className="text-[10px] text-slate-400 truncate -mt-0.5 mb-1">
@@ -2290,11 +2631,11 @@ export default function StorePage() {
                           <span className="font-bold text-xs text-emerald-800 font-mono">
                             ৳{(item.product.price * item.qty).toFixed(2)}
                           </span>
-                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-lg p-0.5 border border-slate-200/80 shadow-2xs">
+                          <div className="flex items-center gap-1 bg-slate-100/90 rounded-xl p-0.5 border border-slate-200/80 shadow-2xs">
                             <button
                               type="button"
                               onClick={() => updateCartQty(item.product, Math.max(1, item.qty - 1))}
-                              className="w-7 h-7 bg-white hover:bg-slate-200 text-slate-700 rounded-md font-bold text-base flex items-center justify-center border border-slate-200/80 shadow-2xs transition-all active:scale-90"
+                              className="w-7 h-7 bg-white hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center border border-slate-200/80 shadow-2xs transition-all active:scale-90"
                               title="পরিমাণ কমান"
                             >−</button>
                             <input
@@ -2308,12 +2649,12 @@ export default function StorePage() {
                                 }
                               }}
                               onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-md outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                             <button
                               type="button"
                               onClick={() => updateCartQty(item.product, item.qty + 1)}
-                              className="w-7 h-7 bg-emerald-700 hover:bg-emerald-800 text-white rounded-md font-bold text-base flex items-center justify-center shadow-2xs transition-all active:scale-90"
+                              className="w-7 h-7 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-base flex items-center justify-center shadow-2xs transition-all active:scale-90"
                               title="পরিমাণ বাড়ান"
                             >+</button>
                           </div>
@@ -2324,50 +2665,44 @@ export default function StorePage() {
                 </div>
               )}
             </div>
+
+            {/* Bottom Sticky Checkout Footer */}
             {cart.length > 0 && (
-              <div className="p-3 border-t border-slate-100 bg-slate-50/90 z-10 relative space-y-2">
+              <div className="p-3 sm:p-4 border-t border-slate-200 bg-white/95 backdrop-blur-xs shrink-0 space-y-2 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
                 <div className="space-y-1 text-xs text-slate-600 border-b border-slate-200/70 pb-2">
                   <div className="flex justify-between">
                     <span className="text-slate-500">পণ্যের মূল্য:</span>
                     <span className="font-bold text-slate-800 font-mono">৳{cartTotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-1 text-slate-500">
-                      <span>কুরিয়ার ({deliveryInfo.courierName}):</span>
-                      <span className="text-[10px] px-1 py-0.2 bg-amber-50 text-amber-700 font-bold rounded border border-amber-200">
-                        {deliveryInfo.totalWeightKg} কেজি
-                      </span>
+                  <div className="flex justify-between items-center text-xs text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Truck className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>ডেলিভারি মাধ্যম:</span>
                     </span>
-                    {deliveryInfo.isFreeDelivery ? (
-                      <span className="font-bold text-emerald-700 text-[10.5px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">ফ্রি ডেলিভারি</span>
-                    ) : (
-                      <span className="font-bold text-slate-800 font-mono">৳{deliveryInfo.deliveryCharge.toFixed(2)}</span>
-                    )}
+                    <span className="text-[10.5px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      চেকআউটে নির্বাচনযোগ্য
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex justify-between text-slate-800 items-baseline pt-0.5">
                   <div>
-                    <span className="font-bold text-xs block text-slate-700">সর্বমোট বিল</span>
-                    <span className="text-[10px] text-slate-400">ডেলিভারি সহ</span>
+                    <span className="font-bold text-xs block text-slate-700">সর্বমোট প্রদেয় বিল</span>
+                    <span className="text-[10px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>
                   </div>
-                  <span className="text-base sm:text-lg font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
+                  <span className="text-lg font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
                 </div>
 
                 <button
-                  onClick={handleOpenOrder}
-                  className="w-full py-2.5 bg-emerald-700 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-emerald-800 transition-all shadow-md shadow-emerald-700/20 active:scale-[0.98] flex items-center justify-center gap-1.5"
+                  onClick={() => {
+                    setCartOpen(false);
+                    handleOpenOrder();
+                  }}
+                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-700/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <ShoppingBag className="w-4 h-4" />
                   <span>অর্ডার করুন</span>
                 </button>
-
-                {isAgentOrCenter && deliveryInfo.ruleNotice && (
-                  <p className="text-[10px] text-slate-500 bg-white p-1.5 rounded-lg border border-slate-200/70 flex items-start gap-1 leading-snug">
-                    <span className="shrink-0 text-xs">🚚</span>
-                    <span className="line-clamp-2">{deliveryInfo.ruleNotice}</span>
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -2379,12 +2714,17 @@ export default function StorePage() {
         isOpen={isDeliveryAlertOpen}
         mode={deliveryAlertMode}
         cartTotal={cartTotal}
-        deliveryInfo={deliveryInfo}
         onClose={() => setIsDeliveryAlertOpen(false)}
         onProceedToOrder={() => {
           setIsDeliveryAlertOpen(false);
           setIsOrderModalOpen(true);
         }}
+      />
+
+      {/* Standalone Order Tracking Modal triggered from URL or Submenu */}
+      <TrackOrderModal
+        isOpen={isTrackModalOpen}
+        onClose={() => setIsTrackModalOpen(false)}
       />
 
       {isOrderModalOpen && (

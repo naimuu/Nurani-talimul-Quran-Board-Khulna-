@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ImageCropper from './ImageCropper';
+import CategoryManagementModal from './CategoryManagementModal';
 import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Printer, Scan, Loader2 } from 'lucide-react';
 
 type Product = { id: string; name: string; category: string; price: number; stock: number; unit: string; updatedAt: string; imageUrl?: string | null; barcode?: string | null; className?: string | null; description?: string | null; weight?: number | null; };
@@ -1187,59 +1188,14 @@ export default function StockTab({
         </div>
       </div>
 
-      {showCategoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 flex-shrink-0">
-              <h2 className="text-xl font-bold text-slate-800">ক্যাটাগরি ম্যানেজমেন্ট</h2>
-              <button onClick={() => setShowCategoryModal(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              <form onSubmit={async e => {
-                e.preventDefault();
-                const form = e.target as HTMLFormElement;
-                const input = form.elements.namedItem("name") as HTMLInputElement;
-                const checkbox = form.elements.namedItem("isClassWise") as HTMLInputElement;
-                if(!input.value.trim()) return;
-                await fetch('/api/store/categories', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ name: input.value.trim(), isClassWise: checkbox.checked })
-                });
-                input.value = '';
-                checkbox.checked = false;
-                fetchCategories();
-              }} className="mb-6 border border-slate-200 rounded-xl p-4 bg-slate-50">
-                <div className="flex gap-2 mb-3">
-                  <input name="name" type="text" placeholder="নতুন ক্যাটাগরি..." className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
-                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors flex-shrink-0">যোগ</button>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer w-fit">
-                  <input type="checkbox" name="isClassWise" className="w-4 h-4 text-blue-600 rounded border-slate-300" />
-                  <span className="text-sm font-medium text-slate-700">শ্রেণীভিত্তিক (Class Wise)</span>
-                </label>
-              </form>
-              <div className="divide-y divide-slate-100">
-                {categories.map(c => (
-                  <div key={c.id} className="py-3 flex items-center justify-between group">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-slate-700">{c.name}</span>
-                      {c.isClassWise && <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full w-fit mt-1">শ্রেণীভিত্তিক</span>}
-                    </div>
-                    <button onClick={async () => {
-                      if(!confirm("মুছে ফেলতে চান?")) return;
-                      await fetch(`/api/store/categories/${c.id}`, { method: 'DELETE' });
-                      fetchCategories();
-                    }} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-                {categories.length === 0 && <p className="text-center py-4 text-slate-400">কোনো ক্যাটাগরি নেই</p>}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CategoryManagementModal
+        open={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        onCategoriesUpdated={() => {
+          fetchCategories();
+          fetchProducts();
+        }}
+      />
     </div>
   );
 }
