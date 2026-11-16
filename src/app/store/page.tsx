@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
-  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck, Truck, Smartphone, QrCode
+  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck, Truck, Smartphone, QrCode, CreditCard, RotateCcw, AlertCircle, ArrowRight, Users
 } from "lucide-react";
 import Link from "next/link";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
@@ -337,14 +337,22 @@ function DeliveryPolicyAlertModal({
   onClose,
   onProceedToOrder,
   mode = "first_visit",
-  cartTotal = 0
+  cartTotal = 0,
+  initialTab = "delivery"
 }: {
   isOpen: boolean;
   onClose: () => void;
   onProceedToOrder?: () => void;
   mode?: "first_visit" | "before_order" | "manual";
   cartTotal?: number;
+  initialTab?: "delivery" | "payment" | "return" | "complaint";
 }) {
+  const [activeTab, setActiveTab] = useState<"delivery" | "payment" | "return" | "complaint">(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab, isOpen]);
+
   if (!isOpen) return null;
 
   const isBeforeOrder = mode === "before_order";
@@ -359,7 +367,7 @@ function DeliveryPolicyAlertModal({
 
       {/* Modal Dialog */}
       <div 
-        className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full mx-auto z-10 overflow-hidden flex flex-col border border-slate-200 animate-in fade-in zoom-in-95 duration-200"
+        className="relative bg-white rounded-3xl shadow-2xl max-w-xl w-full mx-auto z-10 overflow-hidden flex flex-col border border-slate-200 animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -367,14 +375,14 @@ function DeliveryPolicyAlertModal({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-sm">
-                <Truck className="w-5 h-5 text-amber-300" />
+                <ShieldCheck className="w-5 h-5 text-amber-300" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 block w-fit mb-0.5">
-                  {isBeforeOrder ? "অর্ডার সতর্কতা ও কুরিয়ার তথ্য" : "গুরুত্বপূর্ণ ডেলিভারি বিজ্ঞপ্তি"}
+                  নূরানী প্রকাশন নীতিমালা ও তথ্যাবলি
                 </span>
                 <h3 className="text-base sm:text-lg font-black text-white leading-tight truncate">
-                  এজেন্ট ও কেন্দ্রের ডেলিভারি নীতিমালা
+                  অর্ডার, পেমেন্ট, ডেলিভারি ও ফেরত সেবা
                 </h3>
               </div>
             </div>
@@ -383,87 +391,233 @@ function DeliveryPolicyAlertModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 flex-shrink-0 cursor-pointer"
               title="বন্ধ করুন"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
 
-        {/* Content Body */}
-        <div className="p-5 sm:p-6 space-y-4 text-xs sm:text-sm text-slate-700 max-h-[75vh] overflow-y-auto">
-          {/* Delivery Policy Breakdown */}
-          <div className="space-y-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
-              <span>📋 উপলব্ধ ডেলিভারি মাধ্যমসমূহ:</span>
-            </h4>
-            
-            <div className="space-y-2">
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-slate-100 shadow-2xs">
-                <span className="text-base leading-none">🚚</span>
-                <div>
-                  <strong className="text-slate-900">পাঠাও কুরিয়ার:</strong> দ্রুততম সময়ে হোম বা পয়েন্ট ডেলিভারি (চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য)।
-                </div>
-              </div>
+          {/* Interactive Policy Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pt-3.5 mt-2 border-t border-white/15 [&::-webkit-scrollbar]:hidden">
+            <button
+              type="button"
+              onClick={() => setActiveTab("delivery")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "delivery"
+                  ? "bg-amber-400 text-slate-950 font-black shadow-sm"
+                  : "bg-white/10 text-emerald-100 hover:bg-white/20"
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>ডেলিভারি চার্জ</span>
+            </button>
 
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-slate-100 shadow-2xs">
-                <span className="text-base leading-none">📦</span>
-                <div>
-                  <strong className="text-slate-900">স্টিডফাস্ট কুরিয়ার:</strong> নির্ভরযোগ্য পার্সেল সার্ভিস (চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য)।
-                </div>
-              </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("payment")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "payment"
+                  ? "bg-amber-400 text-slate-950 font-black shadow-sm"
+                  : "bg-white/10 text-emerald-100 hover:bg-white/20"
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>পেমেন্ট পদ্ধতি</span>
+            </button>
 
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
-                <span className="text-base leading-none">🏢</span>
-                <div>
-                  <strong className="text-emerald-900">বোর্ড কার্যালয় থেকে সংগ্রহ (নিজে):</strong> বোর্ড প্রকাশনা সেলস কাউন্টার থেকে সরাসরি বই সংগ্রহ (চার্জ নেই)।
-                </div>
-              </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("return")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "return"
+                  ? "bg-amber-400 text-slate-950 font-black shadow-sm"
+                  : "bg-white/10 text-emerald-100 hover:bg-white/20"
+              }`}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>বই ফেরত ও বদল</span>
+            </button>
 
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-slate-100 shadow-2xs">
-                <span className="text-base leading-none">🚛</span>
-                <div>
-                  <strong className="text-slate-900">অন্যান্য কুরিয়ার ও ট্রান্সপোর্ট:</strong> সুন্দরবন, এস এ পরিবহন বা বাস/ট্রান্সপোর্টের মাধ্যমে ডেলিভারি সুবিধা রয়েছে।
-                </div>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("complaint")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "complaint"
+                  ? "bg-amber-400 text-slate-950 font-black shadow-sm"
+                  : "bg-white/10 text-emerald-100 hover:bg-white/20"
+              }`}
+            >
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>ভুল সংশোধন</span>
+            </button>
           </div>
         </div>
 
+        {/* Content Body */}
+        <div className="p-4 sm:p-6 space-y-3.5 text-xs sm:text-sm text-slate-700 max-h-[65vh] overflow-y-auto">
+          {activeTab === "delivery" && (
+            <div className="space-y-2.5">
+              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                <span>🚚 উপলব্ধ ডেলিভারি মাধ্যম ও সময়সীমা:</span>
+              </h4>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs">
+                  <span className="text-base leading-none">🚚</span>
+                  <div>
+                    <strong className="text-slate-900">পাঠাও কুরিয়ার:</strong> দ্রুততম সময়ে হোম বা পয়েন্ট ডেলিভারি (চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য)।
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs">
+                  <span className="text-base leading-none">📦</span>
+                  <div>
+                    <strong className="text-slate-900">স্টিডফাস্ট কুরিয়ার:</strong> নির্ভরযোগ্য পার্সেল সার্ভিস (চার্জ কুরিয়ার বাহককে পরিশোধযোগ্য)।
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
+                  <span className="text-base leading-none">🏢</span>
+                  <div>
+                    <strong className="text-emerald-900">বোর্ড কার্যালয় থেকে সংগ্রহ (নিজে):</strong> খুলনা প্রধান কার্যালয় প্রকাশনা সেলস কাউন্টার থেকে সরাসরি বই সংগ্রহ (চার্জ নেই)।
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs">
+                  <span className="text-base leading-none">🚛</span>
+                  <div>
+                    <strong className="text-slate-900">অন্যান্য কুরিয়ার ও ট্রান্সপোর্ট:</strong> সুন্দরবন, এস এ পরিবহন বা দূরপাল্লার বাসের মাধ্যমে সরাসরি প্রেরণ।
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 bg-amber-50 p-2.5 rounded-xl border border-amber-200/80 leading-relaxed">
+                  ⏱️ <strong>সময়সীমা:</strong> অর্ডার কনফার্মের ২৪-৪৮ ঘণ্টার মধ্যে পার্সেল বুকিং দেওয়া হয় এবং ট্র্যাকিং কোড এসএমএস/অনলাইনে পাওয়া যায়।
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "payment" && (
+            <div className="space-y-2.5">
+              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                <span>💳 পেমেন্ট পদ্ধতি ও নিয়মাবলী:</span>
+              </h4>
+              <div className="space-y-2">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="text-emerald-700">📱</span>
+                    <span>বিকাশ, নগদ ও রকেট পেমেন্ট</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    অর্ডার ফরমে প্রদর্শিত অফিশিয়াল একাউন্টে সেন্ড মানি বা পেমেন্ট করে ট্রানজেকশন আইডি (TrxID) ও প্রেরক নম্বর দিয়ে নিশ্চিত করুন।
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="text-blue-700">🏦</span>
+                    <span>ব্যাংক ট্রান্সফার বা ডিপোজিট</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    বোর্ডের নির্ধারিত ব্যাংক একাউন্টে জমা দিয়ে জমার রসিদ বা স্লিপ আপলোড করে দ্রুত অর্ডার নিশ্চিত করা যায়।
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="text-amber-700">🧾</span>
+                    <span>পূর্বের মানি রিসিট দিয়ে সমন্বয়</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    বোর্ড অফিস থেকে পূর্বে প্রাপ্ত অফিশিয়াল মানি রিসিট নম্বর দিয়ে ব্যালেন্স থেকে সরাসরি বিল সমন্বয় করা সম্ভব।
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "return" && (
+            <div className="space-y-2.5">
+              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                <span>🔄 বই পরিবর্তন, ফেরত ও ক্ষতিপূরণ নীতিমালা:</span>
+              </h4>
+              <div className="space-y-2 text-xs leading-relaxed text-slate-700">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <strong className="text-slate-900 block mb-0.5">১. বাঁধাই ও মুদ্রণ ত্রুটি:</strong>
+                  বইয়ে কোনো পৃষ্ঠা মিসিং, উল্টো বাঁধাই বা অস্পষ্ট মুদ্রণ থাকলে প্রাপ্তির ৭ দিনের মধ্যে জানালে সম্পূর্ণ বিনামূল্যে পরিবর্তন করে দেওয়া হয়।
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <strong className="text-slate-900 block mb-0.5">২. পার্সেল ড্যামেজ বা ক্ষতিপূরণ:</strong>
+                  কুরিয়ার থেকে পার্সেল গ্রহণের সময় প্যাকেট কাটা বা ছেঁড়া থাকলে সাথে সাথে ডেলিভারি ম্যানের সামনে ছবি তুলে রাখুন এবং আমাদের হেল্পলাইনে কল করুন।
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <strong className="text-slate-900 block mb-0.5">৩. মাদরাসার অতিরিক্ত বই ফেরত:</strong>
+                  সেশন শুরুতে মাদরাসা কর্তৃক গৃহীত অতিরিক্ত অক্ষত বই বোর্ডের নির্ধারিত সময়সীমার মধ্যে সরাসরি কাউন্টারে জমা দিয়ে হিসাব সমন্বয় করা যায়।
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "complaint" && (
+            <div className="space-y-2.5">
+              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                <span>📝 বইয়ের ভুল সংশোধন ও অভিযোগ:</span>
+              </h4>
+              <div className="space-y-2 text-xs leading-relaxed text-slate-700">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  বোর্ডের প্রকাশিত কোনো পাঠ্যবই বা প্রকাশনায় কোনো বানান বা তথ্যগত ভুল পরিলক্ষিত হলে বোর্ড সম্পাদনা বিভাগকে জানাতে অনুরোধ করা হচ্ছে।
+                </div>
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <span className="font-bold text-emerald-900 block mb-1">📞 বিক্রয় ও অভিযোগ হটলাইন:</span>
+                  <p className="text-xs text-emerald-800">
+                    সরাসরি কথা বলুন: <strong>01820-580560</strong> (সকাল ৯টা হতে বিকাল ৫টা)। অথবা বিস্তারিত জানাতে আমাদের যোগাযোগ ফর্মে বার্তা পাঠান।
+                  </p>
+                  <Link
+                    href="/contact"
+                    onClick={onClose}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-950 mt-2 bg-white px-3 py-1 rounded-lg border border-emerald-300"
+                  >
+                    <span>যোগাযোগ পেজ খুলুন</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Footer Actions */}
-        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-end gap-2.5">
-          {isBeforeOrder ? (
-            <>
+        <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+            নূরানী তা'লীমুল কুরআন বোর্ড খুলনা প্রকাশনা বিভাগ
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            {isBeforeOrder ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  পণ্য দেখুন
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onProceedToOrder) onProceedToOrder();
+                  }}
+                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <span>অর্ডার ফরম খুলুন</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold transition-all"
+                className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                আরও পণ্য যোগ করুন
+                <span>বুঝেছি, বন্ধ করুন</span>
+                <CheckCircle className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  if (onProceedToOrder) onProceedToOrder();
-                }}
-                className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm font-black shadow-md hover:scale-102 active:scale-98 transition-all flex items-center gap-1.5"
-              >
-                <span>অর্ডার ফরম খুলুন</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm font-black shadow-md transition-all flex items-center justify-center gap-1.5"
-            >
-              <span>বুঝেছি, কেনাকাটা করুন</span>
-              <CheckCircle className="w-4 h-4" />
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -545,8 +699,58 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
     );
   }, [visibleDeliveryOptions, selectedDeliveryType]);
 
+  // Referral / Agent State
+  const [referralAgentCode, setReferralAgentCode] = useState<string>(initialState?.referralAgentCode || "");
+  const [referralAgentInfo, setReferralAgentInfo] = useState<any>(initialState?.referralAgentInfo || null);
+  const [referralCommissionPercent, setReferralCommissionPercent] = useState<number>(initialState?.referralCommissionPercent || 0);
+
+  const lookupReferralAgent = async (codeOrPhone: string) => {
+    const trimmed = codeOrPhone.trim();
+    if (trimmed.length < 3) {
+      setReferralAgentInfo(null);
+      setReferralCommissionPercent(0);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/store/commissions?lookup=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.found && data.agent) {
+          setReferralAgentInfo(data.agent);
+          setReferralCommissionPercent(Number(data.bookCommissionPercent) || 0);
+          try {
+            localStorage.setItem("nbk_referral_code", trimmed);
+          } catch {}
+        } else {
+          setReferralAgentInfo(null);
+          setReferralCommissionPercent(0);
+        }
+      }
+    } catch {
+      setReferralAgentInfo(null);
+      setReferralCommissionPercent(0);
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRef = urlParams.get("ref") || urlParams.get("referral");
+      const storedRef = localStorage.getItem("nbk_referral_code");
+      const activeRef = (urlRef || storedRef || "").trim();
+      if (activeRef && !referralAgentCode) {
+        setReferralAgentCode(activeRef);
+        lookupReferralAgent(activeRef);
+      }
+    } catch {}
+  }, []);
+
+  const commissionDiscount = referralAgentInfo && referralCommissionPercent > 0
+    ? Math.round(total * (referralCommissionPercent / 100))
+    : 0;
+
   const deliveryCharge = Number(selectedDeliveryOption.charge) || 0;
-  const grandTotal = total + deliveryCharge;
+  const grandTotal = Math.max(0, total - commissionDiscount + deliveryCharge);
 
   const activeMethods = useMemo(() => {
     return paymentMethods.filter((p) => p.isActive !== false);
@@ -817,6 +1021,11 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
         ? ` | [${selectedDeliveryOption.name}: ${courierOrTransportName.trim()}]`
         : ` | [ডেলিভারি মাধ্যম: ${selectedDeliveryOption?.name || selectedDeliveryType}]`;
 
+      const agentTypeLabel = referralAgentInfo?.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার";
+      const referralNote = referralAgentInfo
+        ? ` | [${agentTypeLabel}: ${referralAgentInfo.name} (ফোন: ${referralAgentInfo.phone})${referralAgentInfo.code ? ` (কোড: ${referralAgentInfo.code})` : ""} | কমিশন: ৳${commissionDiscount} (${referralCommissionPercent}%)]`
+        : (commissionDiscount > 0 ? ` | কমিশন: ৳${commissionDiscount} (${referralCommissionPercent}%)` : "");
+
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
       const effectiveSenderNumber = paymentOption === "pay_now" ? senderNumber.trim() : (isPartialReceipt ? remainingSenderNumber.trim() : undefined);
       const effectiveTrxId = paymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt ? remainingTrxId.trim() : undefined);
@@ -832,7 +1041,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           password: customerPassword.trim() || undefined,
           instituteId: instituteName,
           items,
-          notes: `${effectiveAddress}${deliveryNote}${ilhakText}${courierNote}`,
+          notes: `${effectiveAddress}${deliveryNote}${ilhakText}${referralNote}${courierNote}`,
           paymentOption,
           paymentProvider: effectiveMethodName,
           paymentMethod: effectiveMethodName,
@@ -872,7 +1081,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 : "মাদরাসা ও ডেলিভারির সঠিক তথ্য প্রদান করুন"}
             </p>
           </div>
-          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep, autoFilledFields })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+          <button onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep, autoFilledFields, referralAgentCode, referralAgentInfo, referralCommissionPercent })} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
@@ -1039,6 +1248,60 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                 </div>
               </div>
 
+              {/* ─── KENDRO ZIMADAR / BOOK AGENT REFERRAL SECTION ────────────────── */}
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>কেন্দ্র জিম্মাদার বা বই এজেন্ট কোড (ঐচ্ছিক)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-semibold bg-slate-200/70 px-2 py-0.5 rounded">
+                      রেফারেন্স
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    কোনো কেন্দ্র জিম্মাদার (K...) বা বই এজেন্ট (A...)-এর মাধ্যমে অর্ডার করলে তাঁর আইডি কোড বা মোবাইল নম্বর লিখুন।
+                  </p>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={referralAgentCode}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setReferralAgentCode(val);
+                        lookupReferralAgent(val);
+                      }}
+                      placeholder="যেমন: K001, A001 বা মোবাইল নম্বর..."
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-emerald-600 font-mono"
+                    />
+                  </div>
+
+                  {referralAgentInfo ? (
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-xs font-bold flex items-center justify-between animate-in fade-in flex-wrap gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <span>
+                          {referralAgentInfo.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার"}: {referralAgentInfo.name} ({referralAgentInfo.phone})
+                        </span>
+                        {referralAgentInfo.code && (
+                          <span className="bg-emerald-200/80 text-emerald-950 font-mono text-[10px] px-1.5 py-0.2 rounded font-black">
+                            {referralAgentInfo.code}
+                          </span>
+                        )}
+                      </div>
+                      <span className="bg-emerald-700 text-white text-[10.5px] px-2 py-0.5 rounded-md font-bold">
+                        {referralCommissionPercent}% কমিশন প্রযোজ্য
+                      </span>
+                    </div>
+                  ) : referralAgentCode.trim().length >= 3 ? (
+                    <p className="text-[10.5px] text-slate-400">
+                      * কোড বা নম্বর মিলিয়ে জিম্মাদার/এজেন্টের নাম স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে।
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
               {/* Delivery Options Selector */}
               <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
@@ -1133,6 +1396,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                   <span>পণ্যের মূল্য (সাবটোটাল):</span>
                   <span className="font-semibold text-slate-800">৳{total.toFixed(2)}</span>
                 </div>
+                {commissionDiscount > 0 && (
+                  <div className="flex items-center justify-between text-xs sm:text-sm text-emerald-800 font-bold bg-emerald-50/80 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                    <span>
+                      {referralAgentInfo?.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার"} কমিশন ছাড় ({referralCommissionPercent}%):
+                    </span>
+                    <span>-৳{commissionDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600">
                   <span>
                     ডেলিভারি চার্জ ({selectedDeliveryOption.name}
@@ -1171,7 +1442,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
               <div className="flex gap-3 mt-4">
                 <button
                   type="button"
-                  onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep })}
+                  onClick={() => onClose({ ilhak, ownerName, instituteName, contactNo, customerEmail, customerPassword, address: geoAddress.fullAddress || address, geoAddress, hasSeparateDelivery, deliveryAddress, searchStatus, paymentStep, referralAgentCode, referralAgentInfo, referralCommissionPercent })}
                   className="w-1/2 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all border border-slate-200"
                 >
                   আরও পণ্য যোগ করুন
@@ -1586,10 +1857,11 @@ export default function StorePage() {
   // Delivery policy alert modal & banner states
   const [isDeliveryAlertOpen, setIsDeliveryAlertOpen] = useState(false);
   const [deliveryAlertMode, setDeliveryAlertMode] = useState<"first_visit" | "before_order" | "manual">("before_order");
+  const [policyTab, setPolicyTab] = useState<"delivery" | "payment" | "return" | "complaint">("delivery");
   const [isDeliveryBannerDismissed, setIsDeliveryBannerDismissed] = useState(false);
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
 
-  // Read URL query parameters (e.g. ?category=... or ?track=true or ?sub=...)
+  // Read URL query parameters and hash (e.g. ?category=... or ?track=true or #policy-payment)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1603,6 +1875,28 @@ export default function StorePage() {
       }
       if (urlParams.get("track") === "true") {
         setIsTrackModalOpen(true);
+      }
+      if (urlParams.get("view") === "list") {
+        setViewMode("list");
+      }
+
+      const hash = (window.location.hash || "").toLowerCase();
+      if (hash.includes("payment")) {
+        setPolicyTab("payment");
+        setDeliveryAlertMode("manual");
+        setIsDeliveryAlertOpen(true);
+      } else if (hash.includes("return")) {
+        setPolicyTab("return");
+        setDeliveryAlertMode("manual");
+        setIsDeliveryAlertOpen(true);
+      } else if (hash.includes("delivery") || hash.includes("policy")) {
+        setPolicyTab("delivery");
+        setDeliveryAlertMode("manual");
+        setIsDeliveryAlertOpen(true);
+      } else if (hash.includes("complaint")) {
+        setPolicyTab("complaint");
+        setDeliveryAlertMode("manual");
+        setIsDeliveryAlertOpen(true);
       }
     }
   }, []);
@@ -1890,7 +2184,7 @@ export default function StorePage() {
   }, [products, search, selectedCategory, selectedSubTab, showOnlyInStock, showOnlyFavourites, favourites, minPrice, maxPrice, sortBy, ratingFilter]);
 
   return (
-    <div className="w-full flex-1 flex flex-col bg-slate-50 min-h-screen xl:min-h-0 xl:h-[calc(100dvh-6.75rem)] xl:max-h-[calc(100dvh-6.75rem)] xl:overflow-hidden">
+    <div className="w-full flex-1 flex flex-col bg-slate-50 min-h-screen xl:min-h-0 xl:h-[calc(100vh-7.25rem)] xl:max-h-[calc(100vh-7.25rem)] xl:overflow-hidden">
       {/* Fixed Top Header (Search, Categories & Sub-Tabs) */}
       <div className="bg-white border-b border-slate-200 z-30 shadow-xs flex-shrink-0 sticky top-0">
         <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
@@ -2714,6 +3008,7 @@ export default function StorePage() {
         isOpen={isDeliveryAlertOpen}
         mode={deliveryAlertMode}
         cartTotal={cartTotal}
+        initialTab={policyTab}
         onClose={() => setIsDeliveryAlertOpen(false)}
         onProceedToOrder={() => {
           setIsDeliveryAlertOpen(false);

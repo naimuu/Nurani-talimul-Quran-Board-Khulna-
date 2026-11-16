@@ -62,6 +62,7 @@ interface JimmadarProfile {
   name: string;
   phone: string;
   code?: string;
+  category?: "zimadar" | "agent" | string;
   bookCommissionPercent: number;
   questionCommissionPercent: number;
   totalOrders: number;
@@ -399,11 +400,20 @@ export default function ReferralManagementTab() {
                               {agent.name.slice(0, 1) || "জ"}
                             </div>
                             <div>
-                              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                              <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
                                 <span>{agent.name}</span>
                                 {agent.code && (
-                                  <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
+                                  <span className="text-[10.5px] bg-slate-100 text-slate-800 border border-slate-200 px-1.5 py-0.2 rounded font-mono font-bold">
                                     {agent.code}
+                                  </span>
+                                )}
+                                {agent.category === "agent" || (agent.code && agent.code.toUpperCase().startsWith("A")) ? (
+                                  <span className="text-[9.5px] bg-teal-50 text-teal-800 border border-teal-200 px-1.5 py-0.2 rounded font-bold">
+                                    বই এজেন্ট
+                                  </span>
+                                ) : (
+                                  <span className="text-[9.5px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded font-bold">
+                                    কেন্দ্র জিম্মাদার
                                   </span>
                                 )}
                               </div>

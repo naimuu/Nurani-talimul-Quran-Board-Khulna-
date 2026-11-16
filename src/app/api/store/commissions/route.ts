@@ -30,9 +30,16 @@ export async function GET(request: Request) {
       });
 
       if (matchedCustomAgent) {
+        const category =
+          matchedCustomAgent.category ||
+          (matchedCustomAgent.code?.toUpperCase().startsWith("A") ? "agent" : "zimadar");
         return NextResponse.json({
           found: true,
-          agent: matchedCustomAgent,
+          agent: {
+            ...matchedCustomAgent,
+            category,
+          },
+          category,
           bookCommissionPercent: matchedCustomAgent.bookCommissionPercent,
           questionCommissionPercent:
             matchedCustomAgent.questionCommissionPercent ?? settings.questionCommissionPercent,
@@ -113,7 +120,19 @@ export async function PUT(request: Request) {
         body.questionCommissionEnabled !== undefined
           ? Boolean(body.questionCommissionEnabled)
           : current.questionCommissionEnabled,
-      customAgents: Array.isArray(body.customAgents) ? body.customAgents : current.customAgents,
+      customAgents: Array.isArray(body.customAgents)
+        ? body.customAgents.map((a: any) => ({
+            id: a.id || `agent_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            name: (a.name || "").trim(),
+            phone: (a.phone || "").trim(),
+            code: a.code ? String(a.code).trim().toUpperCase() : undefined,
+            category: a.category === "agent" ? "agent" : "zimadar",
+            bookCommissionPercent: Math.max(0, Math.min(100, Number(a.bookCommissionPercent) || 0)),
+            questionCommissionPercent: Math.max(0, Math.min(100, Number(a.questionCommissionPercent) || 0)),
+            isActive: a.isActive !== false,
+            notes: (a.notes || "").trim() || undefined,
+          }))
+        : current.customAgents,
     };
 
     await prisma.pageContent.upsert({

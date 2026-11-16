@@ -65,12 +65,16 @@ export default function LedgerTab({ storeCategory, onCategoryChange }: { storeCa
     fetchSales();
   }, []);
 
-  // Helper to parse Zimadar details from notes
+  // Helper to parse Zimadar / Agent details from notes
   const getZimadarInfo = (notes?: string) => {
-    if (!notes || !notes.includes('[কেন্দ্র জিম্মাদার:')) return null;
-    const match = notes.match(/\[কেন্দ্র জিম্মাদার:\s*([^|(\]]+)(?:(?:\(|\|\s*ফোন:)\s*([^|)\\]]+)\)?)?(?:\|\s*অন্তর্ভুক্ত মাদরাসা:\s*([^|\]]+))?(?:\|\s*কমিশন:\s*([^|\]]+))?/i);
+    if (!notes) return null;
+    const hasTag = notes.includes('[কেন্দ্র জিম্মাদার:') || notes.includes('[বই এজেন্ট:');
+    if (!hasTag) return null;
+    const isAgent = notes.includes('[বই এজেন্ট:');
+    const match = notes.match(/\[(?:কেন্দ্র\s*জিম্মাদার|বই\s*এজেন্ট):\s*([^|(\]]+)(?:(?:\(|\|\s*ফোন:)\s*([^|)\\]]+)\)?)?(?:\|\s*অন্তর্ভুক্ত মাদরাসা:\s*([^|\]]+))?(?:\|\s*কমিশন:\s*([^|\]]+))?/i);
     if (!match) return null;
     return {
+      type: isAgent ? 'বই এজেন্ট' : 'কেন্দ্র জিম্মাদার',
       name: match[1]?.trim() || "",
       phone: match[2]?.replace(/[()]/g, "").trim() || "",
       madrasas: match[3]?.trim() || "",
@@ -395,8 +399,15 @@ export default function LedgerTab({ storeCategory, onCategoryChange }: { storeCa
                             {isQuestion ? 'প্রশ্নপত্র' : 'বই-স্টেশনারি'}
                           </span>
                           {zim && (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title={`জিম্মাদার: ${zim.name} (${zim.phone})`}>
-                              কেন্দ্র জিম্মাদার
+                            <span
+                              className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                zim.type === "বই এজেন্ট"
+                                  ? "bg-teal-50 text-teal-700 border border-teal-200"
+                                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
+                              title={`${zim.type}: ${zim.name} (${zim.phone})`}
+                            >
+                              {zim.type}
                             </span>
                           )}
                         </div>

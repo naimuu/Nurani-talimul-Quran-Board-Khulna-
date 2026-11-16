@@ -2,11 +2,14 @@ import { prisma } from "@/lib/prisma";
 
 export const COMMISSION_SLUG = "store-commission-settings-v2";
 
+export type AgentCategory = "zimadar" | "agent";
+
 export interface CustomAgent {
   id: string;
   name: string;
   phone: string;
   code?: string;
+  category?: AgentCategory | string; // 'zimadar' = কেন্দ্র জিম্মাদার (e.g. K001), 'agent' = বই এজেন্ট (e.g. A001)
   bookCommissionPercent: number;
   questionCommissionPercent?: number;
   isActive: boolean;
@@ -31,19 +34,32 @@ export const DEFAULT_COMMISSION_SETTINGS: CommissionSettingsData = {
   customAgents: [
     {
       id: "agent_demo_1",
+      name: "মোস্তাফিজুর রহমান",
+      phone: "01715368036",
+      code: "K001",
+      category: "zimadar",
+      bookCommissionPercent: 35,
+      questionCommissionPercent: 15,
+      isActive: true,
+      notes: "খুলনা জিম্মাদার",
+    },
+    {
+      id: "agent_demo_2",
       name: "মাওলানা মোস্তাফিজুর রহমান",
       phone: "01711000001",
-      code: "AG-101",
+      code: "K002",
+      category: "zimadar",
       bookCommissionPercent: 20,
       questionCommissionPercent: 15,
       isActive: true,
       notes: "খুলনা সদর প্রধান জিম্মাদার",
     },
     {
-      id: "agent_demo_2",
+      id: "agent_demo_3",
       name: "মাওলানা মোহাম্মদ নাঈম",
       phone: "01711000002",
-      code: "AG-102",
+      code: "A001",
+      category: "agent",
       bookCommissionPercent: 18,
       questionCommissionPercent: 15,
       isActive: true,
@@ -51,6 +67,35 @@ export const DEFAULT_COMMISSION_SETTINGS: CommissionSettingsData = {
     },
   ],
 };
+
+/**
+ * Smart generator for user ID / Agent codes:
+ * - কেন্দ্র জিম্মাদার (zimadar): prefix 'K' -> K001, K002...
+ * - বই এজেন্ট (agent): prefix 'A' -> A001, A002...
+ */
+export function generateNextAgentCode(
+  category: "zimadar" | "agent" | string,
+  existingAgents: CustomAgent[] = []
+): string {
+  const prefix = category === "agent" ? "A" : "K";
+  let maxNum = 0;
+  const regex = new RegExp(`^${prefix}(\\d+)$`, "i");
+
+  for (const a of existingAgents) {
+    if (a.code) {
+      const match = a.code.trim().match(regex);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+  }
+
+  const nextNum = maxNum + 1;
+  return `${prefix}${String(nextNum).padStart(3, "0")}`;
+}
 
 export async function getCommissionSettings(): Promise<CommissionSettingsData> {
   try {
@@ -149,18 +194,25 @@ export function parseReferralInfo(notes: string | null | undefined): {
     phone = phoneMatch[0].replace(/^\+88/, "");
   }
 
-  // Extract code (e.g. AG-101 or code: xxx)
-  const codeMatch = notes.match(/(?:কোড|আইডি|Code|ID):\s*([a-zA-Z0-9\-_]+)/i) || notes.match(/(AG-\d+)/i);
+  // Extract code (e.g. K001, A001, AG-101 or code: xxx)
+  const codeMatch =
+    notes.match(/(?:কোড|আইডি|Code|ID):\s*([a-zA-Z0-9\-_]+)/i) ||
+    notes.match(/\b([KA]\d{2,})\b/i) ||
+    notes.match(/(AG-\d+)/i);
   if (codeMatch) {
     code = codeMatch[1].trim();
   }
 
-  // Extract name: e.g. "[কেন্দ্র জিম্মাদার: মাওলানা রফিক (ফোন: ..." or "| জিম্মাদার: হাফেজ করিম (017...)"
-  const bracketNameMatch = notes.match(/\[(?:কেন্দ্র\s*জিম্মাদার|রেফারেল\s*জিম্মাদার|জিম্মাদার|তাশকিলকারী\s*জিম্মাদার):\s*([^|(]+?)(?:\s*\(|\s*\||\])/);
+  // Extract name: e.g. "[কেন্দ্র জিম্মাদার: মাওলানা রফিক (ফোন: ..." or "[বই এজেন্ট: মাওলানা নাঈম ..."
+  const bracketNameMatch = notes.match(
+    /\[(?:কেন্দ্র\s*জিম্মাদার|বই\s*এজেন্ট|রেফারেল\s*এজেন্ট|রেফারেল\s*জিম্মাদার|জিম্মাদার|তাশকিলকারী\s*জিম্মাদার):\s*([^|(]+?)(?:\s*\(|\s*\||\])/
+  );
   if (bracketNameMatch && bracketNameMatch[1].trim()) {
     name = bracketNameMatch[1].trim();
   } else {
-    const pipeNameMatch = notes.match(/\|\s*(?:কেন্দ্র\s*জিম্মাদার|জিম্মাদার|রেফারেল):\s*([^|(]+?)(?:\s*\(|\s*\|)/);
+    const pipeNameMatch = notes.match(
+      /\|\s*(?:কেন্দ্র\s*জিম্মাদার|বই\s*এজেন্ট|জিম্মাদার|রেফারেল):\s*([^|(]+?)(?:\s*\(|\s*\|)/
+    );
     if (pipeNameMatch && pipeNameMatch[1].trim()) {
       name = pipeNameMatch[1].trim();
     }

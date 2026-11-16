@@ -461,8 +461,9 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
     try {
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
       const typeLabel = customerType === "agent" ? "জিম্মাদার / এজেন্ট" : customerType === "madrasa" ? "মাদরাসা" : "খুচরা ক্রেতা";
+      const agentTypeLabel = agentInfo?.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার";
       const agentNote = agentInfo
-        ? ` | [কেন্দ্র জিম্মাদার: ${agentInfo.name} (ফোন: ${agentInfo.phone})${agentInfo.code ? ` (কোড: ${agentInfo.code})` : ""} | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)]`
+        ? ` | [${agentTypeLabel}: ${agentInfo.name} (ফোন: ${agentInfo.phone})${agentInfo.code ? ` (কোড: ${agentInfo.code})` : ""} | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)]`
         : (discountAmount > 0 ? ` | কমিশন: ৳${discountAmount} (${appliedCommissionPercent}%)` : "");
       const courierNote = selectedDeliveryOption.requiresName && courierOrTransportName.trim()
         ? ` | [${selectedDeliveryOption.name}: ${courierOrTransportName.trim()}]`
@@ -636,7 +637,7 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
           <div className="flex items-center gap-2 flex-wrap">
             <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10.5px] font-bold">রেফারেল লিংক সক্রিয়</span>
             <span>
-              আপনি কেন্দ্র জিম্মাদার <strong>{agentInfo.name}</strong> ({agentInfo.phone})-এর মাধ্যমে কেনাকাটা করছেন ({appliedCommissionPercent}% কমিশন প্রযোজ্য)।
+              আপনি {agentInfo.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার"} <strong>{agentInfo.name}</strong> ({agentInfo.phone}){agentInfo.code ? ` [${agentInfo.code}]` : ""}-এর মাধ্যমে কেনাকাটা করছেন ({appliedCommissionPercent}% কমিশন প্রযোজ্য)।
             </span>
           </div>
           <button
@@ -1175,12 +1176,12 @@ export default function StoreClient({ initialProducts }: { initialProducts: Prod
                         setAgentLookupCode(e.target.value);
                         lookupAgent(e.target.value);
                       }}
-                      placeholder="যেমন: 017... বা AG-101"
-                      className="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs font-bold bg-white focus:outline-emerald-600"
+                      placeholder="যেমন: 017... বা K001 / A001"
+                      className="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs font-bold bg-white focus:outline-emerald-600 font-mono"
                     />
                     {agentInfo ? (
-                      <div className="text-[11px] font-bold text-emerald-800 flex items-center justify-between">
-                        <span>✓ জিম্মাদার: {agentInfo.name}</span>
+                      <div className="text-[11px] font-bold text-emerald-800 flex items-center justify-between flex-wrap gap-1">
+                        <span>✓ {agentInfo.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার"}: {agentInfo.name} {agentInfo.code ? `(${agentInfo.code})` : ""}</span>
                         <span className="bg-emerald-700 text-white px-2 py-0.5 rounded font-black">
                           {appliedCommissionPercent}% কমিশন
                         </span>

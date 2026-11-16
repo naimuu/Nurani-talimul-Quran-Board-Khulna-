@@ -22,8 +22,13 @@ import {
   BookOpen,
   FileQuestion,
   HelpCircle,
+  Pencil,
+  RefreshCw,
+  CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { CustomAgent, generateNextAgentCode } from "@/lib/commissions";
 
 export interface DynamicPaymentMethod {
   id?: string;
@@ -856,16 +861,24 @@ export function CommissionsManager({ onSaved }: { onSaved?: () => void }) {
   const [bookDefaultAgentPercent, setBookDefaultAgentPercent] = useState<number>(15);
   const [questionPercent, setQuestionPercent] = useState<number>(15);
   const [questionEnabled, setQuestionEnabled] = useState<boolean>(true);
-  const [customAgents, setCustomAgents] = useState<any[]>([]);
+  const [customAgents, setCustomAgents] = useState<CustomAgent[]>([]);
 
-  // Add agent form state
-  const [newAgentName, setNewAgentName] = useState("");
-  const [newAgentPhone, setNewAgentPhone] = useState("");
-  const [newAgentCode, setNewAgentCode] = useState("");
-  const [newAgentBookPercent, setNewAgentBookPercent] = useState<number>(20);
-  const [newAgentQuestionPercent, setNewAgentQuestionPercent] = useState<number>(15);
-  const [newAgentNotes, setNewAgentNotes] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
+  // Filter category state (all, zimadar, agent)
+  const [filterCategory, setFilterCategory] = useState<"all" | "zimadar" | "agent">("all");
+
+  // Add / Edit Agent Modal state
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+
+  // Form states
+  const [agentFormCategory, setAgentFormCategory] = useState<"zimadar" | "agent">("zimadar");
+  const [agentFormName, setAgentFormName] = useState("");
+  const [agentFormPhone, setAgentFormPhone] = useState("");
+  const [agentFormCode, setAgentFormCode] = useState("");
+  const [agentFormBookPercent, setAgentFormBookPercent] = useState<number>(20);
+  const [agentFormQuestionPercent, setAgentFormQuestionPercent] = useState<number>(15);
+  const [agentFormNotes, setAgentFormNotes] = useState("");
+  const [agentFormIsActive, setAgentFormIsActive] = useState<boolean>(true);
 
   useEffect(() => {
     fetchCommissions();
@@ -920,41 +933,141 @@ export function CommissionsManager({ onSaved }: { onSaved?: () => void }) {
     }
   };
 
-  const handleAddAgent = () => {
-    if (!newAgentName.trim()) {
+  const handleOpenAdd = (presetType: "zimadar" | "agent" = "zimadar") => {
+    setEditingAgentId(null);
+    setAgentFormCategory(presetType);
+    setAgentFormName("");
+    setAgentFormPhone("");
+    setAgentFormCode(generateNextAgentCode(presetType, customAgents));
+    setAgentFormBookPercent(presetType === "zimadar" ? 20 : 18);
+    setAgentFormQuestionPercent(presetType === "zimadar" ? 15 : 0);
+    setAgentFormNotes("");
+    setAgentFormIsActive(true);
+    setShowAgentModal(true);
+  };
+
+  const handleOpenEdit = (agent: CustomAgent) => {
+    setEditingAgentId(agent.id);
+    const inferredCategory: "zimadar" | "agent" =
+      agent.category === "agent" || (agent.code && agent.code.toUpperCase().startsWith("A"))
+        ? "agent"
+        : "zimadar";
+    setAgentFormCategory(inferredCategory);
+    setAgentFormName(agent.name || "");
+    setAgentFormPhone(agent.phone || "");
+    setAgentFormCode(agent.code || "");
+    setAgentFormBookPercent(agent.bookCommissionPercent ?? 20);
+    setAgentFormQuestionPercent(agent.questionCommissionPercent ?? questionPercent);
+    setAgentFormNotes(agent.notes || "");
+    setAgentFormIsActive(agent.isActive !== false);
+    setShowAgentModal(true);
+  };
+
+  const handleChangeCategory = (newCat: "zimadar" | "agent") => {
+    setAgentFormCategory(newCat);
+    // If the code is currently empty or follows standard auto pattern K\d+ or A\d+, auto-generate matching code
+    const isAutoOrEmpty = !agentFormCode.trim() || /^[KA]\d+$/i.test(agentFormCode.trim());
+    if (isAutoOrEmpty) {
+      setAgentFormCode(generateNextAgentCode(newCat, customAgents));
+    }
+    if (!editingAgentId) {
+      if (newCat === "zimadar") {
+        setAgentFormBookPercent(20);
+        setAgentFormQuestionPercent(15);
+      } else {
+        setAgentFormBookPercent(18);
+        setAgentFormQuestionPercent(0);
+      }
+    }
+  };
+
+  const handleRegenerateCode = () => {
+    const nextCode = generateNextAgentCode(agentFormCategory, customAgents);
+    setAgentFormCode(nextCode);
+    toast.success(`নতুন কোড (${nextCode}) তৈরি হয়েছে`);
+  };
+
+  const handleSaveAgentForm = () => {
+    if (!agentFormName.trim()) {
       toast.error("জিম্মাদার/এজেন্টের নাম লিখুন");
       return;
     }
-    if (!newAgentPhone.trim()) {
+    if (!agentFormPhone.trim()) {
       toast.error("মোবাইল নম্বর লিখুন");
       return;
     }
 
-    const newAgent = {
-      id: `agent_${Date.now()}`,
-      name: newAgentName.trim(),
-      phone: newAgentPhone.trim(),
-      code: newAgentCode.trim() || undefined,
-      bookCommissionPercent: Number(newAgentBookPercent) || 0,
-      questionCommissionPercent: Number(newAgentQuestionPercent) || 0,
-      isActive: true,
-      notes: newAgentNotes.trim() || undefined,
-    };
+    const cleanCode = agentFormCode.trim()
+      ? agentFormCode.trim().toUpperCase()
+      : generateNextAgentCode(agentFormCategory, customAgents);
 
-    setCustomAgents((prev) => [newAgent, ...prev]);
-    setNewAgentName("");
-    setNewAgentPhone("");
-    setNewAgentCode("");
-    setNewAgentBookPercent(20);
-    setNewAgentQuestionPercent(15);
-    setNewAgentNotes("");
-    setShowAddForm(false);
-    toast.success("নতুন জিম্মাদার যোগ করা হয়েছে! সংরক্ষণ বাটনে চাপুন।");
+    if (editingAgentId) {
+      setCustomAgents((prev) =>
+        prev.map((a) => {
+          if (a.id === editingAgentId) {
+            return {
+              ...a,
+              name: agentFormName.trim(),
+              phone: agentFormPhone.trim(),
+              code: cleanCode,
+              category: agentFormCategory,
+              bookCommissionPercent: Number(agentFormBookPercent) || 0,
+              questionCommissionPercent: Number(agentFormQuestionPercent) || 0,
+              notes: agentFormNotes.trim() || undefined,
+              isActive: agentFormIsActive,
+            };
+          }
+          return a;
+        })
+      );
+      toast.success("জিম্মাদার/এজেন্টের তথ্য আপডেট করা হয়েছে! নিচে সংরক্ষণ বাটনে চাপুন।");
+    } else {
+      const newAgent: CustomAgent = {
+        id: `agent_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: agentFormName.trim(),
+        phone: agentFormPhone.trim(),
+        code: cleanCode,
+        category: agentFormCategory,
+        bookCommissionPercent: Number(agentFormBookPercent) || 0,
+        questionCommissionPercent: Number(agentFormQuestionPercent) || 0,
+        isActive: agentFormIsActive,
+        notes: agentFormNotes.trim() || undefined,
+      };
+      setCustomAgents((prev) => [newAgent, ...prev]);
+      toast.success("নতুন জিম্মাদার/এজেন্ট যোগ করা হয়েছে! নিচে সংরক্ষণ বাটনে চাপুন।");
+    }
+
+    setShowAgentModal(false);
+    setEditingAgentId(null);
   };
 
   const handleRemoveAgent = (id: string) => {
-    setCustomAgents((prev) => prev.filter((a) => a.id !== id));
+    if (confirm("আপনি কি নিশ্চিতভাবে এই জিম্মাদার/এজেন্টকে তালিকা থেকে মুছে ফেলতে চান?")) {
+      setCustomAgents((prev) => prev.filter((a) => a.id !== id));
+      toast.success("মুছে ফেলা হয়েছে। সংরক্ষণে চাপুন।");
+    }
   };
+
+  const zimadarCount = customAgents.filter(
+    (a) =>
+      a.category === "zimadar" ||
+      (!a.category && !(a.code && a.code.toUpperCase().startsWith("A")))
+  ).length;
+
+  const agentCount = customAgents.filter(
+    (a) =>
+      a.category === "agent" ||
+      (!a.category && a.code && a.code.toUpperCase().startsWith("A"))
+  ).length;
+
+  const filteredAgents = customAgents.filter((a) => {
+    const isAgent =
+      a.category === "agent" ||
+      (!a.category && a.code && a.code.toUpperCase().startsWith("A"));
+    if (filterCategory === "zimadar") return !isAgent;
+    if (filterCategory === "agent") return isAgent;
+    return true;
+  });
 
   if (loading) {
     return <div className="py-12 text-center text-slate-500 text-sm">কমিশন তথ্য লোড হচ্ছে...</div>;
@@ -1095,7 +1208,7 @@ export function CommissionsManager({ onSaved }: { onSaved?: () => void }) {
 
       {/* 3. স্বতন্ত্র জিম্মাদার / এজেন্ট তালিকা ও কাস্টম কমিশন হার */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 flex-wrap gap-2">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-emerald-700" />
             <div>
@@ -1103,222 +1216,432 @@ export function CommissionsManager({ onSaved }: { onSaved?: () => void }) {
                 ৩। স্বতন্ত্র জিম্মাদার / এজেন্ট তালিকা ও বিশেষ কমিশন হার
               </h4>
               <p className="text-[11px] text-slate-500">
-                সব জিম্মাদারকে সমান হারে না দিয়ে কারো জন্য কম-বেশি কমিশন সেট করুন।
+                কেন্দ্র জিম্মাদার (K001...) এবং বই এজেন্ট (A001...) স্বতন্ত্র কমিশন ও হিসাব ব্যবস্থাপনা।
               </p>
             </div>
           </div>
 
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => handleOpenAdd("zimadar")}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#095738] hover:bg-[#07472d] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ কেন্দ্র জিম্মাদার (K...)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenAdd("agent")}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ বই এজেন্ট (A...)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-2 text-xs font-bold pt-0.5">
           <button
             type="button"
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#095738] hover:bg-[#07472d] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            onClick={() => setFilterCategory("all")}
+            className={`px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+              filterCategory === "all"
+                ? "bg-slate-800 text-white border-slate-800 shadow-xs"
+                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+            }`}
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{showAddForm ? "ফর্ম বন্ধ করুন" : "নতুন জিম্মাদার যোগ করুন"}</span>
+            সব তালিকা ({customAgents.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory("zimadar")}
+            className={`px-3 py-1.5 rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
+              filterCategory === "zimadar"
+                ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                : "bg-amber-50/70 text-amber-800 border-amber-200 hover:bg-amber-100/70"
+            }`}
+          >
+            <span>🏛️ কেন্দ্র জিম্মাদার ({zimadarCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory("agent")}
+            className={`px-3 py-1.5 rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
+              filterCategory === "agent"
+                ? "bg-teal-700 text-white border-teal-700 shadow-xs"
+                : "bg-teal-50/70 text-teal-800 border-teal-200 hover:bg-teal-100/70"
+            }`}
+          >
+            <span>📚 বই এজেন্ট ({agentCount})</span>
           </button>
         </div>
 
-        {/* Add Agent Form */}
-        {showAddForm && (
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-in fade-in">
-            <h5 className="font-bold text-xs text-slate-800">নতুন কেন্দ্র জিম্মাদার / এজেন্ট নিবন্ধন</h5>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  জিম্মাদারের নাম <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newAgentName}
-                  onChange={(e) => setNewAgentName(e.target.value)}
-                  placeholder="যেমন: মাওলানা আবদুর রহমান"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold focus:outline-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  মোবাইল নম্বর <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={newAgentPhone}
-                  onChange={(e) => setNewAgentPhone(e.target.value)}
-                  placeholder="01XXXXXXXXX"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold focus:outline-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">এজেন্ট আইডি / কোড (ঐচ্ছিক)</label>
-                <input
-                  type="text"
-                  value={newAgentCode}
-                  onChange={(e) => setNewAgentCode(e.target.value)}
-                  placeholder="যেমন: AG-105"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold focus:outline-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">বই কমিশন হার (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={newAgentBookPercent}
-                  onChange={(e) => setNewAgentBookPercent(Number(e.target.value) || 0)}
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-bold focus:outline-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">প্রশ্ন কমিশন হার (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={newAgentQuestionPercent}
-                  onChange={(e) => setNewAgentQuestionPercent(Number(e.target.value) || 0)}
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-bold focus:outline-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">নোট / এলাকা (ঐচ্ছিক)</label>
-                <input
-                  type="text"
-                  value={newAgentNotes}
-                  onChange={(e) => setNewAgentNotes(e.target.value)}
-                  placeholder="যেমন: খুলনা জিলা কেন্দ্র"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-emerald-600"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
-              >
-                বাতিল
-              </button>
-              <button
-                type="button"
-                onClick={handleAddAgent}
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer"
-              >
-                যোগ করুন
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Custom Agents Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto border border-slate-200 rounded-xl">
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                <th className="py-2.5 px-3">জিম্মাদারের নাম</th>
+                <th className="py-2.5 px-3">জিম্মাদার / এজেন্টের নাম ও ধরণ</th>
                 <th className="py-2.5 px-3">মোবাইল ও কোড</th>
                 <th className="py-2.5 px-3 text-center">বই কমিশন (%)</th>
                 <th className="py-2.5 px-3 text-center">প্রশ্ন কমিশন (%)</th>
                 <th className="py-2.5 px-3">এলাকা / নোট</th>
                 <th className="py-2.5 px-3 text-center">স্ট্যাটাস</th>
-                <th className="py-2.5 px-3 text-center">অ্যাকশন</th>
+                <th className="py-2.5 px-3 text-center min-w-[90px]">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {customAgents.length === 0 ? (
+              {filteredAgents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-slate-400 italic">
-                    কোনো স্বতন্ত্র জিম্মাদার তালিকাভুক্ত নেই। সাধারণ জিম্মাদার কমিশন প্রযোজ্য হবে।
+                  <td colSpan={7} className="py-8 text-center text-slate-400 italic bg-slate-50/50">
+                    কোনো তথ্য পাওয়া যায়নি। উপরে বাটন চেপে নতুন কেন্দ্র জিম্মাদার বা বই এজেন্ট যোগ করুন।
                   </td>
                 </tr>
               ) : (
-                customAgents.map((agent, idx) => (
-                  <tr key={agent.id || idx} className="hover:bg-slate-50/80">
-                    <td className="py-2.5 px-3 font-bold text-slate-800">{agent.name}</td>
-                    <td className="py-2.5 px-3 font-mono">
-                      <div>{agent.phone}</div>
-                      {agent.code && <span className="text-[10px] text-slate-400 font-semibold">{agent.code}</span>}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        value={agent.bookCommissionPercent}
-                        onChange={(e) => {
-                          const updated = [...customAgents];
-                          updated[idx] = {
-                            ...updated[idx],
-                            bookCommissionPercent: Number(e.target.value) || 0,
-                          };
-                          setCustomAgents(updated);
-                        }}
-                        className="w-16 px-1.5 py-1 border border-slate-200 rounded text-center font-bold text-emerald-700 bg-white"
-                      />
-                      <span className="ml-0.5 text-slate-400 font-bold">%</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        value={agent.questionCommissionPercent ?? questionPercent}
-                        onChange={(e) => {
-                          const updated = [...customAgents];
-                          updated[idx] = {
-                            ...updated[idx],
-                            questionCommissionPercent: Number(e.target.value) || 0,
-                          };
-                          setCustomAgents(updated);
-                        }}
-                        className="w-16 px-1.5 py-1 border border-slate-200 rounded text-center font-bold text-blue-700 bg-white"
-                      />
-                      <span className="ml-0.5 text-slate-400 font-bold">%</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500">{agent.notes || "—"}</td>
-                    <td className="py-2.5 px-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updated = [...customAgents];
-                          updated[idx] = { ...updated[idx], isActive: !updated[idx].isActive };
-                          setCustomAgents(updated);
-                        }}
-                        className={`px-2 py-0.5 rounded text-[10.5px] font-bold cursor-pointer ${
-                          agent.isActive !== false
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-200 text-slate-600"
-                        }`}
-                      >
-                        {agent.isActive !== false ? "সক্রিয়" : "নিষ্ক্রিয়"}
-                      </button>
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAgent(agent.id)}
-                        className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer"
-                        title="মুছুন"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredAgents.map((agent) => {
+                  const isAgentType =
+                    agent.category === "agent" ||
+                    (!agent.category && agent.code && agent.code.toUpperCase().startsWith("A"));
+                  return (
+                    <tr key={agent.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-slate-900 text-[13px]">{agent.name}</div>
+                        <div className="mt-0.5">
+                          {isAgentType ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                              📚 বই এজেন্ট
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                              🏛️ কেন্দ্র জিম্মাদার
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="font-mono font-semibold text-slate-700">{agent.phone}</div>
+                        {agent.code ? (
+                          <div className="mt-0.5">
+                            <span className="font-mono font-black text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200 inline-block shadow-2xs">
+                              {agent.code}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">কোড নেই</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={agent.bookCommissionPercent}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setCustomAgents((prev) =>
+                              prev.map((a) => (a.id === agent.id ? { ...a, bookCommissionPercent: val } : a))
+                            );
+                          }}
+                          className="w-16 px-1.5 py-1 border border-slate-200 rounded text-center font-bold text-emerald-700 bg-white focus:outline-emerald-600"
+                        />
+                        <span className="ml-0.5 text-slate-400 font-bold">%</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={agent.questionCommissionPercent ?? questionPercent}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setCustomAgents((prev) =>
+                              prev.map((a) => (a.id === agent.id ? { ...a, questionCommissionPercent: val } : a))
+                            );
+                          }}
+                          className="w-16 px-1.5 py-1 border border-slate-200 rounded text-center font-bold text-blue-700 bg-white focus:outline-emerald-600"
+                        />
+                        <span className="ml-0.5 text-slate-400 font-bold">%</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-500 max-w-[150px] truncate" title={agent.notes}>
+                        {agent.notes || "—"}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomAgents((prev) =>
+                              prev.map((a) => (a.id === agent.id ? { ...a, isActive: !a.isActive } : a))
+                            );
+                          }}
+                          className={`px-2 py-0.5 rounded text-[10.5px] font-bold cursor-pointer transition-colors ${
+                            agent.isActive !== false
+                              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                              : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                          }`}
+                        >
+                          {agent.isActive !== false ? "সক্রিয়" : "নিষ্ক্রিয়"}
+                        </button>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(agent)}
+                            className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors cursor-pointer shadow-2xs"
+                            title="সম্পাদনা করুন (Edit)"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          {/* Delete Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAgent(agent.id)}
+                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg border border-red-200 transition-colors cursor-pointer shadow-2xs"
+                            title="মুছুন (Delete)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Add / Edit Agent Modal */}
+      {showAgentModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in duration-150"
+          onClick={() => setShowAgentModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 bg-[#095738] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {editingAgentId ? <Pencil className="w-4 h-4 text-amber-300" /> : <Plus className="w-4 h-4 text-amber-300" />}
+                <h4 className="font-bold text-sm sm:text-base">
+                  {editingAgentId ? "জিম্মাদার / এজেন্ট তথ্য সম্পাদনা (Edit)" : "নতুন জিম্মাদার বা এজেন্ট নিবন্ধন"}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAgentModal(false)}
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+              {/* Category Selector Cards */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-slate-800">
+                  ব্যবহারকারীর ধরণ নির্বাচন করুন <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleChangeCategory("zimadar")}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      agentFormCategory === "zimadar"
+                        ? "bg-amber-50/80 border-amber-500 ring-2 ring-amber-400/40 text-amber-950"
+                        : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs">🏛️ কেন্দ্র জিম্মাদার</span>
+                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-900">
+                        K001...
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                      কেন্দ্র ও মাদরাসা পরিচালনা, প্রশ্নপত্র ও বই সরবরাহ
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleChangeCategory("agent")}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      agentFormCategory === "agent"
+                        ? "bg-teal-50/80 border-teal-500 ring-2 ring-teal-400/40 text-teal-950"
+                        : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs">📚 বই এজেন্ট</span>
+                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-teal-200/70 text-teal-900">
+                        A001...
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                      সাধারণ ও পাইকারি বই ও স্টেশনারি বিক্রয় প্রতিনিধি
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    নাম <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={agentFormName}
+                    onChange={(e) => setAgentFormName(e.target.value)}
+                    placeholder="যেমন: মাওলানা মোস্তাফিজুর রহমান"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    মোবাইল নম্বর <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={agentFormPhone}
+                    onChange={(e) => setAgentFormPhone(e.target.value)}
+                    placeholder="01XXXXXXXXX"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-emerald-600 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Code with Generator */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700">
+                    ইউজার আইডি / কোড <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateCode}
+                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>নতুন কোড তৈরি করুন</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={agentFormCode}
+                    onChange={(e) => setAgentFormCode(e.target.value.toUpperCase())}
+                    placeholder={agentFormCategory === "zimadar" ? "K001" : "A001"}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-mono font-black text-slate-900 text-sm tracking-wider focus:outline-emerald-600"
+                  />
+                </div>
+                <p className="text-[10.5px] text-slate-500 leading-tight">
+                  {agentFormCategory === "zimadar"
+                    ? "কেন্দ্র জিম্মাদারের কোড 'K' দিয়ে শুরু (যেমন: K001, K002...)"
+                    : "বই এজেন্টের কোড 'A' দিয়ে শুরু (যেমন: A001, A002...)"}
+                </p>
+              </div>
+
+              {/* Commissions */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-1">
+                  <label className="block font-bold text-emerald-950">বই কমিশন হার (%)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={agentFormBookPercent}
+                      onChange={(e) => setAgentFormBookPercent(Number(e.target.value) || 0)}
+                      className="w-full px-2.5 py-1.5 border border-emerald-300 rounded-lg bg-white font-bold text-emerald-800 focus:outline-emerald-600 text-sm"
+                    />
+                    <span className="absolute right-2.5 top-2 text-xs text-emerald-600 font-bold">%</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-xl space-y-1">
+                  <label className="block font-bold text-blue-950">প্রশ্ন কমিশন হার (%)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={agentFormQuestionPercent}
+                      onChange={(e) => setAgentFormQuestionPercent(Number(e.target.value) || 0)}
+                      className="w-full px-2.5 py-1.5 border border-blue-300 rounded-lg bg-white font-bold text-blue-800 focus:outline-emerald-600 text-sm"
+                    />
+                    <span className="absolute right-2.5 top-2 text-xs text-blue-600 font-bold">%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes / Area */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">এলাকা / নোট (ঐচ্ছিক)</label>
+                <input
+                  type="text"
+                  value={agentFormNotes}
+                  onChange={(e) => setAgentFormNotes(e.target.value)}
+                  placeholder="যেমন: খুলনা সদর জিলা কেন্দ্র, বাগেরহাট প্রতিনিধি..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-emerald-600 text-slate-800"
+                />
+              </div>
+
+              {/* Status Toggle */}
+              <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div>
+                  <span className="font-bold text-slate-800">স্ট্যাটাস</span>
+                  <p className="text-[10.5px] text-slate-500">
+                    {agentFormIsActive ? "আইডিটি বর্তমানে সক্রিয় রয়েছে" : "আইডিটি সাময়িকভাবে নিষ্ক্রিয় রয়েছে"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAgentFormIsActive(!agentFormIsActive)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                    agentFormIsActive ? "bg-emerald-600 text-white" : "bg-slate-300 text-slate-700"
+                  }`}
+                >
+                  {agentFormIsActive ? "সক্রিয়" : "নিষ্ক্রিয়"}
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowAgentModal(false)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAgentForm}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{editingAgentId ? "তথ্য আপডেট করুন" : "তালিকায় যোগ করুন"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="pt-4 border-t border-slate-200 flex justify-end">
         <button

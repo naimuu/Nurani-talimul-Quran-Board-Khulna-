@@ -1027,7 +1027,7 @@ export default function QuestionOrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/70 py-2.5 sm:py-4 pb-28 sm:pb-16 font-sans">
+    <div className="min-h-screen bg-slate-50/70 py-2.5 sm:py-4 pb-36 sm:pb-24 font-sans">
       <div className="w-full max-w-[1640px] mx-auto px-2 sm:px-4 md:px-6">
 
         {/* ─── BACK BUTTON + SYNC STATUS ────────────────────────────── */}
@@ -1982,9 +1982,16 @@ export default function QuestionOrderPage() {
 
                     {referralAgentInfo ? (
                       <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-xs font-bold flex items-center justify-between animate-in fade-in">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
-                          <span>তাশকিলকারী জিম্মাদার: {referralAgentInfo.name} ({referralAgentInfo.phone})</span>
+                          <span>
+                            {referralAgentInfo.category === "agent" ? "রেফারেল এজেন্ট" : "তাশকিলকারী কেন্দ্র জিম্মাদার"}: {referralAgentInfo.name} ({referralAgentInfo.phone})
+                          </span>
+                          {referralAgentInfo.code && (
+                            <span className="bg-emerald-200/80 text-emerald-950 font-mono text-[10px] px-1.5 py-0.2 rounded font-black">
+                              {referralAgentInfo.code}
+                            </span>
+                          )}
                         </div>
                         <span className="bg-emerald-700 text-white text-[10.5px] px-2 py-0.5 rounded-md font-bold">
                           {referralCommissionPercent}% কমিশন যুক্ত

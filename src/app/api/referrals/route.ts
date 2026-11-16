@@ -38,6 +38,7 @@ export interface JimmadarReferralProfile {
   name: string;
   phone: string;
   code?: string;
+  category?: "zimadar" | "agent" | string;
   bookCommissionPercent: number;
   questionCommissionPercent: number;
   totalOrders: number;
@@ -117,6 +118,7 @@ export async function GET(request: Request) {
         name: agent.name,
         phone: agent.phone || "",
         code: agent.code || "",
+        category: agent.category || (agent.code?.toUpperCase().startsWith("A") ? "agent" : "zimadar"),
         bookCommissionPercent: agent.bookCommissionPercent,
         questionCommissionPercent: agent.questionCommissionPercent ?? settings.questionCommissionPercent,
         totalOrders: 0,
@@ -162,6 +164,7 @@ export async function GET(request: Request) {
           name: parsed.name || "জিম্মাদার",
           phone: parsed.phone || "",
           code: parsed.code || "",
+          category: parsed.code?.toUpperCase().startsWith("A") ? "agent" : "zimadar",
           bookCommissionPercent: settings.bookDefaultAgentCommissionPercent,
           questionCommissionPercent: settings.questionCommissionPercent,
           totalOrders: 0,
