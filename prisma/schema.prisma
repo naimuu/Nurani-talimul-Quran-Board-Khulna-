@@ -148,6 +148,7 @@ model StoreProduct {
   stock       Int      @default(0)
   unit        String?  @default("টি")
   imageUrl    String?
+  samplePages String[] @default([])
   barcode     String?
   className   String?
   subject     String?

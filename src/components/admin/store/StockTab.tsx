@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ImageCropper from './ImageCropper';
 import CategoryManagementModal from './CategoryManagementModal';
-import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Printer, Scan, Loader2 } from 'lucide-react';
+import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Printer, Scan, Loader2, ChevronLeft, ChevronRight, BookOpen, UploadCloud, Eye } from 'lucide-react';
 
-type Product = { id: string; name: string; category: string; price: number; stock: number; unit: string; updatedAt: string; imageUrl?: string | null; barcode?: string | null; className?: string | null; description?: string | null; weight?: number | null; };
+type Product = { id: string; name: string; category: string; price: number; stock: number; unit: string; updatedAt: string; imageUrl?: string | null; samplePages?: string[]; barcode?: string | null; className?: string | null; description?: string | null; weight?: number | null; };
 
 const toEnglishDigits = (str: string) => {
   const bnToEn: Record<string, string> = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
@@ -44,7 +44,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
   const [activeProduct, setActiveProduct] = useState<Product | null>(product || null);
   const isEdit = !!activeProduct;
 
-  const [form, setForm] = useState<{name: string, price: string, stock: string, unit: string, barcode: string, imageUrl: string, className: string, description: string, weight: string}>(() => {
+  const [form, setForm] = useState<{name: string, price: string, stock: string, unit: string, barcode: string, imageUrl: string, className: string, description: string, weight: string, samplePages: string[]}>(() => {
     if (!product && typeof window !== 'undefined') {
       try {
         const draft = localStorage.getItem('store_product_draft');
@@ -54,6 +54,9 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
             const safeImg = typeof parsed.form.imageUrl === 'string' && !parsed.form.imageUrl.startsWith('blob:') && !parsed.form.imageUrl.startsWith('data:')
               ? parsed.form.imageUrl
               : '';
+            const safeSamplePages = Array.isArray(parsed.form.samplePages)
+              ? parsed.form.samplePages.filter((s: any) => typeof s === 'string' && !s.startsWith('blob:') && !s.startsWith('data:'))
+              : [];
             return {
               name: parsed.form.name || '',
               price: parsed.form.price || '',
@@ -64,6 +67,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
               className: parsed.form.className || defaultClass || '',
               description: parsed.form.description || '',
               weight: parsed.form.weight || '0.25',
+              samplePages: safeSamplePages,
             };
           }
         }
@@ -78,7 +82,8 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
       imageUrl: product?.imageUrl || '',
       className: product?.className || defaultClass || '',
       description: product?.description || '',
-      weight: product?.weight !== undefined && product?.weight !== null ? product.weight.toString() : '0.25'
+      weight: product?.weight !== undefined && product?.weight !== null ? product.weight.toString() : '0.25',
+      samplePages: Array.isArray(product?.samplePages) ? product.samplePages : []
     };
   });
 
@@ -159,6 +164,67 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
     }
   };
 
+  const [uploadingPages, setUploadingPages] = useState(false);
+  const [pagesUploadProgress, setPagesUploadProgress] = useState('');
+  const samplePagesInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadSamplePages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingPages(true);
+    setPagesUploadProgress(`০/${files.length} আপলোড হচ্ছে...`);
+
+    const uploadedUrls: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setPagesUploadProgress(`${i + 1}/${files.length} আপলোড হচ্ছে...`);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'products/samples');
+
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.url) {
+          uploadedUrls.push(data.url);
+        }
+      } catch (err) {
+        console.error('Failed to upload page:', err);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setForm(prev => ({
+        ...prev,
+        samplePages: [...(prev.samplePages || []), ...uploadedUrls]
+      }));
+    }
+
+    setUploadingPages(false);
+    setPagesUploadProgress('');
+    if (samplePagesInputRef.current) {
+      samplePagesInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveSamplePage = (indexToRemove: number) => {
+    setForm(prev => ({
+      ...prev,
+      samplePages: (prev.samplePages || []).filter((_, idx) => idx !== indexToRemove)
+    }));
+  };
+
+  const handleMoveSamplePage = (fromIndex: number, toIndex: number) => {
+    setForm(prev => {
+      const list = [...(prev.samplePages || [])];
+      if (toIndex < 0 || toIndex >= list.length) return prev;
+      const [moved] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, moved);
+      return { ...prev, samplePages: list };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (uploadingImage) {
@@ -194,6 +260,7 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
           name: form.name.trim(),
           barcode: form.barcode.trim(),
           imageUrl: form.imageUrl ? form.imageUrl.trim() : null,
+          samplePages: form.samplePages || [],
           category: selectedCats.join(', '),
           price: parseFloat(form.price),
           stock: parseInt(form.stock || '0') || 0,
@@ -336,7 +403,8 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
                             imageUrl: duplicateCodeProduct.imageUrl || form.imageUrl || '',
                             className: duplicateCodeProduct.className || '',
                             description: duplicateCodeProduct.description || '',
-                            weight: duplicateCodeProduct.weight !== undefined && duplicateCodeProduct.weight !== null ? duplicateCodeProduct.weight.toString() : '0.25'
+                            weight: duplicateCodeProduct.weight !== undefined && duplicateCodeProduct.weight !== null ? duplicateCodeProduct.weight.toString() : '0.25',
+                            samplePages: duplicateCodeProduct.samplePages || []
                           });
                           setSelectedCats(duplicateCodeProduct.category ? duplicateCodeProduct.category.split(',').map(s=>s.trim()).filter(Boolean) : []);
                         }}
@@ -383,7 +451,8 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
                         imageUrl: match.imageUrl || prev.imageUrl || '',
                         className: match.className || '',
                         description: match.description || '',
-                        weight: match.weight !== undefined && match.weight !== null ? match.weight.toString() : '0.25'
+                        weight: match.weight !== undefined && match.weight !== null ? match.weight.toString() : '0.25',
+                        samplePages: match.samplePages || prev.samplePages || []
                       }));
                       setSelectedCats(match.category ? match.category.split(',').map(s=>s.trim()).filter(Boolean) : []);
                       setShowSuggestions(false);
@@ -500,6 +569,111 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
               placeholder="পণ্যের বিস্তারিত বিবরণ..."
               rows={3}
               className="w-full px-4 py-3 text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all resize-none" />
+          </div>
+
+          {/* Sample Pages for users to read */}
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <label className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-emerald-600" />
+                  বইয়ের পড়ার পৃষ্ঠা / স্যাম্পল পেজ
+                </label>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  ব্যবহারকারীদের পড়ার জন্য বইয়ের কয়েকটি পৃষ্ঠা আপলোড করুন
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => samplePagesInputRef.current?.click()}
+                disabled={uploadingPages}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {uploadingPages ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>{pagesUploadProgress || 'আপলোড হচ্ছে...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>+ পৃষ্ঠা যোগ করুন</span>
+                  </>
+                )}
+              </button>
+              <input
+                ref={samplePagesInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleUploadSamplePages}
+                className="hidden"
+              />
+            </div>
+
+            {/* List of uploaded pages */}
+            {form.samplePages && form.samplePages.length > 0 ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                  <span>মোট {form.samplePages.length}টি পৃষ্ঠা যোগ করা হয়েছে:</span>
+                  <span className="text-[10.5px] text-slate-400">তীর বাটন দিয়ে পৃষ্ঠার ক্রম সাজান</span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5">
+                  {form.samplePages.map((pageUrl, idx) => (
+                    <div
+                      key={idx}
+                      className="relative group shrink-0 w-20 bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden flex flex-col"
+                    >
+                      <div className="w-full aspect-[3/4] bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                        <img
+                          src={pageUrl}
+                          alt={`Page ${idx + 1}`}
+                          className="w-full h-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSamplePage(idx)}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow cursor-pointer"
+                          title="পৃষ্ঠাটি মুছে ফেলুন"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="p-0.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[9.5px] text-slate-600 font-bold">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveSamplePage(idx, idx - 1)}
+                          disabled={idx === 0}
+                          className="p-0.5 hover:bg-slate-200 rounded disabled:opacity-20 cursor-pointer"
+                          title="বামে সরান"
+                        >
+                          <ChevronLeft className="w-2.5 h-2.5" />
+                        </button>
+                        <span>পৃ. {idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveSamplePage(idx, idx + 1)}
+                          disabled={idx === form.samplePages.length - 1}
+                          className="p-0.5 hover:bg-slate-200 rounded disabled:opacity-20 cursor-pointer"
+                          title="ডানে সরান"
+                        >
+                          <ChevronRight className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => samplePagesInputRef.current?.click()}
+                className="p-3 border-2 border-dashed border-slate-200 rounded-lg text-center cursor-pointer hover:bg-white hover:border-emerald-400 transition-colors"
+              >
+                <BookOpen className="w-5 h-5 text-slate-300 mx-auto mb-1" />
+                <p className="text-xs text-slate-500 font-medium">কোনো নমুনা পৃষ্ঠা যুক্ত করা হয়নি</p>
+                <p className="text-[10.5px] text-emerald-600 font-bold mt-0.5">+ বইটির কিছু পৃষ্ঠা আপলোড করতে এখানে ক্লিক করুন</p>
+              </div>
+            )}
           </div>
 
           <div>

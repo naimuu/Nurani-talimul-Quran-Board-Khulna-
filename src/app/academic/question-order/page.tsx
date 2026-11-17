@@ -78,6 +78,19 @@ const toEnglishDigits = (str: string): string => {
   return str.replace(/[০-৯]/g, (m) => map[m] || m);
 };
 
+const scrollTabToCenter = (el: HTMLElement | null) => {
+  if (!el || !el.parentElement) return;
+  const container = el.parentElement;
+  const elLeft = el.offsetLeft;
+  const elWidth = el.offsetWidth;
+  const containerWidth = container.offsetWidth;
+  const targetScrollLeft = elLeft - (containerWidth / 2) + (elWidth / 2);
+  container.scrollTo({
+    left: targetScrollLeft,
+    behavior: "smooth"
+  });
+};
+
 export default function QuestionOrderPage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<string>("all");
@@ -1190,12 +1203,13 @@ export default function QuestionOrderPage() {
 
           {/* ROW 2 — EXAM TABS (Compact Pills) */}
           {examTerms.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth touch-pan-x overscroll-x-contain [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
                   setSelectedTerm("all");
                   setSelectedClassId("all");
+                  scrollTabToCenter(e.currentTarget);
                 }}
                 className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                   selectedTerm === "all"
@@ -1211,9 +1225,10 @@ export default function QuestionOrderPage() {
                   <button
                     key={term}
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
                       setSelectedTerm(term);
                       setSelectedClassId("all");
+                      scrollTabToCenter(e.currentTarget);
                     }}
                     className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                       isSelected
@@ -1230,11 +1245,11 @@ export default function QuestionOrderPage() {
 
           {/* ROW 3 — CLASS TABS (Compact Pills) */}
           {availableClasses.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth touch-pan-x overscroll-x-contain [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <button
                 onClick={(e) => {
                   setSelectedClassId("all");
-                  e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                  scrollTabToCenter(e.currentTarget);
                 }}
                 className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                   selectedClassId === "all"
@@ -1249,7 +1264,7 @@ export default function QuestionOrderPage() {
                   key={cls.id}
                   onClick={(e) => {
                     setSelectedClassId(cls.id);
-                    e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                    scrollTabToCenter(e.currentTarget);
                   }}
                   className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                     selectedClassId === cls.id
@@ -1287,15 +1302,15 @@ export default function QuestionOrderPage() {
           </div>
         ) : viewMode === "table" ? (
           <div className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto touch-pan-x">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-[#095738] shadow-xs">
                   <tr className="bg-[#095738] text-white">
-                    <th className="py-2.5 px-2.5 text-center w-8 sm:w-10 font-bold">#</th>
-                    <th className="py-2.5 px-3 font-bold min-w-[200px]">প্রশ্নপত্রের নাম ও বিবরণ</th>
-                    <th className="py-2.5 px-2.5 sm:px-3 text-right font-bold whitespace-nowrap">মূল্য</th>
-                    <th className="py-2.5 px-2.5 sm:px-3 text-center font-bold min-w-[120px]">সেট (সংখ্যা)</th>
-                    <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap pr-3 sm:pr-4">মোট</th>
+                    <th className="py-2.5 px-2.5 text-center w-8 sm:w-10 font-bold bg-[#095738]">#</th>
+                    <th className="py-2.5 px-3 font-bold min-w-[200px] bg-[#095738]">প্রশ্নপত্রের নাম ও বিবরণ</th>
+                    <th className="py-2.5 px-2.5 sm:px-3 text-right font-bold whitespace-nowrap bg-[#095738]">মূল্য</th>
+                    <th className="py-2.5 px-2.5 sm:px-3 text-center font-bold min-w-[120px] bg-[#095738]">সেট (সংখ্যা)</th>
+                    <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap pr-3 sm:pr-4 bg-[#095738]">মোট</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

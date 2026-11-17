@@ -30,10 +30,14 @@ function cleanStoreProduct(p: any) {
   const rawBarcode = p.barcode ? String(p.barcode).trim() : "";
   const cleanBarcode = rawBarcode.startsWith("__NO_BARCODE_") ? "" : rawBarcode;
   const cleanImage = p.imageUrl && String(p.imageUrl).trim() ? String(p.imageUrl).trim() : null;
+  const cleanSamplePages = Array.isArray(p.samplePages)
+    ? p.samplePages.filter((s: any) => typeof s === "string" && s.trim().length > 0)
+    : [];
   return {
     ...p,
     barcode: cleanBarcode,
     imageUrl: cleanImage,
+    samplePages: cleanSamplePages,
   };
 }
 
@@ -99,6 +103,7 @@ export async function POST(request: Request) {
       stock,
       unit,
       imageUrl,
+      samplePages,
       barcode,
       className,
       description,
@@ -151,6 +156,10 @@ export async function POST(request: Request) {
     const cleanImageUrl =
       typeof imageUrl === "string" && imageUrl.trim() ? imageUrl.trim() : null;
 
+    const cleanSamplePages = Array.isArray(samplePages)
+      ? samplePages.map((s: any) => String(s).trim()).filter(Boolean)
+      : [];
+
     const product = await (prisma as any).storeProduct.create({
       data: {
         name: String(name).trim(),
@@ -159,6 +168,7 @@ export async function POST(request: Request) {
         stock: parsedStock,
         unit: unit ? String(unit).trim() : "টি",
         imageUrl: cleanImageUrl,
+        samplePages: cleanSamplePages,
         barcode: hasCustomBarcode
           ? trimmedBarcode
           : `__NO_BARCODE_${Date.now()}_${Math.random()}__`,

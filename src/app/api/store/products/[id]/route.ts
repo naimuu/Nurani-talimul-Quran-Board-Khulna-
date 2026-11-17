@@ -22,10 +22,14 @@ function cleanStoreProduct(p: any) {
   const rawBarcode = p.barcode ? String(p.barcode).trim() : "";
   const cleanBarcode = rawBarcode.startsWith("__NO_BARCODE_") ? "" : rawBarcode;
   const cleanImage = p.imageUrl && String(p.imageUrl).trim() ? String(p.imageUrl).trim() : null;
+  const cleanSamplePages = Array.isArray(p.samplePages)
+    ? p.samplePages.filter((s: any) => typeof s === "string" && s.trim().length > 0)
+    : [];
   return {
     ...p,
     barcode: cleanBarcode,
     imageUrl: cleanImage,
+    samplePages: cleanSamplePages,
   };
 }
 
@@ -138,6 +142,11 @@ export async function PUT(
         body.weight !== null && !isNaN(Number(body.weight))
           ? Number(body.weight)
           : 0.25;
+    }
+    if (body.samplePages !== undefined) {
+      data.samplePages = Array.isArray(body.samplePages)
+        ? body.samplePages.map((s: any) => String(s).trim()).filter(Boolean)
+        : [];
     }
 
     const product = await (prisma as any).storeProduct.update({

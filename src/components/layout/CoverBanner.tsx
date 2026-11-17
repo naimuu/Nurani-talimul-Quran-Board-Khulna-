@@ -42,7 +42,7 @@ export function PageCoverHeader() {
   const pathname = usePathname();
   const settings = useSettings();
 
-  if (pathname?.startsWith('/admin') || pathname?.startsWith('/visitor')) return null;
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/visitor') || pathname === '/store') return null;
   if (!settings?.coverUrl || !settings?.showCoverInPageHeader) return null;
 
   return (

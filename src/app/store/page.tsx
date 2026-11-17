@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Search, ShoppingBag, Package, Heart, Star, LayoutGrid, List,
-  SlidersHorizontal, X, ChevronRight, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck, Truck, Smartphone, QrCode, CreditCard, RotateCcw, AlertCircle, ArrowRight, Users
+  SlidersHorizontal, X, ChevronRight, ChevronLeft, ShoppingCart, Eye, Filter, ArrowLeft, CheckCircle, Copy, Building2, UserCheck, KeyRound, ShieldCheck, Truck, Smartphone, QrCode, CreditCard, RotateCcw, AlertCircle, ArrowRight, Users, BookOpen, Maximize2
 } from "lucide-react";
 import Link from "next/link";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
@@ -16,7 +16,7 @@ import DynamicPaymentSelector, {
 type Product = {
   id: string; name: string; category: string; price: number;
   stock: number; unit: string; rating?: number; reviews?: number;
-  imageUrl?: string | null; barcode?: string | null; className?: string | null; subject?: string | null; description?: string | null;
+  imageUrl?: string | null; samplePages?: string[]; barcode?: string | null; className?: string | null; subject?: string | null; description?: string | null;
   weight?: number | null; createdAt?: string;
 };
 
@@ -57,6 +57,19 @@ function compareProductsByCode(a: Product, b: Product): number {
   return timeA - timeB;
 }
 
+const scrollTabToCenter = (el: HTMLElement | null) => {
+  if (!el || !el.parentElement) return;
+  const container = el.parentElement;
+  const elLeft = el.offsetLeft;
+  const elWidth = el.offsetWidth;
+  const containerWidth = container.offsetWidth;
+  const targetScrollLeft = elLeft - (containerWidth / 2) + (elWidth / 2);
+  container.scrollTo({
+    left: targetScrollLeft,
+    behavior: "smooth"
+  });
+};
+
 function ProductImage({
   src,
   alt,
@@ -96,6 +109,377 @@ function isQuestionProduct(item: { name?: string; category?: string }): boolean 
   const cat = (item.category || "").trim().toLowerCase();
   const name = (item.name || "").trim().toLowerCase();
   return cat.includes("প্রশ্ন") || name.includes("প্রশ্ন") || cat.includes("question") || name.includes("question");
+}
+
+interface ProductColorTheme {
+  cardBg: string;
+  cardBorder: string;
+  cardHoverBorder: string;
+  cardShadow: string;
+  coverBg: string;
+  coverBorder: string;
+  detailsBg: string;
+  tagBg: string;
+  priceColor: string;
+  btnGradient: string;
+}
+
+function getProductColorTheme(product: {
+  id?: string | null;
+  name?: string | null;
+  category?: string | null;
+  className?: string | null;
+  subject?: string | null;
+  imageUrl?: string | null;
+}): ProductColorTheme {
+  const text = `${product.name || ""} ${product.subject || ""} ${product.category || ""} ${product.className || ""}`.toLowerCase();
+
+  // Pure white book cover background so the book photo blends cleanly on pure white
+  const CLEAN_COVER_BG = "bg-white";
+  const CLEAN_COVER_BORDER = "border-b border-slate-100";
+
+  // 1. Urdu / উর্দু
+  if (text.includes("উর্দু") || text.includes("urdu")) {
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-rose-200/90",
+      cardHoverBorder: "hover:border-rose-400 hover:shadow-rose-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(225,29,72,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-rose-50/80 via-red-50/30 to-white",
+      tagBg: "bg-rose-100/90 text-rose-900 border-rose-200/80",
+      priceColor: "text-rose-950",
+      btnGradient: "from-rose-700 to-red-800 hover:from-rose-800 hover:to-red-900",
+    };
+  }
+
+  // 2. Science / Bigyan / Computer / বিজ্ঞান / কম্পিউটার
+  if (text.includes("বিজ্ঞান") || text.includes("কম্পিউটার") || text.includes("science")) {
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-indigo-200/90",
+      cardHoverBorder: "hover:border-indigo-400 hover:shadow-indigo-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(79,70,229,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-indigo-50/80 via-blue-50/30 to-white",
+      tagBg: "bg-indigo-100/90 text-indigo-900 border-indigo-200/80",
+      priceColor: "text-indigo-950",
+      btnGradient: "from-indigo-700 to-blue-700 hover:from-indigo-800 hover:to-blue-800",
+    };
+  }
+
+  // 3. Samaj / সমাজ / পরিবেশ
+  if (text.includes("সমাজ") || text.includes("পরিবেশ") || text.includes("নৈতিক")) {
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-amber-200/90",
+      cardHoverBorder: "hover:border-amber-400 hover:shadow-amber-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(217,119,6,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-amber-50/80 via-stone-50/30 to-white",
+      tagBg: "bg-amber-100/90 text-amber-950 border-amber-200/80",
+      priceColor: "text-amber-950",
+      btnGradient: "from-amber-700 to-yellow-800 hover:from-amber-800 hover:to-yellow-900",
+    };
+  }
+
+  // 4. Arabi Bhasha / আরবি ভাষা
+  if (text.includes("আরবি ভাষা") || text.includes("আরবী ভাষা")) {
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-sky-200/90",
+      cardHoverBorder: "hover:border-sky-400 hover:shadow-sky-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(2,132,199,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-sky-50/80 via-blue-50/30 to-white",
+      tagBg: "bg-sky-100/90 text-sky-900 border-sky-200/80",
+      priceColor: "text-sky-950",
+      btnGradient: "from-sky-700 to-blue-700 hover:from-sky-800 hover:to-blue-800",
+    };
+  }
+
+  // 5. Islam / Arabic / Quran / Tajweed / Qaidah
+  if (
+    text.includes("ইসলাম") || text.includes("আরবি") || text.includes("আরবী") ||
+    text.includes("কুরআন") || text.includes("কোরআন") || text.includes("কায়দা") ||
+    text.includes("আমপারা") || text.includes("তাজবীদ") || text.includes("দ্বীন") ||
+    text.includes("কালেমা") || text.includes("মাসায়েল")
+  ) {
+    // Khata Arbi (Blue cover)
+    if (text.includes("খাতা") && (text.includes("আরবি") || text.includes("আরবী"))) {
+      return {
+        cardBg: "bg-white",
+        cardBorder: "border-blue-200/90",
+        cardHoverBorder: "hover:border-blue-400 hover:shadow-blue-900/10",
+        cardShadow: "shadow-[0_4px_20px_rgba(37,99,235,0.07)]",
+        coverBg: CLEAN_COVER_BG,
+        coverBorder: CLEAN_COVER_BORDER,
+        detailsBg: "bg-gradient-to-b from-blue-50/80 via-sky-50/30 to-white",
+        tagBg: "bg-blue-100/90 text-blue-900 border-blue-200/80",
+        priceColor: "text-blue-950",
+        btnGradient: "from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800",
+      };
+    }
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-emerald-200/90",
+      cardHoverBorder: "hover:border-emerald-400 hover:shadow-emerald-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(5,150,105,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-emerald-50/80 via-teal-50/30 to-white",
+      tagBg: "bg-emerald-100/90 text-emerald-900 border-emerald-200/80",
+      priceColor: "text-emerald-950",
+      btnGradient: "from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800",
+    };
+  }
+
+  // 6. English / ইংরেজি
+  if (text.includes("ইংরেজি") || text.includes("ইংরেজী") || text.includes("english")) {
+    if (text.includes("খাতা")) {
+      return {
+        cardBg: "bg-white",
+        cardBorder: "border-purple-200/90",
+        cardHoverBorder: "hover:border-purple-400 hover:shadow-purple-900/10",
+        cardShadow: "shadow-[0_4px_20px_rgba(147,51,234,0.07)]",
+        coverBg: CLEAN_COVER_BG,
+        coverBorder: CLEAN_COVER_BORDER,
+        detailsBg: "bg-gradient-to-b from-purple-50/80 via-fuchsia-50/30 to-white",
+        tagBg: "bg-purple-100/90 text-purple-900 border-purple-200/80",
+        priceColor: "text-purple-950",
+        btnGradient: "from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800",
+      };
+    }
+    // Nursery English (Bright yellow/gold cover)
+    if (text.includes("নার্সারি") || text.includes("নার্সারী")) {
+      return {
+        cardBg: "bg-white",
+        cardBorder: "border-amber-200/90",
+        cardHoverBorder: "hover:border-amber-400 hover:shadow-amber-900/10",
+        cardShadow: "shadow-[0_4px_20px_rgba(217,119,6,0.07)]",
+        coverBg: CLEAN_COVER_BG,
+        coverBorder: CLEAN_COVER_BORDER,
+        detailsBg: "bg-gradient-to-b from-amber-50/80 via-yellow-50/30 to-white",
+        tagBg: "bg-amber-100/90 text-amber-950 border-amber-200/80",
+        priceColor: "text-amber-950",
+        btnGradient: "from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800",
+      };
+    }
+    // Play English / Class 4 English (Red/coral cover)
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-rose-200/90",
+      cardHoverBorder: "hover:border-rose-400 hover:shadow-rose-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(225,29,72,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-rose-50/80 via-red-50/30 to-white",
+      tagBg: "bg-rose-100/90 text-rose-900 border-rose-200/80",
+      priceColor: "text-rose-950",
+      btnGradient: "from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800",
+    };
+  }
+
+  // 7. Math / গণিত / অংক
+  if (text.includes("গণিত") || text.includes("গনিত") || text.includes("অংক") || text.includes("math")) {
+    if (text.includes("খাতা")) {
+      return {
+        cardBg: "bg-white",
+        cardBorder: "border-orange-200/90",
+        cardHoverBorder: "hover:border-orange-400 hover:shadow-orange-900/10",
+        cardShadow: "shadow-[0_4px_20px_rgba(234,88,12,0.07)]",
+        coverBg: CLEAN_COVER_BG,
+        coverBorder: CLEAN_COVER_BORDER,
+        detailsBg: "bg-gradient-to-b from-orange-50/80 via-amber-50/30 to-white",
+        tagBg: "bg-orange-100/90 text-orange-950 border-orange-200/80",
+        priceColor: "text-orange-950",
+        btnGradient: "from-orange-600 to-amber-700 hover:from-orange-700 hover:to-amber-800",
+      };
+    }
+    // Nursery Math (Red/Crimson & teal cover)
+    if (text.includes("নার্সারি") || text.includes("নার্সারী")) {
+      return {
+        cardBg: "bg-white",
+        cardBorder: "border-red-200/90",
+        cardHoverBorder: "hover:border-red-400 hover:shadow-red-900/10",
+        cardShadow: "shadow-[0_4px_20px_rgba(220,38,38,0.07)]",
+        coverBg: CLEAN_COVER_BG,
+        coverBorder: CLEAN_COVER_BORDER,
+        detailsBg: "bg-gradient-to-b from-red-50/80 via-rose-50/30 to-white",
+        tagBg: "bg-red-100/90 text-red-900 border-red-200/80",
+        priceColor: "text-red-950",
+        btnGradient: "from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800",
+      };
+    }
+    // Play Math / Class 4 Math (Blue cover)
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-blue-200/90",
+      cardHoverBorder: "hover:border-blue-400 hover:shadow-blue-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(37,99,235,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-blue-50/80 via-sky-50/30 to-white",
+      tagBg: "bg-blue-100/90 text-blue-900 border-blue-200/80",
+      priceColor: "text-blue-950",
+      btnGradient: "from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800",
+    };
+  }
+
+  // 8. Bangla / বাংলা
+  if (text.includes("বাংলা") || text.includes("সাহিত্য")) {
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-lime-200/90",
+      cardHoverBorder: "hover:border-lime-400 hover:shadow-lime-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(101,163,13,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-lime-50/80 via-emerald-50/30 to-white",
+      tagBg: "bg-lime-100/90 text-lime-900 border-lime-200/80",
+      priceColor: "text-emerald-950",
+      btnGradient: "from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800",
+    };
+  }
+
+  // 9. Syllabus / সিলেবাস / রুটিন
+  if (text.includes("সিলেবাস") || text.includes("রুটিন") || text.includes("ফরম")) {
+    if (text.includes("নার্সারি") || text.includes("নার্সারী")) {
+      return {
+        cardBg: "bg-white",
+        cardBorder: "border-yellow-200/90",
+        cardHoverBorder: "hover:border-yellow-400 hover:shadow-yellow-900/10",
+        cardShadow: "shadow-[0_4px_20px_rgba(202,138,4,0.07)]",
+        coverBg: CLEAN_COVER_BG,
+        coverBorder: CLEAN_COVER_BORDER,
+        detailsBg: "bg-gradient-to-b from-yellow-50/80 via-amber-50/30 to-white",
+        tagBg: "bg-yellow-100/90 text-yellow-950 border-yellow-200/80",
+        priceColor: "text-amber-950",
+        btnGradient: "from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700",
+      };
+    }
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-teal-200/90",
+      cardHoverBorder: "hover:border-teal-400 hover:shadow-teal-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(13,148,136,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-teal-50/80 via-cyan-50/30 to-white",
+      tagBg: "bg-teal-100/90 text-teal-900 border-teal-200/80",
+      priceColor: "text-teal-950",
+      btnGradient: "from-teal-700 to-emerald-700 hover:from-teal-800 hover:to-emerald-800",
+    };
+  }
+
+  // 10. Set / প্যাকেজ
+  if (text.includes("সেট") || text.includes("প্যাকেজ")) {
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-indigo-200/90",
+      cardHoverBorder: "hover:border-indigo-400 hover:shadow-indigo-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(79,70,229,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-indigo-50/80 via-purple-50/30 to-white",
+      tagBg: "bg-indigo-100/90 text-indigo-900 border-indigo-200/80",
+      priceColor: "text-indigo-950",
+      btnGradient: "from-indigo-700 to-purple-700 hover:from-indigo-800 hover:to-purple-800",
+    };
+  }
+
+  // 11. Stationary / স্টেশনারি
+  if (text.includes("স্টেশনারি") || text.includes("চক") || text.includes("ডাস্টার") || text.includes("কলম")) {
+    return {
+      cardBg: "bg-white",
+      cardBorder: "border-amber-200/90",
+      cardHoverBorder: "hover:border-amber-400 hover:shadow-amber-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(217,119,6,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-amber-50/80 via-orange-50/30 to-white",
+      tagBg: "bg-amber-100/90 text-amber-950 border-amber-200/80",
+      priceColor: "text-amber-950",
+      btnGradient: "from-amber-600 to-emerald-700 hover:from-amber-700 hover:to-emerald-800",
+    };
+  }
+
+  // 12. Deterministic Hash Fallback
+  const palettes: ProductColorTheme[] = [
+    {
+      cardBg: "bg-white",
+      cardBorder: "border-emerald-200/90",
+      cardHoverBorder: "hover:border-emerald-400 hover:shadow-emerald-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(5,150,105,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-emerald-50/80 via-teal-50/30 to-white",
+      tagBg: "bg-emerald-100/90 text-emerald-900 border-emerald-200/80",
+      priceColor: "text-emerald-950",
+      btnGradient: "from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800",
+    },
+    {
+      cardBg: "bg-white",
+      cardBorder: "border-sky-200/90",
+      cardHoverBorder: "hover:border-sky-400 hover:shadow-sky-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(2,132,199,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-sky-50/80 via-cyan-50/30 to-white",
+      tagBg: "bg-sky-100/90 text-sky-900 border-sky-200/80",
+      priceColor: "text-sky-950",
+      btnGradient: "from-sky-700 to-blue-700 hover:from-sky-800 hover:to-blue-800",
+    },
+    {
+      cardBg: "bg-white",
+      cardBorder: "border-amber-200/90",
+      cardHoverBorder: "hover:border-amber-400 hover:shadow-amber-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(217,119,6,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-amber-50/80 via-yellow-50/30 to-white",
+      tagBg: "bg-amber-100/90 text-amber-950 border-amber-200/80",
+      priceColor: "text-amber-950",
+      btnGradient: "from-amber-600 to-emerald-700 hover:from-amber-700 hover:to-emerald-800",
+    },
+    {
+      cardBg: "bg-white",
+      cardBorder: "border-rose-200/90",
+      cardHoverBorder: "hover:border-rose-400 hover:shadow-rose-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(225,29,72,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-rose-50/80 via-orange-50/30 to-white",
+      tagBg: "bg-rose-100/90 text-rose-900 border-rose-200/80",
+      priceColor: "text-rose-950",
+      btnGradient: "from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800",
+    },
+    {
+      cardBg: "bg-white",
+      cardBorder: "border-purple-200/90",
+      cardHoverBorder: "hover:border-purple-400 hover:shadow-purple-900/10",
+      cardShadow: "shadow-[0_4px_20px_rgba(147,51,234,0.07)]",
+      coverBg: CLEAN_COVER_BG,
+      coverBorder: CLEAN_COVER_BORDER,
+      detailsBg: "bg-gradient-to-b from-purple-50/80 via-indigo-50/30 to-white",
+      tagBg: "bg-purple-100/90 text-purple-900 border-purple-200/80",
+      priceColor: "text-purple-950",
+      btnGradient: "from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800",
+    },
+  ];
+
+  let hash = 0;
+  const str = product.id || product.name || "default";
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % palettes.length;
+  return palettes[idx];
 }
 
 const STAR_RATINGS: Record<string, { rating: number; reviews: number }> = {};
@@ -218,13 +602,90 @@ function ProductDetailModal({
   onUpdateQty: (qty: number) => void;
 }) {
   const productCode = getCleanProductCode(product);
+  const theme = getProductColorTheme(product);
+
+  // Gallery items: Book cover + all sample pages
+  const galleryItems = useMemo(() => {
+    const list: { url: string; label: string; isCover?: boolean }[] = [];
+    if (product.imageUrl) {
+      list.push({ url: product.imageUrl, label: "কভার পৃষ্ঠা", isCover: true });
+    }
+    if (Array.isArray(product.samplePages)) {
+      product.samplePages.forEach((url, i) => {
+        if (url && typeof url === "string" && url.trim()) {
+          list.push({ url: url.trim(), label: `পৃষ্ঠা ${i + 1}` });
+        }
+      });
+    }
+    return list;
+  }, [product.imageUrl, product.samplePages]);
+
+  // Drag to scroll state
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftState, setScrollLeftState] = useState(0);
+  const [dragMoved, setDragMoved] = useState(false);
+
+  // Lightbox Big View State
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeftState(scrollContainerRef.current.scrollLeft);
+    setDragMoved(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    if (Math.abs(walk) > 5) {
+      setDragMoved(true);
+    }
+    scrollContainerRef.current.scrollLeft = scrollLeftState - walk;
+  };
+
+  const scrollByAmount = (amount: number) => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
+
+  // Keyboard navigation for Lightbox
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "ArrowLeft" && galleryItems.length > 1) {
+        setLightboxIndex(prev => prev === null ? null : (prev - 1 + galleryItems.length) % galleryItems.length);
+      }
+      if (e.key === "ArrowRight" && galleryItems.length > 1) {
+        setLightboxIndex(prev => prev === null ? null : (prev + 1) % galleryItems.length);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxIndex, galleryItems.length]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
       <div
-        className="relative bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100"
+        className="relative bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100"
         onClick={e => e.stopPropagation()}
       >
-        {/* Sticky Fixed Close Button at Top-Right (Remains visible even when scrolling body) */}
+        {/* Sticky Fixed Close Button at Top-Right */}
         <button
           onClick={onClose}
           className="absolute top-3 right-3 z-30 bg-white/90 hover:bg-white text-slate-600 hover:text-slate-900 p-2 rounded-full shadow-md border border-slate-200/80 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
@@ -233,16 +694,100 @@ function ProductDetailModal({
           <X className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
 
-        {/* Scrollable Body (Image + Info + Details/Syllabus) */}
+        {/* Scrollable Body (Pages Gallery + Info + Details/Syllabus) */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 h-56 sm:h-64 flex items-center justify-center overflow-hidden relative border-b border-slate-100">
-            <ProductImage
-              src={product.imageUrl}
-              alt={product.name}
-              imgClassName="w-full h-full object-contain p-4"
-              iconClassName="w-20 h-20 text-slate-300"
-            />
-          </div>
+          {/* Top Gallery Area: Horizontal Scrollable / Draggable Cards */}
+          {galleryItems.length > 1 ? (
+            <div className="relative bg-white border-b border-slate-100 flex flex-col select-none">
+              {/* Left Scroll Button */}
+              <button
+                type="button"
+                onClick={() => scrollByAmount(-220)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-700 shadow-md border border-slate-200/80 flex items-center justify-center transition-all cursor-pointer"
+                title="বামে স্ক্রোল করুন"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Right Scroll Button */}
+              <button
+                type="button"
+                onClick={() => scrollByAmount(220)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-700 shadow-md border border-slate-200/80 flex items-center justify-center transition-all cursor-pointer"
+                title="ডানে স্ক্রোল করুন"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Draggable Track */}
+              <div
+                ref={scrollContainerRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+                className="flex items-center gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory py-4 px-6 cursor-grab active:cursor-grabbing no-scrollbar"
+                style={{ scrollbarWidth: "none" }}
+              >
+                {galleryItems.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (!dragMoved) setLightboxIndex(idx);
+                    }}
+                    className="relative shrink-0 snap-center group/card cursor-pointer rounded-2xl border border-slate-200/90 hover:border-emerald-500 bg-white shadow-2xs hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col items-center justify-center aspect-[3/4] h-60 sm:h-72"
+                  >
+                    <img
+                      src={item.url}
+                      alt={`${product.name} - ${item.label}`}
+                      className="h-full w-full object-contain p-2.5 pointer-events-none group-hover/card:scale-102 transition-transform duration-200"
+                      draggable={false}
+                    />
+
+                    {/* Badge showing page title */}
+                    <div className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                      {item.label}
+                    </div>
+
+                    {/* Hover Big View pill */}
+                    <div className="absolute bottom-2.5 inset-x-2.5 bg-emerald-700/95 backdrop-blur-xs text-white text-[11px] font-bold py-1.5 px-2 rounded-xl text-center opacity-0 group-hover/card:opacity-100 transition-opacity shadow-md flex items-center justify-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>বড় করে পড়ুন</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Status bar under the cards */}
+              <div className="flex items-center justify-between px-4 py-2 border-t border-slate-100 bg-slate-50/70 text-[11px] text-slate-500 font-medium">
+                <span className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>কভার ও মোট {galleryItems.length - 1}টি পৃষ্ঠা (টেনে ডানে-বামে পড়ুন)</span>
+                </span>
+                <span className="text-[10.5px] text-slate-400 hidden sm:inline">
+                  পাতায় ক্লিক করে পুরো স্ক্রিনে পড়ুন
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* Single Image (Cover only) */
+            <div
+              onClick={() => galleryItems[0] && setLightboxIndex(0)}
+              className="bg-white h-56 sm:h-64 flex items-center justify-center overflow-hidden relative border-b border-slate-100 cursor-pointer group"
+              title="বড় করে দেখতে ক্লিক করুন"
+            >
+              <ProductImage
+                src={product.imageUrl}
+                alt={product.name}
+                imgClassName="w-full h-full object-contain p-4 group-hover:scale-102 transition-transform duration-200"
+                iconClassName="w-20 h-20 text-slate-300"
+              />
+              <div className="absolute bottom-2.5 right-2.5 bg-slate-900/75 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                <Maximize2 className="w-3 h-3" />
+                <span>বড় করে দেখুন</span>
+              </div>
+            </div>
+          )}
 
           <div className="p-5 sm:p-6 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -292,19 +837,19 @@ function ProductDetailModal({
           </div>
 
           {cartQty > 0 ? (
-            <div className="flex items-center gap-3 bg-emerald-50/90 rounded-2xl p-1.5 border border-emerald-300">
+            <div className="flex items-center gap-3 bg-white rounded-2xl p-1.5 border border-slate-200 shadow-xs">
               <button
                 type="button"
                 onClick={() => onUpdateQty(cartQty - 1)}
-                className="w-11 h-11 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-800 font-black text-2xl rounded-xl flex items-center justify-center border border-emerald-200 shadow-2xs active:scale-90 transition-all cursor-pointer"
+                className="w-11 h-11 bg-slate-50 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-800 font-black text-2xl rounded-xl flex items-center justify-center border border-slate-200 shadow-2xs active:scale-90 transition-all cursor-pointer"
                 title="পরিমাণ কমান"
               >
                 −
               </button>
               <div className="flex-1 flex flex-col items-center justify-center">
-                <span className="text-[10.5px] font-bold text-emerald-800 uppercase tracking-wider">কার্টে পরিমাণ</span>
-                <span className="text-xl font-black text-emerald-950 font-mono leading-tight">
-                  {cartQty} <span className="text-xs font-bold text-slate-600 font-sans">{product.unit || 'টি'}</span>
+                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">কার্টে পরিমাণ</span>
+                <span className="text-xl font-black text-slate-900 font-mono leading-tight">
+                  {cartQty} <span className="text-xs font-bold text-slate-500 font-sans">{product.unit || 'টি'}</span>
                 </span>
               </div>
               <button
@@ -328,6 +873,90 @@ function ProductDetailModal({
           )}
         </div>
       </div>
+
+      {/* Big View / Lightbox Modal */}
+      {lightboxIndex !== null && galleryItems[lightboxIndex] && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col justify-between p-3 sm:p-5 select-none animate-in fade-in duration-200"
+          onClick={() => setLightboxIndex(null)}
+        >
+          {/* Top Bar */}
+          <div className="flex items-center justify-between text-white w-full max-w-5xl mx-auto z-10 shrink-0 py-2">
+            <div>
+              <h3 className="font-bold text-sm sm:text-base line-clamp-1">{product.name}</h3>
+              <p className="text-xs text-slate-300">
+                {galleryItems[lightboxIndex].label} • ({lightboxIndex + 1} / {galleryItems.length})
+              </p>
+            </div>
+            <button
+              onClick={() => setLightboxIndex(null)}
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors cursor-pointer"
+              title="বন্ধ করুন (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Main Big Image Area with Left/Right Nav */}
+          <div
+            className="flex-1 flex items-center justify-center relative w-full max-w-5xl mx-auto overflow-hidden my-2"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Prev Button */}
+            {galleryItems.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setLightboxIndex((lightboxIndex - 1 + galleryItems.length) % galleryItems.length)}
+                className="absolute left-2 z-20 w-10 h-10 sm:w-12 sm:h-12 bg-black/60 hover:bg-black/90 text-white rounded-full flex items-center justify-center border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer"
+                title="পূর্ববর্তী পাতা (←)"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
+
+            <div className="max-h-[75vh] sm:max-h-[80vh] max-w-full flex items-center justify-center overflow-auto p-2">
+              <img
+                src={galleryItems[lightboxIndex].url}
+                alt={`${product.name} - ${galleryItems[lightboxIndex].label}`}
+                className="max-h-[75vh] sm:max-h-[80vh] w-auto max-w-full object-contain rounded-lg shadow-2xl transition-all"
+              />
+            </div>
+
+            {/* Next Button */}
+            {galleryItems.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setLightboxIndex((lightboxIndex + 1) % galleryItems.length)}
+                className="absolute right-2 z-20 w-10 h-10 sm:w-12 sm:h-12 bg-black/60 hover:bg-black/90 text-white rounded-full flex items-center justify-center border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer"
+                title="পরবর্তী পাতা (→)"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Thumbnails Strip */}
+          {galleryItems.length > 1 && (
+            <div
+              className="w-full max-w-xl mx-auto flex items-center justify-center gap-2 overflow-x-auto py-2 px-3 bg-white/10 backdrop-blur-md rounded-2xl shrink-0"
+              onClick={e => e.stopPropagation()}
+            >
+              {galleryItems.map((item, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setLightboxIndex(i)}
+                  className={`w-12 h-16 rounded-md overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                    i === lightboxIndex ? "border-emerald-400 scale-105 shadow-md" : "border-white/20 opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <img src={item.url} alt={item.label} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -2019,7 +2648,40 @@ export default function StorePage() {
     );
     const fromDb = dbCategories.map(c => c.name.trim()).filter(Boolean);
     const set = new Set([...fromDb, ...fromProducts]);
-    return Array.from(set).filter(cat => !isQuestionProduct({ category: cat }));
+    const filtered = Array.from(set).filter(cat => !isQuestionProduct({ category: cat }));
+
+    // Priority sorting: 'বই' first, then sort remaining categories based on importance
+    const getCategoryPriority = (name: string): number => {
+      const n = name.trim().toLowerCase();
+      // 1. Pure "বই" (Books) - highest importance
+      if (n === "বই" || n === "বইসমূহ" || n === "book" || n === "books") return 1;
+      // 2. Book Sets
+      if (n === "বই সেট" || n === "বইসেট" || ((n.includes("বই") || n.includes("book")) && n.includes("সেট") && !n.includes("সিলেবাস"))) return 2;
+      // 3. Book & Syllabus Set
+      if ((n.includes("বই") || n.includes("book")) && (n.includes("সিলেবাস") || n.includes("syllabus"))) return 3;
+      // 4. Syllabus
+      if (n.includes("সিলেবাস") || n === "syllabus") return 4;
+      // 5. Guide / Teacher Guide
+      if (n.includes("গাইড") || n.includes("নির্দেশিকা") || n === "guide") return 5;
+      // 6. Khata (Exercise Books)
+      if (n.includes("খাতা") || n === "khata") return 6;
+      // 7. Stationery
+      if (n.includes("স্টেশনারি") || n.includes("স্টেশনারী") || n === "stationery") return 7;
+      // 8. Posters / Charts
+      if (n.includes("পোস্টার") || n.includes("চার্ট")) return 8;
+      // 9. Certificates / Forms
+      if (n.includes("সনদ") || n.includes("ফরম")) return 9;
+      // 10. Cards / ID
+      if (n.includes("কার্ড") || n.includes("আইডি")) return 10;
+      return 50;
+    };
+
+    return filtered.sort((a, b) => {
+      const pA = getCategoryPriority(a);
+      const pB = getCategoryPriority(b);
+      if (pA !== pB) return pA - pB;
+      return a.localeCompare(b, "bn");
+    });
   }, [products, dbCategories]);
 
   // Active category configuration from DB
@@ -2173,17 +2835,26 @@ export default function StorePage() {
   }, [products, search, selectedCategory, selectedSubTab, showOnlyInStock, showOnlyFavourites, favourites, minPrice, maxPrice, sortBy, ratingFilter]);
 
   return (
-    <div className="w-full flex-1 flex flex-col bg-slate-50 min-h-screen xl:min-h-0 xl:h-[calc(100vh-7.25rem)] xl:max-h-[calc(100vh-7.25rem)] xl:overflow-hidden">
-      {/* Fixed Top Header (Search, Categories & Sub-Tabs) */}
-      <div className="bg-white border-b border-slate-200 z-30 shadow-xs flex-shrink-0 sticky top-0">
+    <div className="w-full h-screen h-[100dvh] max-h-screen flex flex-col bg-slate-50 overflow-hidden select-none">
+      {/* Top Header (Search, Categories & Sub-Tabs) - Pinned Full Width */}
+      <div className="bg-white border-b border-slate-200 z-30 shadow-xs shrink-0 flex flex-col">
         <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
-          <h1 className="text-lg font-black text-slate-800 whitespace-nowrap hidden sm:block">বই ও স্টেশনারি</h1>
+          {/* Back to Home & Title */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/"
+              className="p-2 sm:p-2.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 rounded-xl transition-all flex items-center justify-center shrink-0 active:scale-95 shadow-2xs border border-slate-200/80 cursor-pointer"
+              title="মূল ওয়েবসাইটে ফিরে যান"
+            >
+              <ArrowLeft className="w-5 h-5 text-emerald-800" />
+            </Link>
+            <h1 className="text-base sm:text-lg font-black text-slate-800 whitespace-nowrap hidden sm:block">
+              বই ও স্টেশনারি
+            </h1>
+          </div>
 
           {/* Search & Filters */}
           <div className="flex flex-1 items-center gap-2">
-            <Link href="/" className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center flex-shrink-0 lg:hidden">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
@@ -2224,7 +2895,7 @@ export default function StorePage() {
             {/* Cart Button */}
             <button
               onClick={() => {
-                if (window.innerWidth >= 1280) {
+                if (window.innerWidth >= 1024) {
                   setRightSidebarOpen(prev => !prev);
                 } else {
                   setCartOpen(true);
@@ -2244,14 +2915,14 @@ export default function StorePage() {
         </div>
 
         {/* Horizontal Category Tabs Row */}
-        <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 pb-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 pb-1.5 overflow-x-auto touch-pan-x overscroll-x-contain scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex items-center gap-1.5 sm:gap-2 w-max px-0.5">
             <button
               type="button"
               onClick={(e) => {
                 setSelectedCategory("");
                 setSelectedSubTab("");
-                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                scrollTabToCenter(e.currentTarget);
               }}
               className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${!selectedCategory
                   ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20'
@@ -2272,9 +2943,9 @@ export default function StorePage() {
                       setSelectedSubTab("");
                     } else {
                       setSelectedCategory(cat);
-                      setSelectedSubTab(""); // Automatically deselect previous sub-tab and other category
+                      setSelectedSubTab("");
                     }
-                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    scrollTabToCenter(e.currentTarget);
                   }}
                   className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${isSelected
                       ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20'
@@ -2290,14 +2961,17 @@ export default function StorePage() {
 
         {/* Sub-Tabs Row (Auto Class-Wise & Admin Sub-Tabs) */}
         {availableSubTabs.length > 0 && (
-          <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 pb-2 pt-0.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="w-full mx-auto px-3 sm:px-4 lg:px-6 pb-2 pt-0.5 overflow-x-auto touch-pan-x overscroll-x-contain scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-150">
             <div className="flex items-center gap-1.5 sm:gap-2 w-max px-0.5">
               <span className="text-[11px] font-bold text-slate-400 mr-1 flex items-center gap-1">
                 <span>সাব-ট্যাব / শ্রেণি:</span>
               </span>
               <button
                 type="button"
-                onClick={() => setSelectedSubTab("")}
+                onClick={(e) => {
+                  setSelectedSubTab("");
+                  scrollTabToCenter(e.currentTarget);
+                }}
                 className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${!selectedSubTab
                     ? "bg-slate-900 text-white border-slate-900 shadow-xs"
                     : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-800 hover:bg-slate-50"
@@ -2311,7 +2985,10 @@ export default function StorePage() {
                   <button
                     key={sub}
                     type="button"
-                    onClick={() => setSelectedSubTab(isSubSelected ? "" : sub)}
+                    onClick={(e) => {
+                      setSelectedSubTab(isSubSelected ? "" : sub);
+                      scrollTabToCenter(e.currentTarget);
+                    }}
                     className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${isSubSelected
                         ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-1 ring-emerald-600/30"
                         : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-800 hover:bg-slate-50"
@@ -2326,11 +3003,11 @@ export default function StorePage() {
         )}
       </div>
 
-      {/* Main Workspace (Scrollable Products on Left, Fixed Cart on Right) */}
-      <div className="w-full flex flex-col xl:flex-row flex-1 min-h-0 bg-slate-50 items-start xl:items-stretch px-2 sm:px-4 lg:px-6 py-2 gap-3 xl:overflow-hidden">
+      {/* Main Workspace (Full Screen Fit: Left Items Scroll, Right Cart Fixed) */}
+      <div className="w-full flex-1 min-h-0 flex flex-col lg:flex-row bg-slate-50 items-stretch px-2 sm:px-4 lg:px-6 py-2 gap-3 overflow-hidden">
 
-        {/* Main Products Section - THE ONLY PART THAT SCROLLS ON DESKTOP */}
-        <div className="flex-1 min-w-0 w-full flex flex-col min-h-0 xl:h-full xl:overflow-y-auto xl:pr-1">
+        {/* Main Products Section - Full Height Internal Smooth Scroll */}
+        <div className="flex-1 min-w-0 h-full overflow-y-auto drawer-scroll flex flex-col overscroll-contain pr-0.5">
           {/* Notice Banner */}
           {isAgentOrCenter && !isDeliveryBannerDismissed && (
             <div className="mb-3.5 p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/70 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm flex-shrink-0 animate-in fade-in">
@@ -2389,37 +3066,45 @@ export default function StorePage() {
                   const cartItem = cart.find(c => c.product.id === product.id);
                   const cartQty = cartItem ? cartItem.qty : 0;
                   const productCode = getCleanProductCode(product);
+                  const theme = getProductColorTheme(product);
 
                   return (
                     <div
                       key={product.id}
-                      className="group bg-white rounded-2xl border border-slate-200/80 hover:border-emerald-500/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
+                      className={`group ${theme.cardBg} rounded-2xl sm:rounded-3xl border ${theme.cardBorder} ${theme.cardHoverBorder} ${theme.cardShadow} hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden relative`}
                     >
-                      {/* Image Area */}
+                      {/* Image Area - Pure white background */}
                       <div
                         onClick={() => setDetailProduct(product)}
-                        className="relative bg-gradient-to-b from-slate-50 to-slate-100/50 w-full aspect-[4/3] flex items-center justify-center p-2.5 sm:p-3 overflow-hidden border-b border-slate-100 cursor-pointer"
+                        className="relative bg-white border-b border-slate-100 w-full aspect-[4/3] sm:aspect-[4/3.2] flex items-center justify-center p-3 sm:p-3.5 overflow-hidden cursor-pointer"
                       >
-                        <ProductImage
-                          src={product.imageUrl}
-                          alt={product.name}
-                          imgClassName="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-2xs"
-                          iconClassName="w-12 h-12 text-slate-300 group-hover:scale-105 transition-transform"
-                        />
+                        {/* Book Image */}
+                        <div className="relative z-10 w-full h-full flex items-center justify-center">
+                          <ProductImage
+                            src={product.imageUrl}
+                            alt={product.name}
+                            imgClassName="max-h-full max-w-full object-contain rounded-md group-hover:scale-105 transition-transform duration-300"
+                            iconClassName="w-12 h-12 text-slate-300 group-hover:scale-105 transition-transform"
+                          />
+                        </div>
+
+                        {/* Category pill */}
                         {product.category && (
-                          <span className="absolute bottom-2 left-2 text-[9.5px] sm:text-[10px] font-bold text-slate-700 bg-white/95 backdrop-blur-xs px-2 py-0.5 rounded-md border border-slate-200/80 shadow-2xs z-10 max-w-[calc(100%-16px)] truncate">
+                          <span className="absolute bottom-2 left-2 text-[9.5px] sm:text-[10px] font-bold text-slate-700 bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/80 shadow-2xs z-20 max-w-[calc(100%-16px)] truncate">
                             {product.category}
                           </span>
                         )}
+
+                        {/* Favorite button */}
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFav(product.id);
                           }}
-                          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 cursor-pointer ${isFav
-                              ? "bg-red-50 text-red-500 shadow-2xs border border-red-200"
-                              : "bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white border border-slate-200/70 opacity-0 group-hover:opacity-100 shadow-2xs"
+                          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all z-20 cursor-pointer ${isFav
+                              ? "bg-red-50 text-red-500 shadow-sm border border-red-200"
+                              : "bg-white/90 backdrop-blur-md text-slate-400 hover:text-red-500 hover:bg-white border border-white/80 opacity-0 group-hover:opacity-100 shadow-2xs"
                             }`}
                           title={isFav ? "পছন্দের তালিকা থেকে সরান" : "পছন্দের তালিকায় রাখুন"}
                         >
@@ -2427,8 +3112,8 @@ export default function StorePage() {
                         </button>
                       </div>
 
-                      {/* Content Area */}
-                      <div className="p-2.5 sm:p-3 flex flex-col flex-1 justify-between gap-2">
+                      {/* Content Area - clean bottom details distinct from coverBg */}
+                      <div className={`p-3 sm:p-3.5 flex flex-col flex-1 justify-between gap-2.5 ${theme.detailsBg}`}>
                         <div className="space-y-1">
                           <h3
                             onClick={() => setDetailProduct(product)}
@@ -2457,9 +3142,9 @@ export default function StorePage() {
                         </div>
 
                         {/* Price & Horizontal Quantity Controls */}
-                        <div className="pt-1 border-t border-slate-100/80 space-y-2 mt-auto">
+                        <div className="pt-2 border-t border-slate-100/90 space-y-2 mt-auto">
                           <div className="flex items-baseline justify-between">
-                            <span className="text-base sm:text-lg font-black text-emerald-800 font-mono">
+                            <span className="text-base sm:text-lg font-black text-emerald-800 font-mono tracking-tight">
                               ৳{product.price}
                             </span>
                             {product.unit && (
@@ -2472,13 +3157,13 @@ export default function StorePage() {
                           {/* Horizontal + and - Quantity Stepper */}
                           {cartQty > 0 ? (
                             <div
-                              className="flex items-center justify-between w-full bg-emerald-50/90 rounded-xl p-0.5 border border-emerald-300/80 shadow-2xs"
+                              className="flex items-center justify-between w-full bg-white rounded-xl p-0.5 border border-slate-200 shadow-2xs"
                               onClick={e => e.stopPropagation()}
                             >
                               <button
                                 type="button"
                                 onClick={() => updateCartQty(product, cartQty - 1)}
-                                className="w-7 h-7 sm:w-8 sm:h-8 bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center border border-emerald-200/80 shadow-2xs transition-all active:scale-90 cursor-pointer"
+                                className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center border border-slate-200/80 transition-all active:scale-90 cursor-pointer"
                                 title="পরিমাণ কমান"
                               >
                                 −
@@ -2492,7 +3177,7 @@ export default function StorePage() {
                                   updateCartQty(product, isNaN(val) ? 0 : Math.max(0, val));
                                 }}
                                 onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-                                className="w-10 sm:w-12 h-7 sm:h-8 text-center text-xs sm:text-sm font-black text-emerald-950 font-mono bg-white border border-emerald-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-10 sm:w-12 h-7 sm:h-8 text-center text-xs sm:text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
                               <button
                                 type="button"
@@ -2524,9 +3209,9 @@ export default function StorePage() {
               </div>
             </div>
           ) : (
-            <div className="w-full flex-1 flex flex-col min-h-0 mb-2 xl:mb-0 xl:h-full">
+            <div className={`w-full flex-1 flex flex-col ${cart.length > 0 ? "pb-28 lg:pb-16" : "pb-16 lg:pb-10"}`}>
               {/* LIST VIEW */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full flex-1 flex flex-col min-h-0 xl:h-full">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full flex flex-col">
                 {/* Compact Top Header & Action Bar */}
                 <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200/80 px-3.5 py-2.5 flex items-center justify-between gap-2 flex-shrink-0">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -2548,10 +3233,10 @@ export default function StorePage() {
                   </div>
                 </div>
 
-                {/* Table Area with internal scroll: only rows scroll behind the thead */}
-                <div className="overflow-auto w-full flex-1 min-h-0">
+                {/* Table Area with smooth horizontal touch pan and natural vertical page flow */}
+                <div className="overflow-x-auto w-full touch-pan-x">
                   <table className="w-full text-left border-collapse min-w-full sm:min-w-[750px]">
-                    <thead className="sticky top-0 z-10 bg-[#2f8c5b] shadow-xs">
+                    <thead className="bg-[#2f8c5b] text-white">
                       <tr className="bg-[#2f8c5b] text-white text-xs sm:text-sm">
                         <th className="p-2.5 font-bold text-center border-r border-white/20 w-14 sm:w-20 hidden sm:table-cell bg-[#2f8c5b]">ছবি</th>
                         <th className="p-2.5 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell bg-[#2f8c5b]">আইডি</th>
@@ -2596,12 +3281,12 @@ export default function StorePage() {
           )}
         </div>
 
-        {/* Right Sidebar - Cart (Fixed & Screen-Fit on Desktop) */}
+        {/* Right Sidebar - Cart (Full Height Fit on Desktop/Laptops >= 1024px) */}
         <aside className={`
-          hidden xl:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden xl:h-full xl:self-stretch
+          hidden lg:flex flex-col shrink-0 transition-all duration-300 ease-in-out bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-full
           ${rightSidebarOpen ? "w-80 2xl:w-[330px] opacity-100" : "w-0 border-l-0 opacity-0 overflow-hidden"}
         `}>
-          <div className="flex flex-col h-full w-80 2xl:w-[330px] flex-shrink-0 min-h-0 overflow-hidden relative">
+          <div className="flex flex-col h-full w-80 2xl:w-[330px] shrink-0 min-h-0 overflow-hidden relative">
             {/* Header */}
             <div className="flex-shrink-0 px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 sticky top-0 z-10">
               <h3 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
@@ -2709,24 +3394,8 @@ export default function StorePage() {
 
             {/* Sticky Bottom Footer: Summary & Checkout Button */}
             {cart.length > 0 && (
-              <div className="sticky bottom-0 z-20 mt-auto flex-shrink-0 p-2 sm:p-2.5 border-t border-slate-200 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.08)] space-y-1">
-                <div className="space-y-0.5 text-[11px] text-slate-600 border-b border-slate-200/70 pb-1">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">পণ্যের মূল্য:</span>
-                    <span className="font-bold text-slate-800 font-mono">৳{cartTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10.5px] text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Truck className="w-3 h-3 text-emerald-700" />
-                      <span>ডেলিভারি মাধ্যম:</span>
-                    </span>
-                    <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                      চেকআউটে নির্বাচনযোগ্য
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between text-slate-800 items-baseline pt-0.5">
+              <div className="sticky bottom-0 z-20 mt-auto flex-shrink-0 p-2 sm:p-2.5 border-t border-slate-200 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.08)] space-y-1.5">
+                <div className="flex justify-between text-slate-800 items-baseline">
                   <div>
                     <span className="font-bold text-xs block text-slate-700">সর্বমোট প্রদেয় বিল</span>
                     <span className="text-[9px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>
@@ -2747,9 +3416,9 @@ export default function StorePage() {
         </aside>
       </div>
 
-      {/* Mobile Floating Sticky Bottom Bar (Glassmorphic) */}
+      {/* Mobile / Tablet Floating Sticky Bottom Bar (Glassmorphic) */}
       {!cartOpen && cart.length > 0 && (
-        <div className="xl:hidden fixed bottom-3 left-3 right-3 sm:left-6 sm:right-6 z-40 animate-in slide-in-from-bottom-4 duration-200">
+        <div className="lg:hidden fixed bottom-3 left-3 right-3 sm:left-6 sm:right-6 z-40 animate-in slide-in-from-bottom-4 duration-200">
           <div className="bg-slate-900/65 backdrop-blur-xl saturate-180 text-white rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.35)] border border-white/20 ring-1 ring-white/10 p-2.5 sm:p-3 flex items-center justify-between gap-2.5">
             {/* Left: Cart Info / Click to Open Drawer */}
             <div
@@ -2946,24 +3615,8 @@ export default function StorePage() {
 
             {/* Bottom Sticky Checkout Footer */}
             {cart.length > 0 && (
-              <div className="p-3 sm:p-4 border-t border-slate-200 bg-white/95 backdrop-blur-xs shrink-0 space-y-2 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
-                <div className="space-y-1 text-xs text-slate-600 border-b border-slate-200/70 pb-2">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">পণ্যের মূল্য:</span>
-                    <span className="font-bold text-slate-800 font-mono">৳{cartTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Truck className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>ডেলিভারি মাধ্যম:</span>
-                    </span>
-                    <span className="text-[10.5px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      চেকআউটে নির্বাচনযোগ্য
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between text-slate-800 items-baseline pt-0.5">
+              <div className="p-3 sm:p-4 border-t border-slate-200 bg-white/95 backdrop-blur-xs shrink-0 space-y-2.5 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+                <div className="flex justify-between text-slate-800 items-baseline">
                   <div>
                     <span className="font-bold text-xs block text-slate-700">সর্বমোট প্রদেয় বিল</span>
                     <span className="text-[10px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>

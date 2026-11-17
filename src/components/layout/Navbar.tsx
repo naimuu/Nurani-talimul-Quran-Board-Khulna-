@@ -513,6 +513,11 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
   // Get hotline number from settings or fallback to original
   const hotline = settings?.contacts?.find(c => c.type === 'PHONE' || c.type === 'HOTLINE' || c.type === 'phone')?.value || "01820-580560";
 
+  // Full screen dedicated store workspace (no navbar header)
+  if (pathname === '/store') {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-50 shadow-md font-sans w-full">
 
