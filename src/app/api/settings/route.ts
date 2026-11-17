@@ -249,8 +249,16 @@ const DEFAULT_PAYMENT_METHODS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    let category: string | null = null;
+    if (request) {
+      try {
+        const url = new URL(request.url);
+        category = url.searchParams.get("category");
+      } catch {}
+    }
+
     let settings = await prisma.boardSettings.findFirst({
       include: {
         contacts: true,
@@ -347,6 +355,21 @@ export async function GET() {
           update: { content: JSON.stringify({ seeded: true }) },
           create: { slug: THREE_BANKS_SEED_SLUG, content: JSON.stringify({ seeded: true }) },
         }).catch(() => {});
+      }
+    }
+
+    // If category is requested (e.g. question or book), load dedicated payments from PageContent slug
+    if (category) {
+      const isQuestion = category.toLowerCase() === "question";
+      const slug = isQuestion ? "payment-methods-v3-question" : "payment-methods-v3-book";
+      const catRec = await prisma.pageContent.findUnique({ where: { slug } });
+      if (catRec) {
+        try {
+          const parsed = JSON.parse(catRec.content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            settings = { ...settings, payments: parsed } as any;
+          }
+        } catch {}
       }
     }
 
@@ -448,6 +471,21 @@ export async function PUT(request: Request) {
     }
 
     // Persist cover-display flags and zimadar commission settings via PageContent
+    if (data.payments) {
+      try {
+        const url = new URL(request.url);
+        const category = (data.category || url.searchParams.get("category") || "").toLowerCase();
+        if (category === "book" || category === "question") {
+          const slug = category === "question" ? "payment-methods-v3-question" : "payment-methods-v3-book";
+          await prisma.pageContent.upsert({
+            where: { slug },
+            update: { content: JSON.stringify(data.payments) },
+            create: { slug, content: JSON.stringify(data.payments) },
+          });
+        }
+      } catch {}
+    }
+
     const flags = await setCoverFlags({
       showCoverAboveNavbar:      data.showCoverAboveNavbar,
       showCoverInPageHeader:     data.showCoverInPageHeader,

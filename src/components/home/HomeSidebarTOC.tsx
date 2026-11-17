@@ -117,7 +117,7 @@ export default function HomeSidebarTOC() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden flex flex-col justify-between w-full lg:w-[240px] xl:w-[260px] 2xl:w-[275px] h-full min-h-[500px] transition-all">
+    <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden flex flex-col justify-between w-full lg:w-[220px] xl:w-[248px] 2xl:w-[265px] h-full min-h-[500px] transition-all">
       
       {/* Header */}
       <div className="p-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">

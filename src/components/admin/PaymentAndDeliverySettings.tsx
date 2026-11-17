@@ -68,24 +68,20 @@ export function PaymentMethodsManager({
   initialPayments?: DynamicPaymentMethod[];
   onSaved?: () => void;
 }) {
+  const [category, setCategory] = useState<"book" | "question">("book");
   const [payments, setPayments] = useState<DynamicPaymentMethod[]>(initialPayments || []);
   const [isLoading, setIsLoading] = useState(!initialPayments);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialPayments) {
-      setPayments(initialPayments);
-      setIsLoading(false);
-    } else {
-      fetchPayments();
-    }
-  }, [initialPayments]);
+    fetchPayments(category);
+  }, [category]);
 
-  const fetchPayments = async () => {
+  const fetchPayments = async (cat: "book" | "question" = category) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/settings?t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(`/api/payment-methods?category=${cat}&t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       if (Array.isArray(data?.payments)) {
         setPayments(data.payments);
@@ -151,17 +147,21 @@ export function PaymentMethodsManager({
           sortOrder: idx + 1,
         };
       });
-      const res = await fetch("/api/settings", {
+      const res = await fetch(`/api/payment-methods?category=${category}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payments: payload }),
+        body: JSON.stringify({ payments: payload, category }),
       });
       if (res.ok) {
         const updated = await res.json();
         if (Array.isArray(updated?.payments)) {
           setPayments(updated.payments);
         }
-        toast.success("পেমেন্ট মাধ্যম ও কিউআর কোড সফলভাবে সংরক্ষিত হয়েছে!");
+        toast.success(
+          category === "book"
+            ? "বই ও স্টেশনারি পেমেন্ট মাধ্যম সফলভাবে সংরক্ষিত হয়েছে!"
+            : "প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম সফলভাবে সংরক্ষিত হয়েছে!"
+        );
         onSaved?.();
       } else {
         throw new Error();
@@ -205,9 +205,9 @@ export function PaymentMethodsManager({
     <div className="space-y-6 max-w-5xl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h3 className="text-base sm:text-lg font-bold text-slate-800">ডায়নামিক পেমেন্ট মেথড ও QR কোড ব্যবস্থাপনা</h3>
+          <h3 className="text-base sm:text-lg font-bold text-slate-800">পেমেন্ট মাধ্যম ও QR কোড ব্যবস্থাপনা</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            বিকাশ, নগদ, রকেট এবং ব্যাংকসমূহ (ইসলামী ব্যাংক, ডাচ-বাংলা ব্যাংক ইত্যাদি) যেকোনো সময় পরিবর্তন, চালু/বন্ধ এবং QR কোডের ছবি আপলোড করতে পারবেন।
+            বই ও স্টেশনারি এবং প্রশ্নপত্র অর্ডারের জন্য পৃথক বিকাশ, নগদ, রকেট এবং ব্যাংক অ্যাকাউন্ট ও কিউআর কোড কনফিগার করুন।
           </p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
@@ -226,6 +226,52 @@ export function PaymentMethodsManager({
             <Building2 className="w-3.5 h-3.5" /> + ব্যাংক অ্যাকাউন্ট
           </button>
         </div>
+      </div>
+
+      {/* Category Toggle: বই বনাম প্রশ্ন বাটন */}
+      <div className="flex items-center gap-3 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+        <button
+          type="button"
+          onClick={() => setCategory("book")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            category === "book"
+              ? "bg-[#095738] text-white shadow-md"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>১। বই ও স্টেশনারি পেমেন্ট মাধ্যম</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCategory("question")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            category === "question"
+              ? "bg-[#095738] text-white shadow-md"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+          }`}
+        >
+          <FileQuestion className="w-4 h-4" />
+          <span>২। প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম</span>
+        </button>
+      </div>
+
+      <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+        <p className="font-bold flex items-center gap-1.5">
+          <span>📌</span>
+          <span>
+            বর্তমান সক্রিয় বিভাগ:{" "}
+            <span className="text-emerald-800 underline decoration-2">
+              {category === "book" ? "বই ও স্টেশনারি পেমেন্ট মাধ্যম" : "প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম"}
+            </span>
+          </span>
+        </p>
+        <p className="text-[11px] text-amber-800 leading-relaxed">
+          {category === "book"
+            ? "এখানে সংরক্ষিত অ্যাকাউন্টগুলো শুধুমাত্র বই ও স্টেশনারি স্টোর চেকআউটে প্রদর্শিত হবে।"
+            : "এখানে সংরক্ষিত অ্যাকাউন্টগুলো শুধুমাত্র প্রশ্নপত্র সেট অর্ডারের চেকআউটে প্রদর্শিত হবে।"}
+        </p>
       </div>
 
       {/* Quick Add Bank / Mobile Chips */}
@@ -597,7 +643,11 @@ export function PaymentMethodsManager({
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
         >
           <Save className="w-4 h-4" />
-          {isSaving ? "সংরক্ষণ হচ্ছে..." : "পেমেন্ট মাধ্যমসমূহ সংরক্ষণ করুন"}
+          {isSaving
+            ? "সংরক্ষণ হচ্ছে..."
+            : category === "book"
+            ? "বই ও স্টেশনারি পেমেন্ট মাধ্যম সংরক্ষণ করুন"
+            : "প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম সংরক্ষণ করুন"}
         </button>
       </div>
     </div>

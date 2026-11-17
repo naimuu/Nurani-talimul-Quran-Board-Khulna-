@@ -42,13 +42,13 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen pb-16 bg-slate-50">
       
-      {/* Top Section: Hero Slider (Parallax Sticky) */}
-      <section className="w-full sticky top-[60px] md:top-[68px] z-0">
+      {/* Top Section: Hero Slider */}
+      <section className="w-full relative z-0">
         <HeroSlider isMadrasa={isMadrasa} />
       </section>
 
-      {/* Content wrapper with solid background to scroll over the sticky hero */}
-      <div className="bg-slate-50 flex-1 relative z-10 shadow-[0_-8px_20px_rgb(0,0,0,0.08)]">
+      {/* Content wrapper with solid background */}
+      <div className="bg-slate-50 flex-1 relative z-10">
         
         {/* Scrolling Notice Ticker */}
         {showScrollingNotice && scrollingNotice && (
@@ -75,7 +75,7 @@ export default async function Home() {
           {/* Desktop 3-Column Layout */}
           <div className="hidden lg:flex flex-row gap-3.5 sm:gap-4 lg:gap-4 xl:gap-5 items-start justify-between">
             {/* Left Column: Plain List Sidebar */}
-            <div className="w-auto shrink-0 sticky top-[76px] self-start transition-all duration-300">
+            <div className="w-auto shrink-0 sticky top-[76px] self-start">
               <HomeSidebarTOC />
             </div>
 
@@ -85,7 +85,7 @@ export default async function Home() {
             </div>
 
             {/* Right Column: Plain List Notice Board */}
-            <div className="w-auto shrink-0 sticky top-[76px] self-start transition-all duration-300">
+            <div className="w-auto shrink-0 sticky top-[76px] self-start">
               <NoticeBoard />
             </div>
           </div>

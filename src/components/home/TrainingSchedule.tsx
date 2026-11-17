@@ -172,7 +172,7 @@ function MediumTrainingCard({
       )}
 
       {/* Ambient Background Glow */}
-      <div className={`absolute top-0 right-0 w-44 h-44 bg-gradient-to-bl ${theme.glow} rounded-full blur-3xl pointer-events-none`}></div>
+      <div className={`absolute top-0 right-0 w-44 h-44 bg-gradient-to-bl ${theme.glow} rounded-full blur-2xl pointer-events-none transform-gpu`}></div>
 
       {/* Manual Sliding Left/Right Chevrons (Visible on Hover if multiple batches) */}
       {validBatches.length > 1 && (

@@ -141,13 +141,14 @@ export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean 
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.75, ease: "easeInOut" }}
-            className="absolute inset-0 bg-cover bg-center"
+            className="absolute inset-0 bg-cover bg-center will-change-transform transform-gpu"
             style={{
               backgroundImage: formatBgUrl(activeSlide.imageUrl || "/images/hero/slide1.jpg"),
+              transform: "translateZ(0)",
             }}
           >
             {/* Cinematic Gradient Overlays */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-[0.5px]" />
+            <div className="absolute inset-0 bg-black/60 " />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />
           </motion.div>
@@ -163,7 +164,7 @@ export default function HeroSlider({ isMadrasa = false }: { isMadrasa?: boolean 
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: -18, opacity: 0 }}
                 transition={{ duration: 0.45, delay: 0.1 }}
-                className="px-2"
+                className="px-2 will-change-transform transform-gpu"
               >
                 {activeSlide.title && (
                   <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold mb-1.5 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] leading-tight tracking-wide">

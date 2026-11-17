@@ -220,13 +220,13 @@ function ProductDetailModal({
   const productCode = getCleanProductCode(product);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div 
-        className="relative bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100" 
+      <div
+        className="relative bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100"
         onClick={e => e.stopPropagation()}
       >
         {/* Sticky Fixed Close Button at Top-Right (Remains visible even when scrolling body) */}
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="absolute top-3 right-3 z-30 bg-white/90 hover:bg-white text-slate-600 hover:text-slate-900 p-2 rounded-full shadow-md border border-slate-200/80 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
           title="বন্ধ করুন"
         >
@@ -360,13 +360,13 @@ function DeliveryPolicyAlertModal({
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
-      <div 
+      <div
         className="relative bg-white rounded-3xl shadow-2xl max-w-xl w-full mx-auto z-10 overflow-hidden flex flex-col border border-slate-200 animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -403,11 +403,10 @@ function DeliveryPolicyAlertModal({
             <button
               type="button"
               onClick={() => setActiveTab("delivery")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "delivery"
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === "delivery"
                   ? "bg-amber-400 text-slate-950 font-black shadow-sm"
                   : "bg-white/10 text-emerald-100 hover:bg-white/20"
-              }`}
+                }`}
             >
               <Truck className="w-3.5 h-3.5" />
               <span>ডেলিভারি চার্জ</span>
@@ -416,11 +415,10 @@ function DeliveryPolicyAlertModal({
             <button
               type="button"
               onClick={() => setActiveTab("payment")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "payment"
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === "payment"
                   ? "bg-amber-400 text-slate-950 font-black shadow-sm"
                   : "bg-white/10 text-emerald-100 hover:bg-white/20"
-              }`}
+                }`}
             >
               <CreditCard className="w-3.5 h-3.5" />
               <span>পেমেন্ট পদ্ধতি</span>
@@ -429,11 +427,10 @@ function DeliveryPolicyAlertModal({
             <button
               type="button"
               onClick={() => setActiveTab("return")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "return"
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === "return"
                   ? "bg-amber-400 text-slate-950 font-black shadow-sm"
                   : "bg-white/10 text-emerald-100 hover:bg-white/20"
-              }`}
+                }`}
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>বই ফেরত ও বদল</span>
@@ -442,11 +439,10 @@ function DeliveryPolicyAlertModal({
             <button
               type="button"
               onClick={() => setActiveTab("complaint")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "complaint"
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === "complaint"
                   ? "bg-amber-400 text-slate-950 font-black shadow-sm"
                   : "bg-white/10 text-emerald-100 hover:bg-white/20"
-              }`}
+                }`}
             >
               <AlertCircle className="w-3.5 h-3.5" />
               <span>ভুল সংশোধন</span>
@@ -657,7 +653,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch(`/api/delivery-options?category=book&t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
@@ -668,7 +664,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           if (firstActive) setSelectedDeliveryType(firstActive.type);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const fallbackDeliveryOptions = useMemo(
@@ -720,7 +716,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           setReferralCommissionPercent(Number(data.bookCommissionPercent) || 0);
           try {
             localStorage.setItem("nbk_referral_code", trimmed);
-          } catch {}
+          } catch { }
         } else {
           setReferralAgentInfo(null);
           setReferralCommissionPercent(0);
@@ -742,7 +738,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
         setReferralAgentCode(activeRef);
         lookupReferralAgent(activeRef);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const commissionDiscount = referralAgentInfo && referralCommissionPercent > 0
@@ -1141,11 +1137,10 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       readOnly={!!autoFilledFields.ownerName}
                       disabled={!!autoFilledFields.ownerName}
                       placeholder="যেমন: মাওলানা মো: আবদুল্লাহ"
-                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${
-                        autoFilledFields.ownerName
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${autoFilledFields.ownerName
                           ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none font-medium'
                           : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -1162,11 +1157,10 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       readOnly={!!autoFilledFields.instituteName}
                       disabled={!!autoFilledFields.instituteName}
                       placeholder="যেমন: মুহাম্মাদনগর নূরানী ক্যাডেট মাদরাসা"
-                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm font-semibold ${
-                        autoFilledFields.instituteName
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm font-semibold ${autoFilledFields.instituteName
                           ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none'
                           : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
-                      }`}
+                        }`}
                     />
                   </div>
                 </div>
@@ -1184,11 +1178,10 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       readOnly={!!autoFilledFields.contactNo}
                       disabled={!!autoFilledFields.contactNo}
                       placeholder="01XXXXXXXXX"
-                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${
-                        autoFilledFields.contactNo
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${autoFilledFields.contactNo
                           ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none font-medium'
                           : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -1203,11 +1196,10 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                       readOnly={!!autoFilledFields.customerEmail}
                       disabled={!!autoFilledFields.customerEmail}
                       placeholder="user@example.com"
-                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${
-                        autoFilledFields.customerEmail
+                      className={`w-full px-3 py-2 rounded-xl border transition-all text-sm ${autoFilledFields.customerEmail
                           ? 'bg-slate-100/90 text-slate-700 border-slate-200 cursor-not-allowed select-none'
                           : 'bg-slate-50 focus:bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
-                      }`}
+                        }`}
                     />
                   </div>
                 </div>
@@ -1332,19 +1324,17 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                         key={d.type}
                         type="button"
                         onClick={() => setSelectedDeliveryType(d.type)}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                          isSelected
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${isSelected
                             ? "border-emerald-700 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-700"
                             : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between w-full mb-1">
                           <span className={`text-xs font-bold ${isSelected ? "text-emerald-800" : "text-slate-800"}`}>
                             {d.name}
                           </span>
-                          <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                            isSelected ? "border-emerald-700 bg-emerald-700" : "border-slate-300"
-                          }`}>
+                          <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${isSelected ? "border-emerald-700 bg-emerald-700" : "border-slate-300"
+                            }`}>
                             {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                           </span>
                         </div>
@@ -1363,8 +1353,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                         {selectedDeliveryType === "transport"
                           ? "ট্রান্সপোর্টের নাম উল্লেখ করুন"
                           : selectedDeliveryType === "other_courier"
-                          ? "কুরিয়ার সার্ভিসের নাম লিখুন"
-                          : `${selectedDeliveryOption.name}-এর নাম লিখুন`}{" "}
+                            ? "কুরিয়ার সার্ভিসের নাম লিখুন"
+                            : `${selectedDeliveryOption.name}-এর নাম লিখুন`}{" "}
                         <span className="text-red-500">*</span>
                       </label>
                       {deliveryCharge > 0 && (
@@ -1558,9 +1548,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                             }
                           }}
                           placeholder="Receipt Number"
-                          className={`flex-1 px-3 py-2 rounded-lg border focus:outline-none focus:border-emerald-700 text-xs font-semibold transition-all ${
-                            receiptVerifyStatus === 'valid' ? 'border-emerald-400 bg-emerald-50' : receiptVerifyStatus === 'invalid' ? 'border-red-400 bg-red-50' : 'border-slate-200'
-                          }`}
+                          className={`flex-1 px-3 py-2 rounded-lg border focus:outline-none focus:border-emerald-700 text-xs font-semibold transition-all ${receiptVerifyStatus === 'valid' ? 'border-emerald-400 bg-emerald-50' : receiptVerifyStatus === 'invalid' ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                            }`}
                         />
                         <button
                           type="button"
@@ -1844,7 +1833,7 @@ export default function StorePage() {
     fetch(`/api/store/categories?t=${Date.now()}`)
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setDbCategories(d); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -1908,7 +1897,7 @@ export default function StorePage() {
       .then(data => {
         if (data && !data.error) setCurrentUser(data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const isAgentOrCenter = useMemo(() => {
@@ -2264,11 +2253,10 @@ export default function StorePage() {
                 setSelectedSubTab("");
                 e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
               }}
-              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${
-                !selectedCategory 
-                  ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20' 
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${!selectedCategory
+                  ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-              }`}
+                }`}
             >
               সকল
             </button>
@@ -2288,11 +2276,10 @@ export default function StorePage() {
                     }
                     e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                   }}
-                  className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${
-                    isSelected 
-                      ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20' 
+                  className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${isSelected
+                      ? 'bg-emerald-700 border-emerald-700 text-white shadow-md scale-102 ring-2 ring-emerald-700/20'
                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -2311,11 +2298,10 @@ export default function StorePage() {
               <button
                 type="button"
                 onClick={() => setSelectedSubTab("")}
-                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
-                  !selectedSubTab
+                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${!selectedSubTab
                     ? "bg-slate-900 text-white border-slate-900 shadow-xs"
                     : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-800 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 সবগুলো
               </button>
@@ -2326,11 +2312,10 @@ export default function StorePage() {
                     key={sub}
                     type="button"
                     onClick={() => setSelectedSubTab(isSubSelected ? "" : sub)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
-                      isSubSelected
+                    className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${isSubSelected
                         ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-1 ring-emerald-600/30"
                         : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-800 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     {sub}
                   </button>
@@ -2406,12 +2391,12 @@ export default function StorePage() {
                   const productCode = getCleanProductCode(product);
 
                   return (
-                    <div 
-                      key={product.id} 
+                    <div
+                      key={product.id}
                       className="group bg-white rounded-2xl border border-slate-200/80 hover:border-emerald-500/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
                     >
                       {/* Image Area */}
-                      <div 
+                      <div
                         onClick={() => setDetailProduct(product)}
                         className="relative bg-gradient-to-b from-slate-50 to-slate-100/50 w-full aspect-[4/3] flex items-center justify-center p-2.5 sm:p-3 overflow-hidden border-b border-slate-100 cursor-pointer"
                       >
@@ -2432,11 +2417,10 @@ export default function StorePage() {
                             e.stopPropagation();
                             toggleFav(product.id);
                           }}
-                          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 cursor-pointer ${
-                            isFav 
-                              ? "bg-red-50 text-red-500 shadow-2xs border border-red-200" 
+                          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 cursor-pointer ${isFav
+                              ? "bg-red-50 text-red-500 shadow-2xs border border-red-200"
                               : "bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white border border-slate-200/70 opacity-0 group-hover:opacity-100 shadow-2xs"
-                          }`}
+                            }`}
                           title={isFav ? "পছন্দের তালিকা থেকে সরান" : "পছন্দের তালিকায় রাখুন"}
                         >
                           <Heart className={`w-3.5 h-3.5 ${isFav ? "fill-current" : ""}`} />
@@ -2446,7 +2430,7 @@ export default function StorePage() {
                       {/* Content Area */}
                       <div className="p-2.5 sm:p-3 flex flex-col flex-1 justify-between gap-2">
                         <div className="space-y-1">
-                          <h3 
+                          <h3
                             onClick={() => setDetailProduct(product)}
                             className="font-bold text-slate-800 text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-emerald-700 transition-colors cursor-pointer"
                             title={product.name}
@@ -2487,11 +2471,11 @@ export default function StorePage() {
 
                           {/* Horizontal + and - Quantity Stepper */}
                           {cartQty > 0 ? (
-                            <div 
-                              className="flex items-center justify-between w-full bg-emerald-50/90 rounded-xl p-0.5 border border-emerald-300/80 shadow-2xs" 
+                            <div
+                              className="flex items-center justify-between w-full bg-emerald-50/90 rounded-xl p-0.5 border border-emerald-300/80 shadow-2xs"
                               onClick={e => e.stopPropagation()}
                             >
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => updateCartQty(product, cartQty - 1)}
                                 className="w-7 h-7 sm:w-8 sm:h-8 bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center border border-emerald-200/80 shadow-2xs transition-all active:scale-90 cursor-pointer"
@@ -2510,7 +2494,7 @@ export default function StorePage() {
                                 onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
                                 className="w-10 sm:w-12 h-7 sm:h-8 text-center text-xs sm:text-sm font-black text-emerald-950 font-mono bg-white border border-emerald-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => updateCartQty(product, cartQty + 1)}
                                 className="w-7 h-7 sm:w-8 sm:h-8 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-sm sm:text-base flex items-center justify-center shadow-2xs transition-all active:scale-90 cursor-pointer"
@@ -2520,11 +2504,11 @@ export default function StorePage() {
                               </button>
                             </div>
                           ) : (
-                            <button 
+                            <button
                               type="button"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                addToCart(product); 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addToCart(product);
                               }}
                               className="w-full py-1.5 sm:py-2 px-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs sm:text-sm shadow-2xs shadow-emerald-700/20 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             >
@@ -2833,9 +2817,9 @@ export default function StorePage() {
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end xl:hidden">
           {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in" 
-            onClick={() => setCartOpen(false)} 
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+            onClick={() => setCartOpen(false)}
           />
 
           {/* Bottom Sheet Modal Panel */}
@@ -2871,8 +2855,8 @@ export default function StorePage() {
                     খালি করুন
                   </button>
                 )}
-                <button 
-                  onClick={() => setCartOpen(false)} 
+                <button
+                  onClick={() => setCartOpen(false)}
                   className="p-1.5 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition-colors"
                   title="বন্ধ করুন"
                 >

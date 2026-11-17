@@ -38,7 +38,7 @@ export default function NoticeBoardClient({ notices }: { notices: NoticeItem[] }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden h-full min-h-[500px] flex flex-col justify-between w-full lg:w-[240px] xl:w-[260px] 2xl:w-[275px] transition-all">
+    <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden h-full min-h-[500px] flex flex-col justify-between w-full lg:w-[220px] xl:w-[248px] 2xl:w-[265px] transition-all">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-slate-100 bg-slate-50/70 shrink-0">
         <div className="flex items-center gap-2 min-w-0">

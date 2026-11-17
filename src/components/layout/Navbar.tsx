@@ -272,6 +272,8 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
     };
 
     const handleScroll = () => {
+      // Don't listen or trigger re-renders on desktop where mobile pill bar is hidden
+      if (typeof window !== "undefined" && window.innerWidth >= 1280) return;
       if (isMobileMenuOpen || activeMobileDropdown) return;
       if (!isTicking.current) {
         window.requestAnimationFrame(updateScrollState);

@@ -70,6 +70,14 @@ type QuestionItem = {
   weightKg?: number;
 };
 
+const toEnglishDigits = (str: string): string => {
+  const map: Record<string, string> = {
+    "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
+    "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
+  };
+  return str.replace(/[০-৯]/g, (m) => map[m] || m);
+};
+
 export default function QuestionOrderPage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<string>("all");
@@ -180,8 +188,8 @@ export default function QuestionOrderPage() {
 
   // Fetch dynamic settings, payment methods and delivery options (no-store so Admin edits reflect immediately)
   const fetchPaymentAndDeliverySettings = useCallback(() => {
-    const cacheBust = `?t=${Date.now()}`;
-    fetch(`/api/settings${cacheBust}`, { cache: "no-store" })
+    const cacheBust = `&t=${Date.now()}`;
+    fetch(`/api/settings?category=question${cacheBust}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (data && typeof data.zimadarCommissionPercent === "number") {
@@ -606,10 +614,10 @@ export default function QuestionOrderPage() {
     });
   };
 
-  const setDirectQty = (item: QuestionItem, qty: number) => {
+  const setDirectQty = (item: QuestionItem, qty: number, allowZero: boolean = false) => {
     setCart((prev) => {
       const validQty = Math.max(0, isNaN(qty) ? 0 : qty);
-      if (validQty === 0) {
+      if (validQty === 0 && !allowZero) {
         const copy = { ...prev };
         delete copy[item.id];
         return copy;
@@ -1028,7 +1036,10 @@ export default function QuestionOrderPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/70 py-2.5 sm:py-4 pb-36 sm:pb-24 font-sans">
-      <div className="w-full max-w-[1640px] mx-auto px-2 sm:px-4 md:px-6">
+      <div className="w-full max-w-[1536px] mx-auto px-2 sm:px-4 md:px-6">
+
+        {/* ─── COMPACT TOP HEADER & FILTER CARD (Less Wide Fit) ─── */}
+        <div className="w-full max-w-4xl mx-auto mb-3">
 
         {/* ─── BACK BUTTON + SYNC STATUS ────────────────────────────── */}
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -1254,6 +1265,8 @@ export default function QuestionOrderPage() {
 
         </div>
 
+        </div>
+
         {/* ─── 4. WIDE-FITTED CLEAN TABLE OR CARD VIEW ──────────────────────────── */}
         {isLoading ? (
           <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 shadow-xs my-3 space-y-3">
@@ -1342,12 +1355,21 @@ export default function QuestionOrderPage() {
                                 -
                               </button>
                               <input
-                                type="number"
-                                min="0"
-                                value={currentQty || ""}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={currentQty === 0 ? "" : currentQty}
                                 placeholder="0"
-                                onChange={(e) => setDirectQty(item, parseInt(e.target.value) || 0)}
-                                className="w-12 h-7 text-center font-black bg-white rounded-lg border border-emerald-600 text-xs text-slate-900 focus:outline-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 shadow-2xs"
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
+                                  const val = raw === "" ? 0 : parseInt(raw, 10);
+                                  setDirectQty(item, val, true);
+                                }}
+                                onBlur={() => {
+                                  if (currentQty <= 0) setDirectQty(item, 0);
+                                }}
+                                className="w-12 h-7 text-center font-black font-mono bg-white rounded-lg border border-emerald-600 text-xs text-slate-900 focus:outline-emerald-600 shadow-2xs"
                               />
                               <button
                                 type="button"
@@ -1444,12 +1466,21 @@ export default function QuestionOrderPage() {
                           -
                         </button>
                         <input
-                          type="number"
-                          min="0"
-                          value={currentQty || ""}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={currentQty === 0 ? "" : currentQty}
                           placeholder="0"
-                          onChange={(e) => setDirectQty(item, parseInt(e.target.value) || 0)}
-                          className="w-12 sm:w-14 h-8 sm:h-9 text-center font-black text-sm bg-white rounded-xl border border-emerald-600 text-slate-950 ring-1 ring-emerald-600/20 focus:outline-emerald-600 focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 shadow-2xs"
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
+                            const val = raw === "" ? 0 : parseInt(raw, 10);
+                            setDirectQty(item, val, true);
+                          }}
+                          onBlur={() => {
+                            if (currentQty <= 0) setDirectQty(item, 0);
+                          }}
+                          className="w-12 sm:w-14 h-8 sm:h-9 text-center font-black font-mono text-sm bg-white rounded-xl border border-emerald-600 text-slate-950 ring-1 ring-emerald-600/20 focus:outline-emerald-600 focus:border-emerald-600 shadow-2xs"
                         />
                         <button
                           type="button"
@@ -1545,7 +1576,23 @@ export default function QuestionOrderPage() {
                           >
                             -
                           </button>
-                          <span className="w-8 text-center text-xs font-black text-slate-900">{qty}</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={qty === 0 ? "" : qty}
+                            placeholder="0"
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
+                              const val = raw === "" ? 0 : parseInt(raw, 10);
+                              setDirectQty(item, val, true);
+                            }}
+                            onBlur={() => {
+                              if (qty <= 0) setDirectQty(item, 0);
+                            }}
+                            className="w-12 h-6 text-center text-xs font-black font-mono bg-white border border-slate-200 rounded text-slate-900 outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
                           <button
                             type="button"
                             onClick={() => updateQty(item, 1)}
@@ -1721,12 +1768,23 @@ export default function QuestionOrderPage() {
                     -
                   </button>
                   <input
-                    type="number"
-                    min="0"
-                    value={cart[selectedDetailItem.id]?.qty || ""}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={(cart[selectedDetailItem.id]?.qty || 0) === 0 ? "" : (cart[selectedDetailItem.id]?.qty || "")}
                     placeholder="0"
-                    onChange={(e) => setDirectQty(selectedDetailItem, parseInt(e.target.value) || 0)}
-                    className="w-14 h-9 text-center font-black text-sm sm:text-base bg-white rounded-xl border border-slate-200 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 text-slate-900 shadow-2xs"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
+                      const val = raw === "" ? 0 : parseInt(raw, 10);
+                      setDirectQty(selectedDetailItem, val, true);
+                    }}
+                    onBlur={() => {
+                      if ((cart[selectedDetailItem.id]?.qty || 0) <= 0) {
+                        setDirectQty(selectedDetailItem, 0);
+                      }
+                    }}
+                    className="w-16 h-9 text-center font-black font-mono text-sm sm:text-base bg-white rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900 shadow-2xs"
                   />
                   <button
                     type="button"
