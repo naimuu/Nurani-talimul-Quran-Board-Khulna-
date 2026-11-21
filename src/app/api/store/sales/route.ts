@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import * as jose from "jose";
 
 export const dynamic = 'force-dynamic';
-
-const prisma = new PrismaClient();
 
 async function verifyAdmin() {
   const token = cookies().get("auth_token")?.value;
@@ -23,17 +21,20 @@ import connectDB from "@/lib/mongodb";
 import Madrasa from "@/lib/models/Madrasa";
 import { getEnrichedTimeline } from "@/lib/orderTimeline";
 import { repairQuestionOrderSaleIfNeeded } from "@/lib/orderRepair";
-import mongoose from "mongoose";
 
 export async function GET() {
   try {
     let sales = await (prisma as any).storeSale.findMany({
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       include: {
         items: { include: { product: true } },
         payments: true,
       },
     });
+
+    if (!Array.isArray(sales)) {
+      return NextResponse.json([]);
+    }
 
     try {
       await connectDB();
@@ -46,8 +47,15 @@ export async function GET() {
       }
 
       const repairedSales = await Promise.all(sales.map(async (sale: any) => {
-        const repaired = await repairQuestionOrderSaleIfNeeded(sale, prisma);
-        return repaired;
+        try {
+          if (!sale.items || sale.items.length === 0 || sale.items.some((i: any) => !i.product?.name || i.product?.name === 'অর্ডারকৃত পণ্য')) {
+            return await repairQuestionOrderSaleIfNeeded(sale, prisma);
+          }
+          return sale;
+        } catch (repErr) {
+          console.warn("Error during question order sale repair:", repErr);
+          return sale;
+        }
       }));
 
       const enrichedSales = repairedSales.map((sale: any) => {

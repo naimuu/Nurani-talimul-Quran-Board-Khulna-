@@ -5,12 +5,12 @@ import { parseQuestionItemsFromNotes } from "@/lib/orderTimeline";
 export async function repairQuestionOrderSaleIfNeeded(sale: any, prisma: PrismaClient): Promise<any> {
   if (!sale || !sale.notes || !sale.notes.includes('[প্রশ্নের অর্ডার]:')) return sale;
   
-  const isDummy = sale.items?.some((i: any) => 
+  const isDummy = !sale.items || sale.items.length === 0 || sale.items.some((i: any) => 
     !i.product?.name || 
     i.product?.name?.includes('ব্ল্যাকবোর্ড') || 
     i.product?.name === 'অর্ডারকৃত পণ্য' ||
     (Number(i.unitPrice) >= 2000 && !i.product?.name?.includes('সেট'))
-  ) || !sale.items || sale.items.length === 0;
+  );
 
   const parsedItems = parseQuestionItemsFromNotes(sale.notes);
   if (parsedItems.length === 0) return sale;
@@ -22,9 +22,7 @@ export async function repairQuestionOrderSaleIfNeeded(sale: any, prisma: PrismaC
     parsedItems.some(p => p.name !== parsedItems[0].name)
   );
 
-  const hasItemCountMismatch = Boolean(sale.items && sale.items.length !== parsedItems.length);
-
-  if (!isDummy && !hasDuplicateGlitch && !hasItemCountMismatch) return sale;
+  if (!isDummy && !hasDuplicateGlitch) return sale;
 
   try {
     // Lookup question set prices from ExamSession

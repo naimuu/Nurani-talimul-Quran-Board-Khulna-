@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import * as jose from "jose";
 import connectDB from "@/lib/mongodb";
 import mongoose from "mongoose";
 import { calculateDeliveryCost } from "@/lib/deliveryCost";
 import { getEnrichedTimeline, createTimelineEvent, parseTrackingInfo } from "@/lib/orderTimeline";
-
-const prisma = new PrismaClient();
 
 async function getAdminUser() {
   const token = cookies().get("auth_token")?.value;

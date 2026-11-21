@@ -36,7 +36,8 @@ export function isQuestionOrder(sale: Sale | any): boolean {
     notes.includes('[প্রশ্নের অর্ডার]') ||
     notes.includes('প্রশ্নপত্র') ||
     notes.includes('প্রশ্ন অর্ডার') ||
-    notes.includes('প্রশ্নপত্র সেট')
+    notes.includes('প্রশ্নপত্র সেট') ||
+    notes.includes('সেট]')
   ) {
     return true;
   }
@@ -49,7 +50,10 @@ export function isQuestionOrder(sale: Sale | any): boolean {
         pName.includes('প্রশ্ন') ||
         pName.includes('প্রশ্নপত্র') ||
         pCat.includes('question') ||
-        pCat.includes('প্রশ্ন')
+        pCat.includes('প্রশ্ন') ||
+        pName.includes('সাময়িক') ||
+        pName.includes('বার্ষিক') ||
+        pName.includes('সেট')
       );
     });
     if (hasQuestion) return true;
@@ -62,14 +66,12 @@ export type OrderStep = 'pending' | 'confirmed' | 'packaging' | 'shipped' | 'del
 
 export function getOrderStep(status: string): OrderStep {
   const s = (status || '').trim().toLowerCase();
-  if (s === 'pending order') return 'pending';
-  if (s === 'rejected' || s === 'cancelled') return 'cancelled';
-  if (s === 'packaging') return 'packaging';
-  if (s === 'shipped' || s === 'courier' || s === 'in courier') return 'shipped';
-  if (s === 'delivered' || s === 'completed') return 'delivered';
-  if (s === 'confirmed' || s === 'accepted') return 'confirmed';
-  // Fallbacks for counter sales
-  if (s === 'paid' || s === 'partial' || s === 'pending') return 'confirmed';
+  if (s === 'pending order' || s === 'pending' || s === 'নতুন' || s === 'অপেক্ষমাণ') return 'pending';
+  if (s === 'rejected' || s === 'cancelled' || s === 'বাতিল') return 'cancelled';
+  if (s === 'packaging' || s === 'প্যাকেজিং') return 'packaging';
+  if (s === 'shipped' || s === 'courier' || s === 'in courier' || s === 'কুরিয়ার') return 'shipped';
+  if (s === 'delivered' || s === 'completed' || s === 'ডেলিভার্ড') return 'delivered';
+  if (s === 'confirmed' || s === 'accepted' || s === 'paid' || s === 'partial' || s === 'অনুমোদিত') return 'confirmed';
   return 'pending';
 }
 
@@ -557,15 +559,15 @@ export default function OrderTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Top Header with Order Type Switcher & Search */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-extrabold text-base sm:text-lg text-slate-800 flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-emerald-600" />
               <span>অর্ডার ও ডেলিভারি ব্যবস্থাপনা</span>
             </h3>
-            <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-              {categoryFilteredOrders.length} টি
+            <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">
+              মোট {categoryFilteredOrders.length} টি
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -573,20 +575,88 @@ export default function OrderTab({
               ? 'পরীক্ষার প্রশ্নপত্র অর্ডারসমূহ পর্যালোচনা ও কুরিয়ার ট্র্যাকিং ধাপসমূহ।'
               : orderCategory === 'stationary'
               ? 'বই ও স্টেশনারি আইটেম অর্ডারসমূহ পর্যালোচনা ও কুরিয়ার ট্র্যাকিং।'
-              : 'বই-স্টেশনারি ও পরীক্ষার প্রশ্নপত্রের অর্ডার তালিকা ও ডেলিভারি ব্যবস্থাপনা।'}
+              : 'বই-স্টেশনারি ও পরীক্ষার প্রশ্নপত্রের সকল অনলাইন অর্ডার তালিকা ও ডেলিভারি ব্যবস্থাপনা।'}
           </p>
         </div>
 
-        {/* Search Box */}
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="ইনভয়েস বা নাম/মোবাইল..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/30 focus:bg-white focus:outline-none transition-all"
-          />
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Order Category Switcher */}
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+            <button
+              type="button"
+              onClick={() => handleCategorySwitch('all')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                orderCategory === 'all'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>সব অর্ডার</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                orderCategory === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {categoryCounts.all}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCategorySwitch('stationary')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                orderCategory === 'stationary'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>বই ও স্টেশনারি</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                orderCategory === 'stationary' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {categoryCounts.stationary}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCategorySwitch('question')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                orderCategory === 'question'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>প্রশ্নপত্র</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                orderCategory === 'question' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {categoryCounts.question}
+              </span>
+            </button>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative flex-1 md:w-56 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="ইনভয়েস বা নাম/মোবাইল..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary/30 focus:bg-white focus:outline-none transition-all"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={fetchOrders}
+            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 transition-all cursor-pointer"
+            title="রিফ্রেশ করুন"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+          </button>
         </div>
       </div>
 
@@ -657,7 +727,19 @@ export default function OrderTab({
                   <td colSpan={7} className="text-center py-12 text-slate-400">
                     <Package className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                     <p className="font-bold text-slate-600">এই ধাপে কোনো অর্ডার পাওয়া যায়নি</p>
-                    <p className="text-xs text-slate-400 mt-0.5">অন্যান্য ট্যাব বা ফিল্টার চেক করুন।</p>
+                    {categoryFilteredOrders.length > 0 ? (
+                      <div className="mt-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentTab('all')}
+                          className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 cursor-pointer"
+                        >
+                          সব ধাপের মোট {categoryFilteredOrders.length}টি অর্ডার দেখুন
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 mt-0.5">অন্যান্য ক্যাটাগরি বা ফিল্টার চেক করুন।</p>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -949,7 +1031,19 @@ export default function OrderTab({
           <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
             <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="font-bold text-slate-600">এই ধাপে কোনো অর্ডার পাওয়া যায়নি</p>
-            <p className="text-xs text-slate-400 mt-0.5">অন্যান্য ট্যাব বা ফিল্টার চেক করুন।</p>
+            {categoryFilteredOrders.length > 0 ? (
+              <div className="mt-2.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('all')}
+                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 cursor-pointer"
+                >
+                  সব ধাপের মোট {categoryFilteredOrders.length}টি অর্ডার দেখুন
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 mt-0.5">অন্যান্য ক্যাটাগরি বা ফিল্টার চেক করুন।</p>
+            )}
           </div>
         ) : (
           filtered.map(order => {
