@@ -248,6 +248,24 @@ const DEFAULT_PAYMENT_METHODS = [
   ...DEFAULT_BANK_METHODS,
 ];
 
+const DEFAULT_QUESTION_PAYMENTS = [
+  {
+    type: "bank",
+    provider: "ইসলামী ব্যাংক",
+    name: "ইসলামী ব্যাংক বাংলাদেশ লিঃ (পরীক্ষা ও প্রশ্নপত্র তহবিল)",
+    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা",
+    accountNumber: "20509876543210",
+    accountType: "চলতি হিসাব",
+    branch: "খুলনা প্রধান শাখা",
+    routingNo: "125471234",
+    instructions: "ইসলামী ব্যাংক সেলফিন/অ্যাপ অথবা যেকোনো ব্যাংক অ্যাপ বা শাখা থেকে কিউআর কোড স্ক্যান করে অথবা সরাসরি একাউন্টে ট্রান্সফার করে ট্রানজেকশন আইডি (TrxID) বা স্লিপ নম্বর দিন।",
+    qrCodeImage: "",
+    isActive: true,
+    sortOrder: 1,
+    chargePercent: 0,
+  },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(request: Request) {
   try {
@@ -362,7 +380,13 @@ export async function GET(request: Request) {
     if (category) {
       const isQuestion = category.toLowerCase() === "question";
       const slug = isQuestion ? "payment-methods-v3-question" : "payment-methods-v3-book";
-      const catRec = await prisma.pageContent.findUnique({ where: { slug } });
+      let catRec = await prisma.pageContent.findUnique({ where: { slug } });
+      if (!catRec) {
+        const initial = isQuestion ? DEFAULT_QUESTION_PAYMENTS : (settings?.payments || DEFAULT_PAYMENT_METHODS);
+        catRec = await prisma.pageContent.create({
+          data: { slug, content: JSON.stringify(initial) },
+        }).catch(() => null);
+      }
       if (catRec) {
         try {
           const parsed = JSON.parse(catRec.content);
@@ -370,6 +394,8 @@ export async function GET(request: Request) {
             settings = { ...settings, payments: parsed } as any;
           }
         } catch {}
+      } else if (isQuestion) {
+        settings = { ...settings, payments: DEFAULT_QUESTION_PAYMENTS } as any;
       }
     }
 

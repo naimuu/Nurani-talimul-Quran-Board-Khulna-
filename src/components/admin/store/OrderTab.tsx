@@ -6,6 +6,7 @@ import {
   RefreshCw, Send, ChevronRight, Eye, ShieldCheck, UserCheck, Phone, Plus,
   User, Calendar, ThumbsUp, BookOpen, Layers, ClipboardList
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { toBanglaDigits } from './BanglaDatePicker';
 import { formatBanglaDateTime, TimelineEvent, cleanAddressNotes } from '@/lib/orderTimeline';
 import { printOrderInvoice } from '@/lib/orderPrint';
@@ -241,8 +242,16 @@ export default function OrderTab({
   const [deliverConfirmOrder, setDeliverConfirmOrder] = useState<Sale | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
 
-  // Reject Modal
-  const [confirmRejectModal, setConfirmRejectModal] = useState<{ isOpen: boolean; orderId: string }>({ isOpen: false, orderId: '' });
+  // Permanent Delete Modal
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    order: Sale | null;
+    isDeleting: boolean;
+  }>({
+    isOpen: false,
+    order: null,
+    isDeleting: false,
+  });
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -432,21 +441,40 @@ export default function OrderTab({
     }
   };
 
-  // Reject / Cancel
-  const handleRejectClick = (orderId: string) => {
-    setConfirmRejectModal({ isOpen: true, orderId });
+  // Permanent Delete Order
+  const handleDeleteClick = (order: Sale) => {
+    setDeleteModal({ isOpen: true, order, isDeleting: false });
   };
 
-  const confirmReject = async () => {
-    const orderId = confirmRejectModal.orderId;
-    if (!orderId) return;
-    await fetch(`/api/store/sales/${orderId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'updateStatus', status: 'Rejected' }),
-    });
-    setConfirmRejectModal({ isOpen: false, orderId: '' });
-    fetchOrders();
+  const confirmDeleteOrder = async () => {
+    const order = deleteModal.order;
+    if (!order) return;
+    setDeleteModal(prev => ({ ...prev, isDeleting: true }));
+    try {
+      const res = await fetch(`/api/store/sales/${order.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        // Fallback to PUT with action: 'delete'
+        const putRes = await fetch(`/api/store/sales/${order.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete' }),
+        });
+        const putData = await putRes.json();
+        if (!putRes.ok) {
+          throw new Error(putData.error || data.error || 'অর্ডারটি মুছতে ব্যর্থ হয়েছে');
+        }
+      }
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      toast.success(`অর্ডার (${order.invoiceId}) স্থায়ীভাবে মুছে ফেলা হয়েছে!`);
+      setDeleteModal({ isOpen: false, order: null, isDeleting: false });
+      fetchOrders();
+    } catch (err: any) {
+      toast.error(err.message || 'অর্ডার মুছতে সমস্যা হয়েছে');
+      setDeleteModal(prev => ({ ...prev, isDeleting: false }));
+    }
   };
 
   // Update Items
@@ -896,14 +924,14 @@ export default function OrderTab({
                                   setPartialPaidAmount('');
                                   setPromiseDate('');
                                 }}
-                                className="px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-extrabold hover:bg-primary/90 shadow-2xs transition-all active:scale-95"
+                                className="px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-extrabold hover:bg-primary/90 shadow-2xs transition-all active:scale-95 cursor-pointer"
                               >
                                 রিভিউ ও অনুমোদন
                               </button>
                               <button
-                                onClick={() => handleRejectClick(order.id)}
-                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="বাতিল করুন"
+                                onClick={() => handleDeleteClick(order)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200 cursor-pointer"
+                                title="অর্ডার চিরতরে মুছে ফেলুন"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -914,7 +942,7 @@ export default function OrderTab({
                             <>
                               <button
                                 onClick={() => handleQuickStatusChange(order.id, 'Packaging')}
-                                className="px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-extrabold hover:bg-purple-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                                className="px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-extrabold hover:bg-purple-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
                               >
                                 <Package className="w-3.5 h-3.5" />
                                 <span>প্যাকেজিং শুরু</span>
@@ -927,10 +955,17 @@ export default function OrderTab({
                                   setOrderDiscount((order.discount ?? 0).toString());
                                   setConfirmMode('none');
                                 }}
-                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                                 title="বিস্তারিত / এডিট"
                               >
                                 <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(order)}
+                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200 cursor-pointer"
+                                title="অর্ডার চিরতরে মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </>
                           )}
@@ -944,17 +979,24 @@ export default function OrderTab({
                                   const parsed = parseTrackingInfo(order.notes, order.courierName);
                                   setCourierTrackingId(parsed.trackingId || '');
                                 }}
-                                className="px-3 py-1.5 bg-cyan-700 text-white rounded-xl text-xs font-extrabold hover:bg-cyan-800 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                                className="px-3 py-1.5 bg-cyan-700 text-white rounded-xl text-xs font-extrabold hover:bg-cyan-800 shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
                               >
                                 <Truck className="w-3.5 h-3.5" />
                                 <span>কুরিয়ারে পাঠান</span>
                               </button>
                               <button
                                 onClick={() => printInvoice(order)}
-                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                                 title="চালান প্রিন্ট করুন"
                               >
                                 <Printer className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(order)}
+                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200 cursor-pointer"
+                                title="অর্ডার চিরতরে মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </>
                           )}
@@ -963,7 +1005,7 @@ export default function OrderTab({
                             <>
                               <button
                                 onClick={() => setDeliverConfirmOrder(order)}
-                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-extrabold hover:bg-emerald-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-extrabold hover:bg-emerald-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 <span>ডেলিভার্ড</span>
@@ -975,39 +1017,65 @@ export default function OrderTab({
                                   const parsed = parseTrackingInfo(order.notes, order.courierName);
                                   setCourierTrackingId(parsed.trackingId || '');
                                 }}
-                                className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
+                                className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer"
                                 title="কুরিয়ার ট্র্যাকিং এডিট"
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => printInvoice(order)}
-                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                                 title="চালান প্রিন্ট করুন"
                               >
                                 <Printer className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(order)}
+                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200 cursor-pointer"
+                                title="অর্ডার চিরতরে মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </>
                           )}
 
                           {step === 'delivered' && (
-                            <button
-                              onClick={() => printInvoice(order)}
-                              className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
-                            >
-                              <Printer className="w-3.5 h-3.5" />
-                              <span>চালান প্রিন্ট</span>
-                            </button>
+                            <>
+                              <button
+                                onClick={() => printInvoice(order)}
+                                className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                                <span>চালান প্রিন্ট</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(order)}
+                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200 cursor-pointer"
+                                title="অর্ডার চিরতরে মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
 
                           {step === 'cancelled' && (
-                            <button
-                              onClick={() => handleQuickStatusChange(order.id, 'Pending Order')}
-                              className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
-                            >
-                              <RefreshCw className="w-3.5 h-3.5" />
-                              <span>সক্রিয় করুন</span>
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleQuickStatusChange(order.id, 'Pending Order')}
+                                className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                <span>সক্রিয় করুন</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(order)}
+                                className="px-2.5 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 border border-red-200 cursor-pointer"
+                                title="অর্ডার চিরতরে মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>চিরতরে মুছুন</span>
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -1200,14 +1268,14 @@ export default function OrderTab({
                     <>
                       <button
                         onClick={() => openOrderReviewModal(order)}
-                        className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                        className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 shadow-2xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
                       >
                         <span>রিভিউ ও অনুমোদন</span>
                       </button>
                       <button
-                        onClick={() => handleRejectClick(order.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
-                        title="বাতিল করুন"
+                        onClick={() => handleDeleteClick(order)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                        title="অর্ডার চিরতরে মুছে ফেলুন"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1218,17 +1286,24 @@ export default function OrderTab({
                     <>
                       <button
                         onClick={() => handleQuickStatusChange(order.id, 'Packaging')}
-                        className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                        className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
                       >
                         <Package className="w-3 h-3" />
                         <span>প্যাকেজিং শুরু</span>
                       </button>
                       <button
                         onClick={() => openOrderReviewModal(order)}
-                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
                         title="বিস্তারিত / এডিট"
                       >
                         <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(order)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                        title="অর্ডার চিরতরে মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </>
                   )}
@@ -1237,17 +1312,24 @@ export default function OrderTab({
                     <>
                       <button
                         onClick={() => openCourierModal(order)}
-                        className="px-3 py-1.5 bg-cyan-700 text-white rounded-lg text-xs font-bold hover:bg-cyan-800 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                        className="px-3 py-1.5 bg-cyan-700 text-white rounded-lg text-xs font-bold hover:bg-cyan-800 shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
                       >
                         <Truck className="w-3 h-3" />
                         <span>কুরিয়ারে পাঠান</span>
                       </button>
                       <button
                         onClick={() => printInvoice(order)}
-                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
                         title="চালান প্রিন্ট করুন"
                       >
                         <Printer className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(order)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                        title="অর্ডার চিরতরে মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </>
                   )}
@@ -1256,46 +1338,72 @@ export default function OrderTab({
                     <>
                       <button
                         onClick={() => setDeliverConfirmOrder(order)}
-                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95"
+                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
                       >
                         <CheckCircle2 className="w-3 h-3" />
                         <span>ডেলিভার্ড</span>
                       </button>
                       <button
                         onClick={() => openCourierModal(order)}
-                        className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors border border-cyan-200"
+                        className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors border border-cyan-200 cursor-pointer"
                         title="কুরিয়ার ট্র্যাকিং এডিট"
                       >
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => printInvoice(order)}
-                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+                        className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
                         title="চালান প্রিন্ট করুন"
                       >
                         <Printer className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(order)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                        title="অর্ডার চিরতরে মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </>
                   )}
 
                   {step === 'delivered' && (
-                    <button
-                      onClick={() => printInvoice(order)}
-                      className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>চালান প্রিন্ট</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => printInvoice(order)}
+                        className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>চালান প্রিন্ট</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(order)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                        title="অর্ডার চিরতরে মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
                   )}
 
                   {step === 'cancelled' && (
-                    <button
-                      onClick={() => handleQuickStatusChange(order.id, 'Pending Order')}
-                      className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>সক্রিয় করুন</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleQuickStatusChange(order.id, 'Pending Order')}
+                        className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>সক্রিয় করুন</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(order)}
+                        className="px-2.5 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 border border-red-200 cursor-pointer"
+                        title="অর্ডার চিরতরে মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>মুছে ফেলুন</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -1382,12 +1490,28 @@ export default function OrderTab({
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={() => { setSelectedOrder(null); setEditMode(false); }} 
-                className="p-2 hover:bg-slate-200 rounded-full shrink-0 transition-colors"
-              >
-                <X className="w-5 h-5 text-slate-500" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ord = selectedOrder;
+                    setSelectedOrder(null);
+                    setEditMode(false);
+                    handleDeleteClick(ord);
+                  }}
+                  title="অর্ডার চিরতরে মুছে ফেলুন"
+                  className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-bold border border-rose-200/60"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>চিরতরে মুছুন</span>
+                </button>
+                <button 
+                  onClick={() => { setSelectedOrder(null); setEditMode(false); }} 
+                  className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
             </div>
             
             {/* Modal Body */}
@@ -2114,29 +2238,55 @@ export default function OrderTab({
         </div>
       )}
 
-      {/* Reject Confirmation Modal */}
-      {confirmRejectModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
+      {/* Permanent Delete Confirmation Modal */}
+      {deleteModal.isOpen && deleteModal.order && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center border border-slate-200">
-            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-3.5 shadow-xs">
+            <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3.5 shadow-xs">
               <Trash2 className="w-7 h-7" />
             </div>
-            <h3 className="font-extrabold text-lg text-slate-800 mb-1">অর্ডার বাতিল নিশ্চিত করুন</h3>
-            <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-              আপনি কি নিশ্চিত যে আপনি এই অর্ডারটি বাতিল করতে চান? প্রয়োজনে পরবর্তীতে আবার সক্রিয় করা যাবে।
+            <h3 className="font-extrabold text-lg text-slate-800 mb-1">অর্ডার চিরতরে মুছে ফেলুন</h3>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              আপনি কি নিশ্চিত যে এই অর্ডারটি তালিকা ও ডাটাবেজ থেকে চিরতরে মুছে ফেলতে চান? এটি আর ফিরিয়ে আনা যাবে না।
             </p>
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-xs text-left mb-5 space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-500">ইনভয়েস:</span>
+                <span className="font-mono font-bold text-slate-800">{deleteModal.order.invoiceId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">গ্রাহক:</span>
+                <span className="font-semibold text-slate-800">{deleteModal.order.customerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">মোট বিল:</span>
+                <span className="font-bold text-emerald-600">{toBanglaDigits(deleteModal.order.totalAmount.toFixed(2))} ৳</span>
+              </div>
+            </div>
             <div className="flex gap-2.5">
               <button 
-                onClick={() => setConfirmRejectModal({ isOpen: false, orderId: '' })} 
-                className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors"
+                onClick={() => setDeleteModal({ isOpen: false, order: null, isDeleting: false })} 
+                disabled={deleteModal.isDeleting}
+                className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
               >
                 না, ফিরে যান
               </button>
               <button 
-                onClick={confirmReject} 
-                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-xs font-extrabold hover:bg-red-700 transition-colors shadow-sm"
+                onClick={confirmDeleteOrder} 
+                disabled={deleteModal.isDeleting}
+                className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-extrabold hover:bg-rose-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                হ্যাঁ, বাতিল করুন
+                {deleteModal.isDeleting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>মুছে ফেলা হচ্ছে...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>হ্যাঁ, চিরতরে মুছুন</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

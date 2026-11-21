@@ -21,6 +21,7 @@ import connectDB from "@/lib/mongodb";
 import Madrasa from "@/lib/models/Madrasa";
 import { getEnrichedTimeline } from "@/lib/orderTimeline";
 import { repairQuestionOrderSaleIfNeeded } from "@/lib/orderRepair";
+import { generateUniqueInvoiceId } from "@/lib/invoiceHelper";
 
 export async function GET() {
   try {
@@ -111,39 +112,52 @@ export async function POST(request: Request) {
     const totalAmount = Math.max(0, subtotal - discount) + (Number(deliveryCharge) || 0);
     const status = paidAmount >= totalAmount ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
 
-    // Generate invoice ID
-    const count = await (prisma as any).storeSale.count();
-    const invoiceId = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    // Generate guaranteed unique invoice ID (collision-proof against deleted orders)
+    let invoiceId = await generateUniqueInvoiceId(prisma);
 
-    const sale = await (prisma as any).storeSale.create({
-      data: {
-        invoiceId,
-        customerName,
-        customerPhone: customerPhone || null,
-        instituteId: instituteId || null,
-        totalAmount,
-        paidAmount,
-        discount,
-        deliveryCharge: Number(deliveryCharge) || 0,
-        courierName: courierName || "পাঠাও কুরিয়ার",
-        totalWeight: Number(totalWeight) || 0,
-        status,
-        promiseDate: promiseDate ? new Date(promiseDate) : null,
-        notes: notes || "",
-        items: {
-          create: await Promise.all(items.map(async (item: { productId: string; quantity: number }) => {
-            const product = await (prisma as any).storeProduct.findUnique({ where: { id: item.productId } });
-            // Deduct stock
-            await (prisma as any).storeProduct.update({
-              where: { id: item.productId },
-              data: { stock: { decrement: item.quantity } },
-            });
-            return { productId: item.productId, quantity: item.quantity, unitPrice: product.price };
-          })),
-        },
-      },
-      include: { items: { include: { product: true } }, payments: true },
-    });
+    const saleItemsData = await Promise.all(items.map(async (item: { productId: string; quantity: number }) => {
+      const product = await (prisma as any).storeProduct.findUnique({ where: { id: item.productId } });
+      // Deduct stock
+      await (prisma as any).storeProduct.update({
+        where: { id: item.productId },
+        data: { stock: { decrement: item.quantity } },
+      });
+      return { productId: item.productId, quantity: item.quantity, unitPrice: product.price };
+    }));
+
+    let sale;
+    let attempts = 0;
+    while (!sale && attempts < 5) {
+      attempts++;
+      if (attempts > 1) {
+        invoiceId = await generateUniqueInvoiceId(prisma);
+      }
+      try {
+        sale = await (prisma as any).storeSale.create({
+          data: {
+            invoiceId,
+            customerName,
+            customerPhone: customerPhone || null,
+            instituteId: instituteId || null,
+            totalAmount,
+            paidAmount,
+            discount,
+            deliveryCharge: Number(deliveryCharge) || 0,
+            courierName: courierName || "পাঠাও কুরিয়ার",
+            totalWeight: Number(totalWeight) || 0,
+            status,
+            promiseDate: promiseDate ? new Date(promiseDate) : null,
+            notes: notes || "",
+            items: {
+              create: saleItemsData,
+            },
+          },
+          include: { items: { include: { product: true } }, payments: true },
+        });
+      } catch (saleErr: any) {
+        if (attempts >= 5) throw saleErr;
+      }
+    }
 
     if (paidAmount > 0) {
       await (prisma as any).storePayment.create({

@@ -21,6 +21,8 @@ export interface PaymentMethodItem {
   instructions?: string;
   sortOrder?: number;
   isActive?: boolean;
+  chargePercent?: number; // e.g. 1 for 1% extra bank/payment fee
+  chargeFixed?: number;
 }
 
 const DEFAULT_BOOK_PAYMENTS: PaymentMethodItem[] = [
@@ -33,6 +35,7 @@ const DEFAULT_BOOK_PAYMENTS: PaymentMethodItem[] = [
     instructions: "Send Money করে প্রেরক নম্বর ও TrxID প্রদান করুন।",
     isActive: true,
     sortOrder: 1,
+    chargePercent: 0,
   },
   {
     type: "mobile",
@@ -43,6 +46,7 @@ const DEFAULT_BOOK_PAYMENTS: PaymentMethodItem[] = [
     instructions: "Make Payment করে TrxID প্রদান করুন।",
     isActive: true,
     sortOrder: 2,
+    chargePercent: 0,
   },
   {
     type: "bank",
@@ -56,42 +60,25 @@ const DEFAULT_BOOK_PAYMENTS: PaymentMethodItem[] = [
     instructions: "ব্যাংক ডিপোজিট বা অনলাইন ফান্ড ট্রান্সফার করে স্লিপ বা ট্রানজেকশন নম্বর প্রদান করুন।",
     isActive: true,
     sortOrder: 3,
+    chargePercent: 1, // 1% default bank fee
   },
 ];
 
-const DEFAULT_QUESTION_PAYMENTS: PaymentMethodItem[] = [
-  {
-    type: "mobile",
-    provider: "বিকাশ",
-    name: "বিকাশ (প্রশ্নপত্র পেমেন্ট)",
-    accountNumber: "01820580560",
-    accountType: "পার্সোনাল",
-    instructions: "প্রশ্নপত্র সেটের বিল Send Money করে প্রেরক নম্বর ও TrxID লিখুন।",
-    isActive: true,
-    sortOrder: 1,
-  },
-  {
-    type: "mobile",
-    provider: "নগদ",
-    name: "নগদ (প্রশ্নপত্র পেমেন্ট)",
-    accountNumber: "01711000000",
-    accountType: "পার্সোনাল",
-    instructions: "নগদ Send Money করে প্রেরক নম্বর ও TrxID লিখুন।",
-    isActive: true,
-    sortOrder: 2,
-  },
+export const DEFAULT_QUESTION_PAYMENTS: PaymentMethodItem[] = [
   {
     type: "bank",
     provider: "ইসলামী ব্যাংক",
-    name: "ইসলামী ব্যাংক বাংলাদেশ লিঃ (পরীক্ষা তহবিল)",
-    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা - পরীক্ষা ও প্রশ্ন",
+    name: "ইসলামী ব্যাংক বাংলাদেশ লিঃ (পরীক্ষা ও প্রশ্নপত্র তহবিল)",
+    accountName: "নূরানী তালিমুল কুরআন বোর্ড খুলনা",
     accountNumber: "20509876543210",
     accountType: "চলতি হিসাব",
     branch: "খুলনা প্রধান শাখা",
     routingNo: "125471234",
-    instructions: "প্রশ্নপত্রের বিল ব্যাংক ট্রান্সফার বা জমা দিয়ে রেফারেন্স নম্বর দিন।",
+    instructions: "ইসলামী ব্যাংক সেলফিন/অ্যাপ অথবা যেকোনো ব্যাংক অ্যাপ বা শাখা থেকে কিউআর কোড স্ক্যান করে অথবা সরাসরি একাউন্টে ট্রান্সফার করে ট্রানজেকশন আইডি (TrxID) বা স্লিপ নম্বর দিন।",
+    qrCodeImage: "",
     isActive: true,
-    sortOrder: 3,
+    sortOrder: 1,
+    chargePercent: 0,
   },
 ];
 
@@ -116,31 +103,33 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fallback: load existing payments from BoardSettings
+    // Fallback: load existing payments for books from BoardSettings, or default question payment
     let initialList = isQuestion ? DEFAULT_QUESTION_PAYMENTS : DEFAULT_BOOK_PAYMENTS;
-    try {
-      const settings = await prisma.boardSettings.findFirst({
-        include: { payments: { orderBy: { sortOrder: "asc" } } },
-      });
-      if (settings?.payments && settings.payments.length > 0) {
-        initialList = settings.payments.map((p: any) => ({
-          id: p.id,
-          type: p.type,
-          provider: p.provider,
-          name: p.name || p.provider,
-          logo: p.logo,
-          accountName: p.accountName,
-          accountNumber: p.accountNumber,
-          accountType: p.accountType,
-          branch: p.branch,
-          routingNo: p.routingNo,
-          qrCodeImage: p.qrCodeImage,
-          instructions: p.instructions,
-          sortOrder: p.sortOrder,
-          isActive: p.isActive !== false,
-        }));
-      }
-    } catch {}
+    if (!isQuestion) {
+      try {
+        const settings = await prisma.boardSettings.findFirst({
+          include: { payments: { orderBy: { sortOrder: "asc" } } },
+        });
+        if (settings?.payments && settings.payments.length > 0) {
+          initialList = settings.payments.map((p: any) => ({
+            id: p.id,
+            type: p.type,
+            provider: p.provider,
+            name: p.name || p.provider,
+            logo: p.logo,
+            accountName: p.accountName,
+            accountNumber: p.accountNumber,
+            accountType: p.accountType,
+            branch: p.branch,
+            routingNo: p.routingNo,
+            qrCodeImage: p.qrCodeImage,
+            instructions: p.instructions,
+            sortOrder: p.sortOrder,
+            isActive: p.isActive !== false,
+          }));
+        }
+      } catch {}
+    }
 
     // Seed the slug
     await prisma.pageContent
@@ -189,6 +178,8 @@ export async function PUT(request: Request) {
       instructions: p.instructions || "",
       sortOrder: idx + 1,
       isActive: p.isActive !== false,
+      chargePercent: typeof p.chargePercent === "number" ? Math.max(0, p.chargePercent) : (parseFloat(p.chargePercent) || 0),
+      chargeFixed: typeof p.chargeFixed === "number" ? Math.max(0, p.chargeFixed) : (parseFloat(p.chargeFixed) || 0),
     }));
 
     await prisma.pageContent.upsert({

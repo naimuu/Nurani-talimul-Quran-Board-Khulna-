@@ -26,6 +26,8 @@ export interface DynamicPaymentMethodItem {
   qrCodeImage?: string;
   instructions?: string;
   isActive?: boolean;
+  chargePercent?: number;
+  chargeFixed?: number;
 }
 
 interface DynamicPaymentSelectorProps {
@@ -93,6 +95,21 @@ export default function DynamicPaymentSelector({
   const [brokenLogos, setBrokenLogos] = useState<Record<string, boolean>>({});
   const [zoomQrUrl, setZoomQrUrl] = useState<string | null>(null);
 
+  // Auto-switch tab if current tab has no methods but the other tab does
+  React.useEffect(() => {
+    if (selectedPaymentTab === "mobile" && mobileMethods.length === 0 && bankMethods.length > 0) {
+      onSelectTab("bank");
+      if (bankMethods[0]) {
+        onSelectMethodId(getPaymentMethodUniqueKey(bankMethods[0]));
+      }
+    } else if (selectedPaymentTab === "bank" && bankMethods.length === 0 && mobileMethods.length > 0) {
+      onSelectTab("mobile");
+      if (mobileMethods[0]) {
+        onSelectMethodId(getPaymentMethodUniqueKey(mobileMethods[0]));
+      }
+    }
+  }, [selectedPaymentTab, mobileMethods, bankMethods, onSelectTab, onSelectMethodId]);
+
   const currentList = selectedPaymentTab === "mobile" ? mobileMethods : bankMethods;
   const gridColsClass =
     currentList.length <= 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4";
@@ -109,50 +126,60 @@ export default function DynamicPaymentSelector({
 
   return (
     <div className="space-y-3">
-      {/* Payment Type Tabs: Mobile Banking vs Bank Accounts */}
-      <div className="flex border border-slate-200 rounded-xl p-1 bg-slate-50 gap-1">
-        <button
-          type="button"
-          onClick={() => {
-            onSelectTab("mobile");
-            if (mobileMethods.length > 0) {
-              onSelectMethodId(getPaymentMethodUniqueKey(mobileMethods[0]));
-            }
-          }}
-          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-            selectedPaymentTab === "mobile"
-              ? "bg-white text-[#095738] shadow-xs border border-emerald-200"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <Smartphone className="w-3.5 h-3.5 shrink-0" />
-          <span>মোবাইল ব্যাংকিং ({mobileMethods.length})</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onSelectTab("bank");
-            if (bankMethods.length > 0) {
-              onSelectMethodId(getPaymentMethodUniqueKey(bankMethods[0]));
-            }
-          }}
-          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-            selectedPaymentTab === "bank"
-              ? "bg-white text-[#095738] shadow-xs border border-emerald-200"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <Building2 className="w-3.5 h-3.5 shrink-0" />
-          <span>ব্যাংক অ্যাকাউন্ট ({bankMethods.length})</span>
-        </button>
-      </div>
+      {/* Payment Type Tabs: Only display when both mobile and bank methods exist */}
+      {mobileMethods.length > 0 && bankMethods.length > 0 && (
+        <div className="flex border border-slate-200 rounded-xl p-1 bg-slate-50 gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectTab("mobile");
+              if (mobileMethods.length > 0) {
+                onSelectMethodId(getPaymentMethodUniqueKey(mobileMethods[0]));
+              }
+            }}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              selectedPaymentTab === "mobile"
+                ? "bg-white text-[#095738] shadow-xs border border-emerald-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5 shrink-0" />
+            <span>মোবাইল ব্যাংকিং ({mobileMethods.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onSelectTab("bank");
+              if (bankMethods.length > 0) {
+                onSelectMethodId(getPaymentMethodUniqueKey(bankMethods[0]));
+              }
+            }}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              selectedPaymentTab === "bank"
+                ? "bg-white text-[#095738] shadow-xs border border-emerald-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5 shrink-0" />
+            <span>ব্যাংক অ্যাকাউন্ট ({bankMethods.length})</span>
+          </button>
+        </div>
+      )}
 
-      {/* Method Selection Buttons */}
+      {/* If only 1 method exists, show an official badge rather than duplicate button */}
+      {currentList.length === 1 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-[#095738] rounded-xl text-xs font-bold border border-emerald-200/80">
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>অফিসিয়াল পেমেন্ট মাধ্যম: {currentList[0].name || currentList[0].provider}</span>
+        </div>
+      )}
+
+      {/* Method Selection Buttons: When there are multiple methods to choose from */}
       {currentList.length === 0 ? (
         <div className="p-3 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
           এই ক্যাটাগরিতে বর্তমানে কোনো সক্রিয় পেমেন্ট মাধ্যম নেই।
         </div>
-      ) : (
+      ) : currentList.length > 1 ? (
         <div className={`grid ${gridColsClass} gap-2`}>
           {currentList.map((m, idx) => {
             const uniqueKey = getPaymentMethodUniqueKey(m, idx);
@@ -179,6 +206,11 @@ export default function DynamicPaymentSelector({
                 {isCur && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#095738]" />
                 )}
+                {m.chargePercent && m.chargePercent > 0 ? (
+                  <span className="absolute -top-1.5 -left-1.5 bg-amber-600 text-white text-[8.5px] font-black px-1.5 py-0.2 rounded-full shadow-2xs border border-white">
+                    +{m.chargePercent}% ফি
+                  </span>
+                ) : null}
                 <div className="h-8 flex items-center justify-center mb-1">
                   {hasValidLogo ? (
                     <img
@@ -223,7 +255,7 @@ export default function DynamicPaymentSelector({
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {/* Selected Method Details Card */}
       {selectedMethod && (
@@ -238,6 +270,13 @@ export default function DynamicPaymentSelector({
               </span>
             </div>
           )}
+
+          {selectedMethod.chargePercent && selectedMethod.chargePercent > 0 ? (
+            <div className="bg-amber-100/90 border border-amber-300 text-amber-950 px-3 py-1.5 rounded-lg text-xs flex items-center justify-between font-bold">
+              <span>ব্যাংক/পেমেন্ট অতিরিক্ত ফি:</span>
+              <span className="text-amber-800">+{selectedMethod.chargePercent}% (মোট বিলের সাথে যুক্ত)</span>
+            </div>
+          ) : null}
 
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-0.5 min-w-0">

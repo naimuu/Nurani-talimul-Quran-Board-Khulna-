@@ -379,21 +379,12 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
         { title: "পরীক্ষার রুটিন", href: "/academic/routine", icon: Calendar },
         { title: "প্রশ্নের অর্ডার", href: "/academic/question-order", icon: BookMarked },
         { title: "জিম্মাদার রেফারেল পোর্টাল", href: "/referral", icon: Users },
-        {
-          title: "বোর্ড পরীক্ষা",
-          subtitle: "নিবন্ধন, ফি ও রেজাল্ট",
-          href: "#",
-          icon: Award,
-          subItems: [
-            { title: "নিবন্ধনের নিয়ম", href: "/academic/registration-rules", icon: BookMarked },
-            { title: "পেমেন্টের নিয়ম", href: "/payment/exam_fee", icon: CreditCard },
-            { title: "নিবন্ধনের জন্য লগইন", href: "/login", icon: LogIn },
-            { title: "নিবন্ধনকৃত পরীক্ষার্থীদের তালিকা", href: "/academic/registered-students", icon: Users },
-            { title: "ব্যক্তিগত রেজাল্ট দেখা", href: "/results?type=student", icon: Award },
-            { title: "মাদ্রাসার নাম্বার সিট দেখা ডাউনলোড ও প্রিন্ট করা", href: "/academic/mark-sheet", icon: FileSpreadsheet },
-            { title: "প্রবেশপত্র প্রিন্ট করা", href: "/academic/admit-card", icon: FileText },
-          ]
-        },
+        { title: "নিবন্ধনের নিয়ম", href: "/academic/registration-rules", icon: BookMarked },
+        { title: "পেমেন্টের নিয়ম", href: "/payment/exam_fee", icon: CreditCard },
+        { title: "নিবন্ধনকৃত পরীক্ষার্থীদের তালিকা", href: "/academic/registered-students", icon: Users },
+        { title: "ব্যক্তিগত রেজাল্ট দেখা", href: "/results?type=student", icon: Award },
+        { title: "মাদ্রাসার নাম্বার সিট ও রেজাল্ট", href: "/academic/mark-sheet", icon: FileSpreadsheet },
+        { title: "প্রবেশপত্র প্রিন্ট করা", href: "/academic/admit-card", icon: FileText },
       ]
     },
     {
@@ -402,78 +393,15 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
       href: "/store",
       icon: ShoppingBag,
       subItems: [
-        {
-          title: "১. অনলাইন অর্ডার",
-          subtitle: "বই, খাতা ও শিক্ষা উপকরণ অর্ডার",
-          href: "/store",
-          icon: ShoppingBag,
-          subItems: [
-            { title: "বই ও স্টেশনারী শপ", href: "/store", icon: Store },
-            { title: "বই সেট (শ্রেণিভিত্তিক)", href: "/store?category=বই সেট", icon: Layers },
-            { title: "বই ও সিলেবাস সেট", href: "/store?category=বই ও সিলেবাস সেট", icon: BookMarked },
-            { title: "খাতা, কলম ও শিক্ষা উপকরণ", href: "/store?category=স্টেশনারি", icon: ClipboardList },
-            { title: "বোর্ডের ফরম ও রেজিস্টার", href: "/store?category=খাতা", icon: FileText },
-            { title: "পরীক্ষার প্রশ্নপত্র অর্ডার", href: "/academic/question-order", icon: FileCheck },
-          ]
-        },
-        {
-          title: "২. নূরানী পাঠ্যবই ও কারিকুলাম",
-          subtitle: "সকল শ্রেণির পাঠ্যবই ও সিলেবাস",
-          href: "/store?category=বই",
-          icon: BookOpen,
-          subItems: [
-            { title: "প্লে ও নার্সারি শ্রেণির বই", href: "/store?category=বই&sub=প্লে শ্রেণি", icon: BookOpen },
-            { title: "প্রথম ও দ্বিতীয় শ্রেণির বই", href: "/store?category=বই&sub=প্রথম শ্রেণি", icon: BookOpen },
-            { title: "তৃতীয়, চতুর্থ ও পঞ্চম শ্রেণির বই", href: "/store?category=বই&sub=তৃতীয় শ্রেণি", icon: BookOpen },
-            { title: "সিলেবাস ও গাইড বই", href: "/store?category=সিলেবাস", icon: BookMarked },
-            { title: "নতুন প্রকাশনা ও আপডেট", href: "/store?filter=new", icon: Sparkles },
-          ]
-        },
-        {
-          title: "৩. মূল্যতালিকা",
-          subtitle: "বই ও স্টেশনারীর দর এবং PDF",
-          href: "/store?view=list",
-          icon: FileSpreadsheet,
-          subItems: [
-            { title: "বইয়ের মূল্যতালিকা", href: "/store?view=list&category=বই", icon: BookOpen },
-            { title: "স্টেশনারীর মূল্যতালিকা", href: "/store?view=list&category=স্টেশনারি", icon: ClipboardList },
-            { title: "মূল্যতালিকা PDF ও প্রিন্ট", href: "/store?view=list", icon: Download },
-          ]
-        },
-        {
-          title: "৪. অর্ডার ট্র্যাকিং",
-          subtitle: "বই ও প্রশ্ন অর্ডারের বর্তমান অবস্থা",
-          href: "#track",
-          icon: Search,
-          subItems: [
-            { title: "বই ও স্টেশনারী অর্ডার ট্র্যাক", href: "#track", icon: Search },
-            { title: "প্রশ্নপত্র অর্ডার ট্র্যাকিং", href: "#track", icon: FileCheck },
-          ]
-        },
-        {
-          title: "৫. পাইকারি ও বাল্ক অর্ডার",
-          subtitle: "এজেন্ট, কেন্দ্র ও মাদরাসার ছাড়",
-          href: "/referral",
-          icon: Users,
-          subItems: [
-            { title: "এজেন্টদের জন্য পাইকারি অর্ডার", href: "/referral", icon: Award },
-            { title: "প্রশিক্ষণ কেন্দ্রের বাল্ক অর্ডার", href: "/referral", icon: Building2 },
-            { title: "মাদরাসার জন্য বিশেষ ছাড়", href: "/store", icon: Users },
-          ]
-        },
-        {
-          title: "৬. নীতিমালা ও যোগাযোগ",
-          subtitle: "পেমেন্ট, ডেলিভারি, ফেরত ও সহায়তা",
-          href: "/contact",
-          icon: ShieldCheck,
-          subItems: [
-            { title: "পেমেন্ট পদ্ধতি ও নিয়মাবলি", href: "/store#policy-payment", icon: CreditCard },
-            { title: "ডেলিভারি চার্জ ও সময়সীমা", href: "/store#policy-delivery", icon: Truck },
-            { title: "বই পরিবর্তন, ফেরত ও ক্ষতিপূরণ", href: "/store#policy-return", icon: RotateCcw },
-            { title: "বইয়ের ভুল সংশোধন ও অভিযোগ", href: "/contact#complaint", icon: AlertCircle },
-            { title: "বিক্রয় বিভাগ ও সরাসরি যোগাযোগ", href: "/contact", icon: PhoneCall },
-          ]
-        },
+        { title: "অনলাইন প্রকাশনা শপ", href: "/store", icon: ShoppingBag },
+        { title: "নূরানী পাঠ্যবই ও কারিকুলাম", href: "/store?category=বই", icon: BookOpen },
+        { title: "শ্রেণিভিত্তিক বই সেট", href: "/store?category=বই সেট", icon: Layers },
+        { title: "খাতা ও শিক্ষা উপকরণ", href: "/store?category=স্টেশনারি", icon: ClipboardList },
+        { title: "পরীক্ষার প্রশ্নপত্র অর্ডার", href: "/academic/question-order", icon: FileCheck },
+        { title: "বইয়ের মূল্যতালিকা", href: "/store?view=list", icon: FileSpreadsheet },
+        { title: "অর্ডার ট্র্যাকিং", href: "#track", icon: Search },
+        { title: "পাইকারি ও বাল্ক অর্ডার", href: "/referral", icon: Users },
+        { title: "নীতিমালা ও যোগাযোগ", href: "/contact", icon: ShieldCheck },
       ]
     },
     {

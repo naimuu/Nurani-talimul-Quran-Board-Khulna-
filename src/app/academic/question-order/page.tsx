@@ -39,6 +39,7 @@ import { getExamStatusByDate } from "@/components/admin/ExamQuestionManagementVi
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
 import { generateClassId, getCanonicalClassId, generateExamCode, generateItemCode } from "@/lib/classUtils";
 import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
+import { EditableQtyInput } from "@/components/common/EditableQtyInput";
 import DynamicPaymentSelector, {
   getPaymentMethodUniqueKey,
   resolveSelectedPaymentMethod,
@@ -137,11 +138,24 @@ export default function QuestionOrderPage() {
   const [selectedDeliveryType, setSelectedDeliveryType] = useState<string>("pathao");
   const [courierOrTransportName, setCourierOrTransportName] = useState<string>("");
 
-  // Payment States (Strictly dynamic methods & money receipt, NO pay later)
+  // Payment States (Strictly dynamic methods & money receipt; pay_later only for Admin)
   const [paymentStep, setPaymentStep] = useState(false);
-  const [paymentOption, setPaymentOption] = useState<"pay_now" | "money_receipt">("pay_now");
+  const [paymentOption, setPaymentOption] = useState<"pay_now" | "money_receipt" | "pay_later">("pay_now");
+  const [promiseDate, setPromiseDate] = useState("");
+  const [currentUser, setCurrentUser] = useState<{ id?: string; role?: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && !data.error) setCurrentUser(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const isAdmin = Boolean(currentUser && (currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN"));
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
-  const [selectedPaymentTab, setSelectedPaymentTab] = useState<"mobile" | "bank">("mobile");
+  const [selectedPaymentTab, setSelectedPaymentTab] = useState<"mobile" | "bank">("bank");
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [senderNumber, setSenderNumber] = useState("");
   const [trxId, setTrxId] = useState("");
@@ -221,9 +235,9 @@ export default function QuestionOrderPage() {
               if (prev && active.some((p: any) => getPaymentMethodUniqueKey(p) === String(prev))) {
                 return prev;
               }
-              const firstMob =
-                active.find((p: any) => p.type === "mobile" || p.type === "MOBILE_BANKING") || active[0];
-              return getPaymentMethodUniqueKey(firstMob);
+              const firstBank =
+                active.find((p: any) => p.type === "bank" || p.type === "BANK") || active[0];
+              return getPaymentMethodUniqueKey(firstBank);
             });
           }
         }
@@ -706,10 +720,6 @@ export default function QuestionOrderPage() {
     return Number(selectedDeliveryOption?.charge) || 0;
   }, [selectedDeliveryOption]);
 
-  const finalPayableAmount = useMemo(() => {
-    return Math.max(0, totalAmount - commissionDiscount + deliveryCharge);
-  }, [totalAmount, commissionDiscount, deliveryCharge]);
-
   const activeMethods = useMemo(() => {
     return paymentMethods.filter((p) => p.isActive !== false);
   }, [paymentMethods]);
@@ -731,6 +741,28 @@ export default function QuestionOrderPage() {
       bankMethods
     );
   }, [selectedMethodId, selectedPaymentTab, activeMethods, mobileMethods, bankMethods]);
+
+  const basePayableAmount = useMemo(() => {
+    return Math.max(0, totalAmount - commissionDiscount + deliveryCharge);
+  }, [totalAmount, commissionDiscount, deliveryCharge]);
+
+  const paymentFeePercent = useMemo(() => {
+    if (paymentOption === 'pay_now' && selectedMethod?.chargePercent) {
+      return Number(selectedMethod.chargePercent) || 0;
+    }
+    return 0;
+  }, [paymentOption, selectedMethod]);
+
+  const paymentFee = useMemo(() => {
+    if (paymentFeePercent > 0) {
+      return Math.round(basePayableAmount * (paymentFeePercent / 100));
+    }
+    return 0;
+  }, [basePayableAmount, paymentFeePercent]);
+
+  const finalPayableAmount = useMemo(() => {
+    return basePayableAmount + paymentFee;
+  }, [basePayableAmount, paymentFee]);
 
   const addZimadarMadrasa = () => {
     setZimadarMadrasasList((prev) => [...prev, ""]);
@@ -996,7 +1028,8 @@ export default function QuestionOrderPage() {
         ? ` | [${selectedDeliveryOption.name}: ${courierOrTransportName.trim()}]`
         : ` | [ডেলিভারি মাধ্যম: ${selectedDeliveryOption?.name || selectedDeliveryType}]`;
 
-      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}${zimadarNote}${courierNote}`;
+      const paymentFeeNote = paymentFee > 0 ? ` | [পেমেন্ট ফি: ${paymentFeePercent}% (+৳${paymentFee})]` : '';
+      const fullNotes = `[প্রশ্নের অর্ডার]: ${questionOrderDetails} | ${effectiveAddress}${deliveryNote}${ilhakNote}${zimadarNote}${courierNote}${paymentFeeNote}`;
 
       const effectiveSenderNumber = paymentOption === "pay_now" ? senderNumber.trim() : (isPartialReceipt ? remainingSenderNumber.trim() : undefined);
       const effectiveTrxId = paymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt ? remainingTrxId.trim() : undefined);
@@ -1012,8 +1045,9 @@ export default function QuestionOrderPage() {
           items: orderItems,
           notes: fullNotes,
           paymentOption,
-          paymentProvider: effectiveMethodName,
-          paymentMethod: effectiveMethodName,
+          paymentProvider: paymentOption === "pay_later" ? "বকেয়া (পরে পরিশোধ)" : effectiveMethodName,
+          paymentMethod: paymentOption === "pay_later" ? "বকেয়া (পরে পরিশোধ)" : effectiveMethodName,
+          promiseDate: paymentOption === "pay_later" ? promiseDate : undefined,
           remainingProvider: isPartialReceipt ? effectiveMethodName : undefined,
           remainingTrxId: isPartialReceipt ? remainingTrxId.trim() : undefined,
           senderNumber: effectiveSenderNumber,
@@ -1369,21 +1403,10 @@ export default function QuestionOrderPage() {
                               >
                                 -
                               </button>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={currentQty === 0 ? "" : currentQty}
-                                placeholder="0"
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) => {
-                                  const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
-                                  const val = raw === "" ? 0 : parseInt(raw, 10);
-                                  setDirectQty(item, val, true);
-                                }}
-                                onBlur={() => {
-                                  if (currentQty <= 0) setDirectQty(item, 0);
-                                }}
+                              <EditableQtyInput
+                                value={currentQty}
+                                onChange={(val) => setDirectQty(item, val, false)}
+                                onRemove={() => setDirectQty(item, 0, false)}
                                 className="w-12 h-7 text-center font-black font-mono bg-white rounded-lg border border-emerald-600 text-xs text-slate-900 focus:outline-emerald-600 shadow-2xs"
                               />
                               <button
@@ -1480,21 +1503,10 @@ export default function QuestionOrderPage() {
                         >
                           -
                         </button>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={currentQty === 0 ? "" : currentQty}
-                          placeholder="0"
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => {
-                            const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
-                            const val = raw === "" ? 0 : parseInt(raw, 10);
-                            setDirectQty(item, val, true);
-                          }}
-                          onBlur={() => {
-                            if (currentQty <= 0) setDirectQty(item, 0);
-                          }}
+                        <EditableQtyInput
+                          value={currentQty}
+                          onChange={(val) => setDirectQty(item, val, false)}
+                          onRemove={() => setDirectQty(item, 0, false)}
                           className="w-12 sm:w-14 h-8 sm:h-9 text-center font-black font-mono text-sm bg-white rounded-xl border border-emerald-600 text-slate-950 ring-1 ring-emerald-600/20 focus:outline-emerald-600 focus:border-emerald-600 shadow-2xs"
                         />
                         <button
@@ -1591,21 +1603,10 @@ export default function QuestionOrderPage() {
                           >
                             -
                           </button>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={qty === 0 ? "" : qty}
-                            placeholder="0"
-                            onFocus={(e) => e.target.select()}
-                            onChange={(e) => {
-                              const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
-                              const val = raw === "" ? 0 : parseInt(raw, 10);
-                              setDirectQty(item, val, true);
-                            }}
-                            onBlur={() => {
-                              if (qty <= 0) setDirectQty(item, 0);
-                            }}
+                          <EditableQtyInput
+                            value={qty}
+                            onChange={(val) => setDirectQty(item, val, false)}
+                            onRemove={() => setDirectQty(item, 0, false)}
                             className="w-12 h-6 text-center text-xs font-black font-mono bg-white border border-slate-200 rounded text-slate-900 outline-none focus:ring-1 focus:ring-emerald-500"
                           />
                           <button
@@ -1782,23 +1783,10 @@ export default function QuestionOrderPage() {
                   >
                     -
                   </button>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={(cart[selectedDetailItem.id]?.qty || 0) === 0 ? "" : (cart[selectedDetailItem.id]?.qty || "")}
-                    placeholder="0"
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const raw = toEnglishDigits(e.target.value).replace(/\D/g, "");
-                      const val = raw === "" ? 0 : parseInt(raw, 10);
-                      setDirectQty(selectedDetailItem, val, true);
-                    }}
-                    onBlur={() => {
-                      if ((cart[selectedDetailItem.id]?.qty || 0) <= 0) {
-                        setDirectQty(selectedDetailItem, 0);
-                      }
-                    }}
+                  <EditableQtyInput
+                    value={cart[selectedDetailItem.id]?.qty || 0}
+                    onChange={(val) => setDirectQty(selectedDetailItem, val, false)}
+                    onRemove={() => setDirectQty(selectedDetailItem, 0, false)}
                     className="w-16 h-9 text-center font-black font-mono text-sm sm:text-base bg-white rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-900 shadow-2xs"
                   />
                   <button
@@ -2223,6 +2211,14 @@ export default function QuestionOrderPage() {
                         )}
                       </span>
                     </div>
+                    {paymentFee > 0 && (
+                      <div className="flex items-center justify-between text-xs sm:text-sm text-amber-950 font-bold bg-amber-50/90 px-2.5 py-1.5 rounded-lg border border-amber-300">
+                        <span className="flex items-center gap-1">
+                          <span>ব্যাংক/পেমেন্ট প্রসেসিং ফি ({paymentFeePercent}%):</span>
+                        </span>
+                        <span>+৳{paymentFee.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                       <span className="font-bold text-slate-700 text-sm sm:text-base">সর্বমোট প্রদেয় বিল:</span>
                       <span className="text-xl sm:text-2xl font-black text-[#095738]">৳{finalPayableAmount.toFixed(2)}</span>
@@ -2441,6 +2437,50 @@ export default function QuestionOrderPage() {
                         )}
                       </div>
                     )}
+
+                    {/* Option 3: Pay Later (Strictly for Admin only) */}
+                    {isAdmin && (
+                      <>
+                        <label className={`flex items-center justify-between p-3.5 border rounded-xl cursor-pointer transition-all ${paymentOption === "pay_later" ? "border-amber-600 bg-amber-50/70 ring-1 ring-amber-600" : "border-slate-200 hover:border-amber-600/50"}`}>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="radio"
+                              name="payment_opt"
+                              checked={paymentOption === "pay_later"}
+                              onChange={() => setPaymentOption("pay_later")}
+                              className="w-4.5 h-4.5 text-amber-600 focus:ring-amber-600"
+                            />
+                            <div>
+                              <span className="font-bold text-slate-800 text-sm">পরে পেমেন্ট করবো (বকেয়া)</span>
+                              <p className="text-[11px] text-slate-500">অ্যাডমিন প্রিভিলেজ: কোনো তাৎক্ষণিক TrxID ছাড়াই অর্ডার গ্রহণ করুন</p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                            শুধুমাত্র অ্যাডমিন
+                          </span>
+                        </label>
+
+                        {paymentOption === "pay_later" && (
+                          <div className="pl-2 sm:pl-4 pr-1 pb-2 animate-in fade-in space-y-2.5">
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                              <p className="font-bold">⚠️ অ্যাডমিন অনুমোদন প্রযোজ্য:</p>
+                              <p className="text-[11px] mt-0.5">এই অর্ডারটি কোনো অগ্রিম টাকা বা TrxID ছাড়াই বকেয়া হিসেবে পেন্ডিং তালিকায় জমা হবে।</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1">
+                                পরিশোধের সম্ভাব্য তারিখ (ঐচ্ছিক)
+                              </label>
+                              <input
+                                type="date"
+                                value={promiseDate}
+                                onChange={(e) => setPromiseDate(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-600 text-xs font-semibold"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Summary & Submit Buttons in Step 2 */}
@@ -2479,47 +2519,15 @@ export default function QuestionOrderPage() {
         </div>
       )}
 
-      {/* ─── SUCCESS INVOICE MODAL ─────────────────────────────────── */}
+      {/* ─── SUCCESS INVOICE & MEMO MODAL ─────────────────────────── */}
       {orderSuccessData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-3 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 text-center border border-slate-200 animate-scale-in">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto mb-2.5">
-              <CheckCircle className="w-6 h-6 text-emerald-700" />
-            </div>
-            <h3 className="text-base font-bold text-slate-800">প্রশ্নের অর্ডার সম্পন্ন হয়েছে!</h3>
-            <p className="text-xs text-slate-500 mb-1">
-              ইনভয়েস: <strong className="text-emerald-800 font-bold">{orderSuccessData.invoiceId}</strong>
-            </p>
-            <p className="text-[11px] text-slate-400 mb-3">
-              গ্রাহক ইনভয়েসে বাকির কোনো অপশন নেই, সরাসরি পিডিএফ হিসেবে সেভ বা প্রিন্ট করা যাবে।
-            </p>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => downloadOrderPdf(orderSuccessData, { mode: "customer" })}
-                className="w-full py-2.5 bg-[#095738] hover:bg-[#07472d] text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 cursor-pointer transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>সরাসরি PDF ডাউনলোড</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => printInvoice(orderSuccessData)}
-                className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 cursor-pointer transition-all"
-              >
-                <Printer className="w-4 h-4 text-slate-600" />
-                <span>ব্রাউজার প্রিন্ট</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrderSuccessData(null)}
-                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs sm:text-sm cursor-pointer transition-colors"
-              >
-                ঠিক আছে
-              </button>
-            </div>
-          </div>
-        </div>
+        <TrackOrderModal
+          isOpen={Boolean(orderSuccessData)}
+          onClose={() => setOrderSuccessData(null)}
+          initialInvoiceId={orderSuccessData.invoiceId}
+          initialOrder={orderSuccessData}
+          isNewOrder={true}
+        />
       )}
 
     </div>

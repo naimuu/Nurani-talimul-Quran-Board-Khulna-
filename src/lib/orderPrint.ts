@@ -679,13 +679,13 @@ export async function printOrderInvoice(
   const isCustomer = options.mode === "customer";
   const isMobile = isMobileDevice();
 
-  // If customer is on a mobile device or explicit forceDownload is set: directly download real text PDF
-  if (options.forceDownload || (isCustomer && isMobile)) {
+  // If forceDownload is explicitly set: download PDF
+  if (options.forceDownload) {
     await downloadOrderPdf(orderInput, options);
     return;
   }
 
-  // On Computer / Desktop: Use browser print dialogue
+  // Fetch freshest order data if invoiceId exists
   let order = orderInput;
   if (order.invoiceId && typeof window !== "undefined") {
     try {
@@ -706,6 +706,25 @@ export async function printOrderInvoice(
   }
 
   const html = await generateInvoiceHTML(order, options);
+
+  // On Mobile: Open in new window/tab and trigger native print sheet (clean display & save as PDF)
+  if (isMobile && typeof window !== "undefined") {
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        try {
+          printWindow.print();
+        } catch (_) {}
+      }, 500);
+      return;
+    }
+  }
+
+  // On Desktop: Use hidden iframe for seamless background printing
 
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";

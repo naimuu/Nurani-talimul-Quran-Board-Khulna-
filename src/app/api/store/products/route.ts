@@ -11,7 +11,8 @@ async function verifyAdmin() {
       process.env.JWT_SECRET || "nurani_board_khulna_secret_key_2024"
     );
     const { payload } = await jose.jwtVerify(token, secret);
-    return String(payload.role || "").toUpperCase() === "ADMIN";
+    const role = String(payload.role || "").toUpperCase();
+    return role === "ADMIN" || role === "SUPER_ADMIN" || role === "STAFF";
   } catch {
     return false;
   }

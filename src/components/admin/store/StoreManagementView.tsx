@@ -229,6 +229,7 @@ export default function StoreManagementView() {
       <PaymentDeliverySettingsModal
         open={showPaymentDeliveryModal}
         onClose={() => setShowPaymentDeliveryModal(false)}
+        defaultTab={storeCategory === "question" ? "question_payments" : "book_payments"}
       />
 
       <CategoryManagementModal

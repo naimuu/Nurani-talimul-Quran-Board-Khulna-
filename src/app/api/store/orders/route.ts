@@ -4,6 +4,22 @@ import connectDB from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import bcrypt from "bcryptjs";
 import { calculateDeliveryCost } from "@/lib/deliveryCost";
+import { cookies } from "next/headers";
+import * as jose from "jose";
+import { generateUniqueInvoiceId } from "@/lib/invoiceHelper";
+
+async function verifyAdminAuth(): Promise<boolean> {
+  try {
+    const token = cookies().get("auth_token")?.value;
+    if (!token) return false;
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || "nurani_board_khulna_secret_key_2024");
+    const { payload } = await jose.jwtVerify(token, secret);
+    const role = String(payload.role || "").toUpperCase();
+    return role === "ADMIN" || role === "SUPER_ADMIN" || role === "STAFF";
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -28,16 +44,26 @@ export async function POST(request: Request) {
       promiseDate,
       deliveryOptionType = "pathao",
       courierOrTransportName,
+      totalAmount: clientTotalAmount,
     } = await request.json();
 
     if (!customerName || !items || items.length === 0) {
       return NextResponse.json({ error: "customerName and items are required" }, { status: 400 });
     }
 
-    // STRICT RULE: Reject "pay_later" or missing payment option completely from backend
-    if (!paymentOption || paymentOption === "pay_later" || (paymentOption !== "pay_now" && paymentOption !== "money_receipt")) {
+    const isAdminUser = await verifyAdminAuth();
+
+    // STRICT RULE: "pay_later" is strictly restricted to Admin users only! Regular users must use pay_now or money_receipt.
+    if (paymentOption === "pay_later") {
+      if (!isAdminUser) {
+        return NextResponse.json(
+          { error: "'পরে পেমেন্ট করব' অপশনটি শুধুমাত্র অফিস ও অ্যাডমিনের জন্য সংরক্ষিত। অনুগ্রহ করে সরাসরি পেমেন্ট অথবা মানি রিসিটের মাধ্যমে পেমেন্ট সম্পন্ন করুন।" },
+          { status: 403 }
+        );
+      }
+    } else if (paymentOption !== "pay_now" && paymentOption !== "money_receipt") {
       return NextResponse.json(
-        { error: "'পরে পেমেন্ট করব' অপশনটি অনুমোদিত নয়। অনুগ্রহ করে সরাসরি পেমেন্ট অথবা মানি রিসিটের মাধ্যমে পেমেন্ট সম্পন্ন করুন।" },
+        { error: "অনুগ্রহ করে সরাসরি পেমেন্ট অথবা মানি রিসিটের মাধ্যমে পেমেন্ট সম্পন্ন করুন।" },
         { status: 400 }
       );
     }
@@ -227,11 +253,13 @@ export async function POST(request: Request) {
 
     const totalWeight = Math.round(itemsForDeliveryCalc.reduce((w, i) => w + (i.product?.weight || 0.25) * i.quantity, 0) * 10) / 10;
     const finalDiscount = Number(discount) || 0;
-    const totalAmount = Math.max(0, subtotal - finalDiscount + deliveryCharge);
+    const baseCalcTotal = Math.max(0, subtotal - finalDiscount + deliveryCharge);
+    const totalAmount = (clientTotalAmount !== undefined && Number(clientTotalAmount) >= baseCalcTotal)
+      ? Number(clientTotalAmount)
+      : baseCalcTotal;
 
-    // Generate invoice ID
-    const count = await (prisma as any).storeSale.count();
-    const invoiceId = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    // Generate guaranteed unique invoice ID (collision-proof against deleted orders)
+    let invoiceId = await generateUniqueInvoiceId(prisma);
 
     // Calculate previous due and list if customerPhone exists
     let previousDue = 0;
@@ -268,6 +296,8 @@ export async function POST(request: Request) {
           );
         }
       }
+    } else if (paymentOption === "pay_later") {
+      paidAmount = 0;
     }
 
     const cleanCustomCourier = needsCustomName && courierOrTransportName ? courierOrTransportName.trim() : null;
@@ -275,79 +305,98 @@ export async function POST(request: Request) {
     const deliveryNoteSummary = deliveryCharge > 0
       ? ` | ডেলিভারি: ${courierName}${courierDetailName} (চার্জ: ${deliveryCharge} ৳, ওজন: ${totalWeight} কেজি)`
       : ` | ডেলিভারি: ${courierName}${courierDetailName} (ফ্রি ডেলিভারি, ওজন: ${totalWeight} কেজি)`;
-    const finalNotes = (notes || "Online Order") + deliveryNoteSummary;
+    const payLaterNote = paymentOption === "pay_later" 
+      ? ` | [পেমেন্ট: পরে পরিশোধ (বকেয়া)${promiseDate ? ` - সম্ভাব্য তারিখ: ${promiseDate}` : ""}]` 
+      : "";
+    const finalNotes = (notes || "Online Order") + deliveryNoteSummary + payLaterNote;
 
     const initialTimeline = [
       {
         step: "pending",
         status: "Pending Order",
-        title: "নতুন অনলাইন অর্ডার গৃহীত",
-        actorName: `${customerName.trim()} (ক্রেতা)`,
-        actorRole: "CUSTOMER",
+        title: paymentOption === "pay_later" ? "অ্যাডমিন কর্তৃক বকেয়া অর্ডার গৃহীত" : "নতুন অনলাইন অর্ডার গৃহীত",
+        actorName: isAdminUser ? `${customerName.trim()} (অ্যাডমিন অনুমোদিত)` : `${customerName.trim()} (ক্রেতা)`,
+        actorRole: isAdminUser ? "ADMIN" : "CUSTOMER",
         actorPhone: customerPhone || null,
         timestamp: new Date().toISOString(),
-        notes: "অর্ডারটি সফলভাবে সিস্টেমে গ্রহণ করা হয়েছে",
+        notes: paymentOption === "pay_later"
+          ? `অ্যাডমিন প্রিভিলেজে বাকিতে/পরে পেমেন্টের সুবিধায় অর্ডার গ্রহণ করা হয়েছে${promiseDate ? ` (সম্ভাব্য তারিখ: ${promiseDate})` : ""}`
+          : "অর্ডারটি সফলভাবে সিস্টেমে গ্রহণ করা হয়েছে",
       },
     ];
 
-    // Create a StoreSale with status 'Pending Order'
+    // Create a StoreSale with status 'Pending Order' with collision retry protection
     let sale;
-    try {
-      sale = await (prisma as any).storeSale.create({
-        data: {
-          invoiceId,
-          customerName,
-          customerPhone: customerPhone || null,
-          instituteId: instituteId || null,
-          totalAmount,
-          paidAmount,
-          discount: finalDiscount,
-          previousDue,
-          previousDueList,
-          deliveryCharge,
-          courierName,
-          deliveryOptionType: selectedDeliveryType,
-          courierOrTransportName: cleanCustomCourier,
-          paymentMethod: paymentMethod || paymentProvider || "Online",
-          senderNumber: senderNumber ? String(senderNumber).trim() : null,
-          trxId: (trxId || remainingTrxId) ? String(trxId || remainingTrxId).trim() : null,
-          totalWeight,
-          status: "Pending Order",
-          notes: finalNotes,
-          timeline: initialTimeline,
-          items: {
-            create: itemsToCreate,
+    let attempts = 0;
+    while (!sale && attempts < 5) {
+      attempts++;
+      if (attempts > 1) {
+        invoiceId = await generateUniqueInvoiceId(prisma);
+      }
+      try {
+        sale = await (prisma as any).storeSale.create({
+          data: {
+            invoiceId,
+            customerName,
+            customerPhone: customerPhone || null,
+            instituteId: instituteId || null,
+            totalAmount,
+            paidAmount,
+            discount: finalDiscount,
+            previousDue,
+            previousDueList,
+            deliveryCharge,
+            courierName,
+            deliveryOptionType: selectedDeliveryType,
+            courierOrTransportName: cleanCustomCourier,
+            paymentMethod: paymentMethod || paymentProvider || "Online",
+            senderNumber: senderNumber ? String(senderNumber).trim() : null,
+            trxId: (trxId || remainingTrxId) ? String(trxId || remainingTrxId).trim() : null,
+            totalWeight,
+            status: "Pending Order",
+            notes: finalNotes,
+            timeline: initialTimeline,
+            items: {
+              create: itemsToCreate,
+            },
           },
-        },
-        include: { items: { include: { product: true } }, payments: true },
-      });
-    } catch (saleErr: any) {
-      sale = await (prisma as any).storeSale.create({
-        data: {
-          invoiceId,
-          customerName,
-          customerPhone: customerPhone || null,
-          instituteId: instituteId || null,
-          totalAmount,
-          paidAmount,
-          discount: finalDiscount,
-          deliveryCharge,
-          courierName,
-          deliveryOptionType: selectedDeliveryType,
-          courierOrTransportName: cleanCustomCourier,
-          paymentMethod: paymentMethod || paymentProvider || "Online",
-          senderNumber: senderNumber ? String(senderNumber).trim() : null,
-          trxId: (trxId || remainingTrxId) ? String(trxId || remainingTrxId).trim() : null,
-          totalWeight,
-          status: "Pending Order",
-          notes: finalNotes,
-          timeline: initialTimeline,
-          items: {
-            create: itemsToCreate,
-          },
-        },
-        include: { items: { include: { product: true } }, payments: true },
-      });
+          include: { items: { include: { product: true } }, payments: true },
+        });
+      } catch (saleErr: any) {
+        // Fallback if previousDue fields are not in schema
+        try {
+          sale = await (prisma as any).storeSale.create({
+            data: {
+              invoiceId,
+              customerName,
+              customerPhone: customerPhone || null,
+              instituteId: instituteId || null,
+              totalAmount,
+              paidAmount,
+              discount: finalDiscount,
+              deliveryCharge,
+              courierName,
+              deliveryOptionType: selectedDeliveryType,
+              courierOrTransportName: cleanCustomCourier,
+              paymentMethod: paymentMethod || paymentProvider || "Online",
+              senderNumber: senderNumber ? String(senderNumber).trim() : null,
+              trxId: (trxId || remainingTrxId) ? String(trxId || remainingTrxId).trim() : null,
+              totalWeight,
+              status: "Pending Order",
+              notes: finalNotes,
+              timeline: initialTimeline,
+              items: {
+                create: itemsToCreate,
+              },
+            },
+            include: { items: { include: { product: true } }, payments: true },
+          });
+        } catch (innerErr: any) {
+          if (attempts >= 5) {
+            throw innerErr;
+          }
+        }
+      }
     }
 
     // Handle Payment Options
@@ -416,6 +465,18 @@ export async function POST(request: Request) {
           },
         });
       }
+    } else if (paymentOption === "pay_later") {
+      await (prisma as any).storePayment.create({
+        data: {
+          saleId: sale.id,
+          payer: customerName,
+          purpose: "Sale Payment (Pay Later)",
+          amount: 0,
+          method: "বকেয়া (পরে পরিশোধ)",
+          status: "Pending",
+          notes: `অ্যাডমিন অনুমোদিত বকেয়া অর্ডার (পরিশোধিত: ৳০)${promiseDate ? `. সম্ভাব্য পরিশোধ তারিখ: ${promiseDate}` : ""}`,
+        },
+      });
     }
 
     // Refetch sale to include new payments

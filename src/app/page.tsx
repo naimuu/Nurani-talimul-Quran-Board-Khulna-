@@ -3,6 +3,7 @@ import NoticeBoard from "@/components/home/NoticeBoard";
 import HomeSidebarTOC from "@/components/home/HomeSidebarTOC";
 import AboutBoard from "@/components/home/AboutBoard";
 import TrainingSchedule from "@/components/home/TrainingSchedule";
+import HomeServiceShortcutCards from "@/components/home/HomeServiceShortcutCards";
 import AuthorMessages from "@/components/home/AuthorMessages";
 import HomeMobileNavModals from "@/components/home/HomeMobileNavModals";
 import { getUserSession } from "@/lib/auth";
@@ -79,8 +80,9 @@ export default async function Home() {
               <HomeSidebarTOC />
             </div>
 
-            {/* Middle Column: Training Cards */}
-            <div className="flex-1 min-w-0">
+            {/* Middle Column: 4 Service Shortcuts + Training Cards */}
+            <div className="flex-1 min-w-0 space-y-3.5 sm:space-y-4">
+              <HomeServiceShortcutCards />
               <TrainingSchedule />
             </div>
 
@@ -95,8 +97,9 @@ export default async function Home() {
             {/* Top Horizontally Scrollable Quick Bar with Popup Modal Triggers */}
             <HomeMobileNavModals notices={notices} />
 
-            {/* Training Schedule Cards on Mobile */}
-            <div className="w-full">
+            {/* Training Schedule & Shortcuts on Mobile */}
+            <div className="w-full space-y-3">
+              <HomeServiceShortcutCards />
               <TrainingSchedule />
             </div>
           </div>

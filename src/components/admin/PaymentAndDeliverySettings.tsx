@@ -45,6 +45,8 @@ export interface DynamicPaymentMethod {
   instructions?: string;
   sortOrder?: number;
   isActive?: boolean;
+  chargePercent?: number; // e.g. 1 for 1% extra bank/payment fee
+  chargeFixed?: number;
 }
 
 export interface DynamicDeliveryOption {
@@ -63,16 +65,24 @@ const BANK_PRESETS = ["ইসলামী ব্যাংক", "ডাচ-বা
 
 export function PaymentMethodsManager({
   initialPayments,
+  initialCategory = "book",
   onSaved,
 }: {
   initialPayments?: DynamicPaymentMethod[];
+  initialCategory?: "book" | "question";
   onSaved?: () => void;
 }) {
-  const [category, setCategory] = useState<"book" | "question">("book");
+  const [category, setCategory] = useState<"book" | "question">(initialCategory);
   const [payments, setPayments] = useState<DynamicPaymentMethod[]>(initialPayments || []);
   const [isLoading, setIsLoading] = useState(!initialPayments);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialCategory) {
+      setCategory(initialCategory);
+    }
+  }, [initialCategory]);
 
   useEffect(() => {
     fetchPayments(category);
@@ -193,6 +203,7 @@ export function PaymentMethodsManager({
           : "ব্যাংক অ্যাকাউন্ট ডিপোজিট বা অনলাইন ট্রান্সফার করে স্লিপ বা রেফারেন্স নম্বর প্রদান করুন।",
         isActive: true,
         sortOrder: prev.length + 1,
+        chargePercent: isMobile ? 0 : 1,
       },
     ]);
   };
@@ -205,27 +216,43 @@ export function PaymentMethodsManager({
     <div className="space-y-6 max-w-5xl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h3 className="text-base sm:text-lg font-bold text-slate-800">পেমেন্ট মাধ্যম ও QR কোড ব্যবস্থাপনা</h3>
+          <h3 className="text-base sm:text-lg font-bold text-slate-800">
+            {category === "book" ? "১। বই ও স্টেশনারি পেমেন্ট মাধ্যম" : "২। প্রশ্নপত্র পেমেন্ট মাধ্যম (ইসলামী ব্যাংক ও QR কোড)"}
+          </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            বই ও স্টেশনারি এবং প্রশ্নপত্র অর্ডারের জন্য পৃথক বিকাশ, নগদ, রকেট এবং ব্যাংক অ্যাকাউন্ট ও কিউআর কোড কনফিগার করুন।
+            {category === "book"
+              ? "বই ও স্টেশনারি অর্ডারের জন্য বিকাশ, নগদ, রকেট এবং বিভিন্ন ব্যাংক অ্যাকাউন্ট কনফিগার করুন।"
+              : "প্রশ্নপত্রের সম্পূর্ণ টাকা আলাদা ইসলামী ব্যাংকে কিউআর কোডের মাধ্যমে যাবে (এখানে একমাত্র অপশন)।"}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => addMethod("mobile")}
-            className="flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-xl border border-emerald-200 transition-colors cursor-pointer"
-          >
-            <Smartphone className="w-3.5 h-3.5" /> + মোবাইল ব্যাংকিং
-          </button>
-          <button
-            type="button"
-            onClick={() => addMethod("bank")}
-            className="flex items-center gap-1.5 text-xs text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-xl border border-blue-200 transition-colors cursor-pointer"
-          >
-            <Building2 className="w-3.5 h-3.5" /> + ব্যাংক অ্যাকাউন্ট
-          </button>
-        </div>
+        {category === "book" ? (
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => addMethod("mobile")}
+              className="flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-xl border border-emerald-200 transition-colors cursor-pointer"
+            >
+              <Smartphone className="w-3.5 h-3.5" /> + মোবাইল ব্যাংকিং
+            </button>
+            <button
+              type="button"
+              onClick={() => addMethod("bank")}
+              className="flex items-center gap-1.5 text-xs text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-xl border border-blue-200 transition-colors cursor-pointer"
+            >
+              <Building2 className="w-3.5 h-3.5" /> + ব্যাংক অ্যাকাউন্ট
+            </button>
+          </div>
+        ) : (
+          payments.length === 0 && (
+            <button
+              type="button"
+              onClick={() => addMethod("bank", "ইসলামী ব্যাংক")}
+              className="flex items-center gap-1.5 text-xs text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl border border-blue-200 transition-colors cursor-pointer"
+            >
+              <Building2 className="w-3.5 h-3.5" /> + ইসলামী ব্যাংক অ্যাকাউন্ট ও কিউআর কোড যুক্ত করুন
+            </button>
+          )
+        )}
       </div>
 
       {/* Category Toggle: বই বনাম প্রশ্ন বাটন */}
@@ -240,7 +267,7 @@ export function PaymentMethodsManager({
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>১। বই ও স্টেশনারি পেমেন্ট মাধ্যম</span>
+          <span>১। বই ও স্টেশনারি পেমেন্ট মাধ্যম (বিভিন্ন অপশন)</span>
         </button>
 
         <button
@@ -253,51 +280,55 @@ export function PaymentMethodsManager({
           }`}
         >
           <FileQuestion className="w-4 h-4" />
-          <span>২। প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম</span>
+          <span>২। প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম (ইসলামী ব্যাংক QR কোড)</span>
         </button>
       </div>
 
-      <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+      <div className={`p-3.5 rounded-xl text-xs space-y-1.5 border ${
+        category === "book" ? "bg-amber-50/70 border-amber-200 text-amber-900" : "bg-blue-50/80 border-blue-200 text-blue-950"
+      }`}>
         <p className="font-bold flex items-center gap-1.5">
-          <span>📌</span>
+          <span>{category === "book" ? "📚" : "📝"}</span>
           <span>
             বর্তমান সক্রিয় বিভাগ:{" "}
-            <span className="text-emerald-800 underline decoration-2">
-              {category === "book" ? "বই ও স্টেশনারি পেমেন্ট মাধ্যম" : "প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম"}
+            <span className="text-emerald-800 underline decoration-2 font-black">
+              {category === "book" ? "১। বই ও স্টেশনারি পেমেন্ট মাধ্যম (বিকাশ, নগদ, রকেট, ব্যাংক ইত্যাদি)" : "২। প্রশ্নপত্র অর্ডার পেমেন্ট মাধ্যম (ইসলামী ব্যাংক ও QR কোড)"}
             </span>
           </span>
         </p>
-        <p className="text-[11px] text-amber-800 leading-relaxed">
+        <p className="text-[11.5px] leading-relaxed">
           {category === "book"
-            ? "এখানে সংরক্ষিত অ্যাকাউন্টগুলো শুধুমাত্র বই ও স্টেশনারি স্টোর চেকআউটে প্রদর্শিত হবে।"
-            : "এখানে সংরক্ষিত অ্যাকাউন্টগুলো শুধুমাত্র প্রশ্নপত্র সেট অর্ডারের চেকআউটে প্রদর্শিত হবে।"}
+            ? "এখানে সংরক্ষিত বিকাশ, নগদ, রকেট এবং ব্যাংক অ্যাকাউন্টগুলো শুধুমাত্র বই ও স্টেশনারি স্টোর চেকআউটে প্রদর্শিত হবে। গ্রাহক পছন্দমতো যেকোনো মাধ্যমে পেমেন্ট করতে পারবেন।"
+            : "প্রশ্নপত্রের সম্পূর্ণ টাকা আলাদা ইসলামী ব্যাংকে কিউআর কোডের মাধ্যমে যাবে। এখানে অপশন একটিই থাকবে। ইসলামী ব্যাংকের হিসাব নম্বর এবং কিউআর কোডের ছবি আপলোড করে সংরক্ষণ করুন। গ্রাহক চেকআউটে সরাসরি কিউআর কোড স্ক্যান করে বা একাউন্টে টাকা পাঠিয়ে TrxID লিখবেন।"}
         </p>
       </div>
 
-      {/* Quick Add Bank / Mobile Chips */}
-      <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
-        <span className="font-bold text-slate-600 mr-1">দ্রুত যুক্ত করুন:</span>
-        {MOBILE_PRESETS.map((preset) => (
-          <button
-            key={`mob_${preset}`}
-            type="button"
-            onClick={() => addMethod("mobile", preset)}
-            className="px-2.5 py-1 rounded-lg bg-white hover:bg-pink-50 text-pink-800 border border-pink-200 font-bold transition-colors cursor-pointer"
-          >
-            + {preset}
-          </button>
-        ))}
-        {BANK_PRESETS.map((preset) => (
-          <button
-            key={`bank_${preset}`}
-            type="button"
-            onClick={() => addMethod("bank", preset)}
-            className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-blue-800 border border-blue-200 font-bold transition-colors cursor-pointer"
-          >
-            + {preset}
-          </button>
-        ))}
-      </div>
+      {/* Quick Add Bank / Mobile Chips: Only for Books */}
+      {category === "book" && (
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+          <span className="font-bold text-slate-600 mr-1">দ্রুত যুক্ত করুন:</span>
+          {MOBILE_PRESETS.map((preset) => (
+            <button
+              key={`mob_${preset}`}
+              type="button"
+              onClick={() => addMethod("mobile", preset)}
+              className="px-2.5 py-1 rounded-lg bg-white hover:bg-pink-50 text-pink-800 border border-pink-200 font-bold transition-colors cursor-pointer"
+            >
+              + {preset}
+            </button>
+          ))}
+          {BANK_PRESETS.map((preset) => (
+            <button
+              key={`bank_${preset}`}
+              type="button"
+              onClick={() => addMethod("bank", preset)}
+              className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-blue-800 border border-blue-200 font-bold transition-colors cursor-pointer"
+            >
+              + {preset}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-4">
         {payments.map((payment, i) => {
@@ -355,6 +386,12 @@ export function PaymentMethodsManager({
                   <span className="font-extrabold text-sm text-slate-800">
                     {displayName || "নতুন পেমেন্ট মাধ্যম"}
                   </span>
+                  {payment.chargePercent && payment.chargePercent > 0 ? (
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
+                      <Percent className="w-2.5 h-2.5 text-amber-700" />
+                      +{payment.chargePercent}% ফি
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -485,6 +522,39 @@ export function PaymentMethodsManager({
                     </div>
                   </>
                 )}
+
+                <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200">
+                  <label className="block font-bold text-amber-950 mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Percent className="w-3.5 h-3.5 text-amber-700" />
+                      অতিরিক্ত ব্যাংক/পেমেন্ট ফি (%)
+                    </span>
+                    <span className="text-[10px] text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded">গ্রাহক দেবে</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="20"
+                      value={payment.chargePercent ?? 0}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const newP = [...payments];
+                        newP[i] = { ...newP[i], chargePercent: Math.max(0, val) };
+                        setPayments(newP);
+                      }}
+                      placeholder="যেমন: 1"
+                      className="w-full px-3 py-2 pr-8 rounded-lg border border-amber-300 bg-white focus:outline-none focus:border-amber-600 font-black text-amber-950 font-mono text-xs"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-black text-amber-700 text-xs">%</span>
+                  </div>
+                  <p className="text-[10px] text-amber-800 mt-1 leading-tight">
+                    {payment.chargePercent && payment.chargePercent > 0
+                      ? `বিলের সাথে অতিরিক্ত ${payment.chargePercent}% যোগ হয়ে গ্রাহকের কাছে প্রদর্শিত হবে।`
+                      : "০% হলে গ্রাহকের কোনো অতিরিক্ত ফি যোগ হবে না।"}
+                  </p>
+                </div>
 
                 <div className="col-span-1 md:col-span-3">
                   <label className="block font-bold text-slate-700 mb-1">পেমেন্ট নির্দেশনা (গ্রাহকের জন্য)</label>
@@ -1711,16 +1781,23 @@ export function CommissionsManager({ onSaved }: { onSaved?: () => void }) {
 export function PaymentDeliverySettingsModal({
   open,
   onClose,
-  defaultTab = "payments",
+  defaultTab = "book_payments",
 }: {
   open: boolean;
   onClose: () => void;
-  defaultTab?: "payments" | "delivery" | "commissions";
+  defaultTab?: "book_payments" | "question_payments" | "payments" | "delivery" | "commissions";
 }) {
-  const [tab, setTab] = useState<"payments" | "delivery" | "commissions">(defaultTab);
+  const getInitialTab = (dt?: string): "book_payments" | "question_payments" | "delivery" | "commissions" => {
+    if (dt === "question_payments") return "question_payments";
+    if (dt === "delivery") return "delivery";
+    if (dt === "commissions") return "commissions";
+    return "book_payments";
+  };
+
+  const [tab, setTab] = useState<"book_payments" | "question_payments" | "delivery" | "commissions">(getInitialTab(defaultTab));
 
   useEffect(() => {
-    if (open) setTab(defaultTab);
+    if (open) setTab(getInitialTab(defaultTab));
   }, [open, defaultTab]);
 
   if (!open) return null;
@@ -1740,7 +1817,7 @@ export function PaymentDeliverySettingsModal({
             <div>
               <h3 className="font-bold text-sm sm:text-base">অর্ডার পেমেন্ট, ডেলিভারি ও কমিশন সেটিংস</h3>
               <p className="text-[11px] text-emerald-100">
-                পেমেন্ট অ্যাকাউন্ট, কিউআর কোড, বই ও প্রশ্নপত্রের ৫টি ডেলিভারি মাধ্যম এবং জিম্মাদার কমিশন নীতিমালা
+                বই ও প্রশ্নপত্রের পৃথক পেমেন্ট মাধ্যম, কিউআর কোড, ডেলিভারি চার্জ এবং জিম্মাদার কমিশন নীতিমালা
               </p>
             </div>
           </div>
@@ -1756,44 +1833,57 @@ export function PaymentDeliverySettingsModal({
         <div className="px-4 sm:px-6 pt-3 border-b border-slate-200 bg-slate-50 flex items-center gap-2 shrink-0 overflow-x-auto">
           <button
             type="button"
-            onClick={() => setTab("payments")}
-            className={`px-4 py-2.5 text-xs sm:text-sm font-bold rounded-t-xl border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
-              tab === "payments"
-                ? "bg-white text-[#095738] border-[#095738]"
+            onClick={() => setTab("book_payments")}
+            className={`px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-t-xl border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+              tab === "book_payments"
+                ? "bg-white text-[#095738] border-[#095738] shadow-xs"
                 : "text-slate-600 border-transparent hover:text-slate-900"
             }`}
           >
-            <CreditCard className="w-4 h-4" />
-            <span>পেমেন্ট মাধ্যম ও QR কোড</span>
+            <BookOpen className="w-4 h-4 text-emerald-700" />
+            <span>১। বইয়ের পেমেন্ট (বিকাশ, নগদ, ব্যাংক)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("question_payments")}
+            className={`px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-t-xl border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+              tab === "question_payments"
+                ? "bg-white text-blue-800 border-blue-700 shadow-xs"
+                : "text-slate-600 border-transparent hover:text-slate-900"
+            }`}
+          >
+            <FileQuestion className="w-4 h-4 text-blue-700" />
+            <span>২। প্রশ্নপত্রের পেমেন্ট (ইসলামী ব্যাংক ও QR)</span>
           </button>
           <button
             type="button"
             onClick={() => setTab("delivery")}
-            className={`px-4 py-2.5 text-xs sm:text-sm font-bold rounded-t-xl border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+            className={`px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-t-xl border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
               tab === "delivery"
-                ? "bg-white text-[#095738] border-[#095738]"
+                ? "bg-white text-[#095738] border-[#095738] shadow-xs"
                 : "text-slate-600 border-transparent hover:text-slate-900"
             }`}
           >
-            <Truck className="w-4 h-4" />
-            <span>ডেলিভারি মাধ্যম ও চার্জ (বই ও প্রশ্ন)</span>
+            <Truck className="w-4 h-4 text-amber-700" />
+            <span>৩। ডেলিভারি চার্জ (বই ও প্রশ্ন)</span>
           </button>
           <button
             type="button"
             onClick={() => setTab("commissions")}
-            className={`px-4 py-2.5 text-xs sm:text-sm font-bold rounded-t-xl border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+            className={`px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-t-xl border-b-2 flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
               tab === "commissions"
-                ? "bg-white text-[#095738] border-[#095738]"
+                ? "bg-white text-[#095738] border-[#095738] shadow-xs"
                 : "text-slate-600 border-transparent hover:text-slate-900"
             }`}
           >
-            <Percent className="w-4 h-4" />
-            <span>কমিশন নীতিমালা ও জিম্মাদার তালিকা</span>
+            <Percent className="w-4 h-4 text-purple-700" />
+            <span>৪। কমিশন ও জিম্মাদার</span>
           </button>
         </div>
 
         <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-          {tab === "payments" && <PaymentMethodsManager />}
+          {tab === "book_payments" && <PaymentMethodsManager initialCategory="book" />}
+          {tab === "question_payments" && <PaymentMethodsManager initialCategory="question" />}
           {tab === "delivery" && <DeliveryOptionsManager />}
           {tab === "commissions" && <CommissionsManager />}
         </div>

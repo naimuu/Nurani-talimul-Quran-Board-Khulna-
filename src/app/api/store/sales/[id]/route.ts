@@ -58,6 +58,23 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const now = new Date();
     let currentTimeline = getEnrichedTimeline(existingSale);
 
+    // Handle Permanent Delete
+    if (body.action === 'delete' || body.action === 'deleteOrder') {
+      const saleId = params.id;
+      await (prisma as any).storeSaleItem.deleteMany({ where: { saleId } }).catch(() => {});
+      await (prisma as any).storePayment.deleteMany({ where: { saleId } }).catch(() => {});
+      await (prisma as any).storeSale.delete({ where: { id: saleId } }).catch(() => {});
+      try {
+        await connectDB();
+        if (mongoose.connection.db) {
+          await mongoose.connection.db.collection('StoreSale').deleteOne({ _id: new mongoose.Types.ObjectId(saleId) });
+          await mongoose.connection.db.collection('StoreSaleItem').deleteMany({ saleId: new mongoose.Types.ObjectId(saleId) });
+          await mongoose.connection.db.collection('StorePayment').deleteMany({ saleId: new mongoose.Types.ObjectId(saleId) });
+        }
+      } catch {}
+      return NextResponse.json({ success: true, message: "Order permanently deleted" });
+    }
+
     // Handle Order Accept / Status Change
     if (body.action === 'acceptOrder' || body.action === 'updateStatus') {
       const newStatus = body.status || 'Confirmed';
@@ -370,9 +387,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    await (prisma as any).storeSale.delete({ where: { id: params.id } });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete sale" }, { status: 500 });
+    const saleId = params.id;
+    await (prisma as any).storeSaleItem.deleteMany({ where: { saleId } }).catch(() => {});
+    await (prisma as any).storePayment.deleteMany({ where: { saleId } }).catch(() => {});
+    await (prisma as any).storeSale.delete({ where: { id: saleId } }).catch(() => {});
+    try {
+      await connectDB();
+      if (mongoose.connection.db) {
+        await mongoose.connection.db.collection('StoreSale').deleteOne({ _id: new mongoose.Types.ObjectId(saleId) });
+        await mongoose.connection.db.collection('StoreSaleItem').deleteMany({ saleId: new mongoose.Types.ObjectId(saleId) });
+        await mongoose.connection.db.collection('StorePayment').deleteMany({ saleId: new mongoose.Types.ObjectId(saleId) });
+      }
+    } catch {}
+    return NextResponse.json({ success: true, message: "Order permanently deleted" });
+  } catch (error: any) {
+    console.error("Failed to delete sale:", error);
+    return NextResponse.json({ error: "Failed to delete sale: " + (error?.message || "") }, { status: 500 });
   }
 }

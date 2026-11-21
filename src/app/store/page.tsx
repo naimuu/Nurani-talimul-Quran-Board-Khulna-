@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import GeoAddressSelector, { GeoAddressData } from "@/components/common/GeoAddressSelector";
+import { EditableQtyInput } from "@/components/common/EditableQtyInput";
 
 import { TrackOrderModal } from "@/components/shared/TrackOrderModal";
 import DynamicPaymentSelector, {
@@ -577,12 +578,11 @@ function ListProductRow({
       <td className="p-2 sm:p-2.5">
         <div className="flex items-center justify-center gap-1 mx-auto w-fit">
           <button onClick={() => updateCartQty(product, Math.max(0, cartQty - 1))} className="w-6 h-6 sm:w-7 sm:h-7 bg-slate-400 text-white flex items-center justify-center rounded-sm font-bold text-base sm:text-lg leading-none active:scale-95 transition-transform">-</button>
-          <input
-            type="number"
-            value={cartQty || ""}
-            onChange={(e) => updateCartQty(product, parseInt(e.target.value) || 0)}
-            onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-            className="w-9 sm:w-14 h-6 sm:h-7 text-center text-xs sm:text-sm font-bold border border-slate-300 rounded-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          <EditableQtyInput
+            value={cartQty}
+            onChange={(val) => updateCartQty(product, val)}
+            onRemove={() => updateCartQty(product, 0)}
+            className="w-9 sm:w-14 h-6 sm:h-7 text-center text-xs sm:text-sm font-bold border border-slate-300 rounded-sm outline-none focus:ring-1 focus:ring-emerald-500"
           />
           <button onClick={() => updateCartQty(product, cartQty + 1)} className="w-6 h-6 sm:w-7 sm:h-7 bg-[#2f8c5b] hover:bg-[#2f8c5b]/90 text-white flex items-center justify-center rounded-sm font-bold text-base sm:text-lg leading-none active:scale-95 transition-transform">+</button>
         </div>
@@ -657,11 +657,36 @@ function ProductDetailModal({
     scrollContainerRef.current.scrollLeft = scrollLeftState - walk;
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    setStartX(e.touches[0].pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeftState(scrollContainerRef.current.scrollLeft);
+    setDragMoved(false);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    const x = e.touches[0].pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    if (Math.abs(walk) > 5) {
+      setDragMoved(true);
+    }
+    scrollContainerRef.current.scrollLeft = scrollLeftState - walk;
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   const scrollByAmount = (amount: number) => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({ left: amount, behavior: "smooth" });
     }
   };
+
+  // Lightbox touch swipe
+  const [lightboxTouchX, setLightboxTouchX] = useState<number | null>(null);
 
   // Keyboard navigation for Lightbox
   useEffect(() => {
@@ -726,8 +751,11 @@ function ProductDetailModal({
                 onMouseLeave={handleMouseLeave}
                 onMouseUp={handleMouseUp}
                 onMouseMove={handleMouseMove}
-                className="flex items-center gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory py-4 px-6 cursor-grab active:cursor-grabbing no-scrollbar"
-                style={{ scrollbarWidth: "none" }}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className="flex items-center gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory py-4 px-6 cursor-grab active:cursor-grabbing no-scrollbar touch-pan-x"
+                style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
               >
                 {galleryItems.map((item, idx) => (
                   <div
@@ -901,6 +929,17 @@ function ProductDetailModal({
           <div
             className="flex-1 flex items-center justify-center relative w-full max-w-5xl mx-auto overflow-hidden my-2"
             onClick={e => e.stopPropagation()}
+            onTouchStart={(e) => setLightboxTouchX(e.touches[0].clientX)}
+            onTouchEnd={(e) => {
+              if (lightboxTouchX === null) return;
+              const diff = e.changedTouches[0].clientX - lightboxTouchX;
+              if (diff > 50 && galleryItems.length > 1) {
+                setLightboxIndex((lightboxIndex - 1 + galleryItems.length) % galleryItems.length);
+              } else if (diff < -50 && galleryItems.length > 1) {
+                setLightboxIndex((lightboxIndex + 1) % galleryItems.length);
+              }
+              setLightboxTouchX(null);
+            }}
           >
             {/* Prev Button */}
             {galleryItems.length > 1 && (
@@ -1249,14 +1288,15 @@ function DeliveryPolicyAlertModal({
   );
 }
 
-function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onClose: (state?: any) => void; initialState?: any; total: number; cart: any[]; onSuccess: (data: any) => void }) {
+function OrderFormModal({ onClose, initialState, total, cart, onSuccess, currentUser }: { onClose: (state?: any) => void; initialState?: any; total: number; cart: any[]; onSuccess: (data: any) => void; currentUser?: any }) {
   // Delivery Options State
   const [deliveryOptions, setDeliveryOptions] = useState<any[]>([]);
   const [selectedDeliveryType, setSelectedDeliveryType] = useState<string>("pathao");
   const [courierOrTransportName, setCourierOrTransportName] = useState<string>("");
 
-  // Payment States (Strictly dynamic methods & money receipt, NO pay later)
-  const [paymentOption, setPaymentOption] = useState<"pay_now" | "money_receipt">("pay_now");
+  // Payment States (Strictly dynamic methods & money receipt; pay_later only for Admin)
+  const [paymentOption, setPaymentOption] = useState<"pay_now" | "money_receipt" | "pay_later">("pay_now");
+  const [promiseDate, setPromiseDate] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [selectedPaymentTab, setSelectedPaymentTab] = useState<"mobile" | "bank">("mobile");
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
@@ -1370,13 +1410,6 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
     } catch { }
   }, []);
 
-  const commissionDiscount = referralAgentInfo && referralCommissionPercent > 0
-    ? Math.round(total * (referralCommissionPercent / 100))
-    : 0;
-
-  const deliveryCharge = Number(selectedDeliveryOption.charge) || 0;
-  const grandTotal = Math.max(0, total - commissionDiscount + deliveryCharge);
-
   const activeMethods = useMemo(() => {
     return paymentMethods.filter((p) => p.isActive !== false);
   }, [paymentMethods]);
@@ -1398,6 +1431,23 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       bankMethods
     );
   }, [selectedMethodId, selectedPaymentTab, activeMethods, mobileMethods, bankMethods]);
+
+  const commissionDiscount = referralAgentInfo && referralCommissionPercent > 0
+    ? Math.round(total * (referralCommissionPercent / 100))
+    : 0;
+
+  const deliveryCharge = Number(selectedDeliveryOption.charge) || 0;
+  const basePayable = Math.max(0, total - commissionDiscount + deliveryCharge);
+
+  // Additional Payment/Bank Processing Fee (Configured by admin, e.g. 1%)
+  const paymentFeePercent = (paymentOption === "pay_now" && selectedMethod?.chargePercent)
+    ? Number(selectedMethod.chargePercent)
+    : 0;
+  const paymentFee = paymentFeePercent > 0
+    ? Math.round(basePayable * (paymentFeePercent / 100))
+    : 0;
+
+  const grandTotal = basePayable + paymentFee;
 
   const [ilhak, setIlhak] = useState(initialState?.ilhak || "");
   const [ownerName, setOwnerName] = useState(initialState?.ownerName || "");
@@ -1656,6 +1706,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
       const effectiveTrxId = paymentOption === "pay_now" ? trxId.trim() : (isPartialReceipt ? remainingTrxId.trim() : undefined);
       const effectiveMethodName = selectedMethod?.name || selectedMethod?.provider || "Direct Payment";
 
+      const paymentFeeNote = paymentFee > 0 ? ` | [পেমেন্ট ফি: ${paymentFeePercent}% (+৳${paymentFee})]` : '';
+
       const res = await fetch("/api/store/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1666,10 +1718,11 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
           password: customerPassword.trim() || undefined,
           instituteId: instituteName,
           items,
-          notes: `${effectiveAddress}${deliveryNote}${ilhakText}${referralNote}${courierNote}`,
+          notes: `${effectiveAddress}${deliveryNote}${ilhakText}${referralNote}${courierNote}${paymentFeeNote}`,
           paymentOption,
-          paymentProvider: effectiveMethodName,
-          paymentMethod: effectiveMethodName,
+          paymentProvider: paymentOption === "pay_later" ? "বকেয়া (পরে পরিশোধ)" : effectiveMethodName,
+          paymentMethod: paymentOption === "pay_later" ? "বকেয়া (পরে পরিশোধ)" : effectiveMethodName,
+          promiseDate: paymentOption === "pay_later" ? promiseDate : undefined,
           remainingProvider: isPartialReceipt ? effectiveMethodName : undefined,
           remainingTrxId: isPartialReceipt ? remainingTrxId.trim() : undefined,
           senderNumber: effectiveSenderNumber,
@@ -2045,6 +2098,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                     )}
                   </span>
                 </div>
+                {paymentFee > 0 && (
+                  <div className="flex items-center justify-between text-xs sm:text-sm text-amber-950 font-bold bg-amber-50/90 px-2.5 py-1.5 rounded-lg border border-amber-300">
+                    <span className="flex items-center gap-1">
+                      <span>ব্যাংক/পেমেন্ট প্রসেসিং ফি ({paymentFeePercent}%):</span>
+                    </span>
+                    <span>+৳{paymentFee.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                   <span className="font-bold text-slate-700 text-sm sm:text-base">সর্বমোট প্রদেয় বিল:</span>
                   <span className="text-xl sm:text-2xl font-black text-emerald-800">৳{grandTotal.toFixed(2)}</span>
@@ -2261,6 +2322,50 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess }: { onC
                     )}
                   </div>
                 )}
+
+                {/* Option 3: Pay Later (Strictly for Admin only) */}
+                {Boolean(currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) && (
+                  <>
+                    <label className={`flex items-center justify-between p-3.5 border rounded-xl cursor-pointer transition-all ${paymentOption === 'pay_later' ? 'border-amber-600 bg-amber-50/70 ring-1 ring-amber-600' : 'border-slate-200 hover:border-amber-600/50'}`}>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="payment_opt"
+                          checked={paymentOption === 'pay_later'}
+                          onChange={() => setPaymentOption('pay_later')}
+                          className="w-4.5 h-4.5 text-amber-600 focus:ring-amber-600"
+                        />
+                        <div>
+                          <span className="font-bold text-slate-800 text-sm">পরে পেমেন্ট করবো (বকেয়া)</span>
+                          <p className="text-[11px] text-slate-500">অ্যাডমিন প্রিভিলেজ: কোনো তাৎক্ষণিক TrxID ছাড়াই অর্ডার গ্রহণ করুন</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                        শুধুমাত্র অ্যাডমিন
+                      </span>
+                    </label>
+
+                    {paymentOption === 'pay_later' && (
+                      <div className="pl-2 sm:pl-4 pr-1 pb-2 animate-in fade-in space-y-2.5">
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                          <p className="font-bold">⚠️ অ্যাডমিন অনুমোদন প্রযোজ্য:</p>
+                          <p className="text-[11px] mt-0.5">এই অর্ডারটি কোনো অগ্রিম টাকা বা TrxID ছাড়াই বকেয়া হিসেবে পেন্ডিং তালিকায় জমা হবে।</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            পরিশোধের সম্ভাব্য তারিখ (ঐচ্ছিক)
+                          </label>
+                          <input
+                            type="date"
+                            value={promiseDate}
+                            onChange={(e) => setPromiseDate(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-600 text-xs font-semibold"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Summary & Submit Buttons in Step 2 */}
@@ -2441,7 +2546,7 @@ export default function StorePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedSubTab, setSelectedSubTab] = useState<string>("");
   const [dbCategories, setDbCategories] = useState<{ id: string; name: string; isClassWise?: boolean; subTabs?: string[] }[]>([]);
-  const [viewMode, setViewMode] = useState<"card" | "list">("list");
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [sortBy, setSortBy] = useState<"default" | "price-asc" | "price-desc" | "name" | "rating">("default");
   const [showOnlyInStock, setShowOnlyInStock] = useState(false);
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
@@ -2571,14 +2676,14 @@ export default function StorePage() {
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // Load view mode from localStorage (default to table/list)
+    // Load view mode from localStorage (default to card)
     try {
       const savedView = localStorage.getItem("store_view_mode");
       if (savedView === "card" || savedView === "list") {
         setViewMode(savedView);
       } else {
-        setViewMode("list");
-        localStorage.setItem("store_view_mode", "list");
+        setViewMode("card");
+        localStorage.setItem("store_view_mode", "card");
       }
     } catch { }
     // Load favourites from localStorage
@@ -2702,16 +2807,20 @@ export default function StorePage() {
     return list;
   }, [products, selectedCategory]);
 
-  // Standard curriculum order for class sub-tabs
-  const classOrder = [
-    "প্লে", "প্লে শ্রেণি", "প্লে শ্রেণী", "শিশু", "শিশু শ্রেণি", "শিশু শ্রেণী",
-    "প্রথম", "প্রথম শ্রেণি", "প্রথম শ্রেণী", "১ম শ্রেণি", "১ম শ্রেণী",
-    "দ্বিতীয়", "দ্বিতীয় শ্রেণি", "দ্বিতীয় শ্রেণী", "২য় শ্রেণি", "২য় শ্রেণী",
-    "তৃতীয়", "তৃতীয় শ্রেণি", "তৃতীয় শ্রেণী", "৩য় শ্রেণি", "৩য় শ্রেণী",
-    "চতুর্থ", "চতুর্থ শ্রেণি", "চতুর্থ শ্রেণী", "৪র্থ শ্রেণি", "৪র্থ শ্রেণী",
-    "পঞ্চম", "পঞ্চম শ্রেণি", "পঞ্চম শ্রেণী", "৫ম শ্রেণি", "৫ম শ্রেণী",
-    "মুয়াল্লিম", "হিফয", "সাধারণ"
-  ];
+  // Standard curriculum order rank: প্লে -> নার্সারি -> প্রথম -> দ্বিতীয় -> তৃতীয় -> চতুর্থ -> পঞ্চম ...
+  const getClassRank = (rawName: string): number => {
+    const text = rawName.trim().toLowerCase();
+    if (text.includes("প্লে") || text.includes("play") || text.includes("শিশু")) return 1;
+    if (text.includes("নার্সারি") || text.includes("নার্সারী") || text.includes("nursery") || text.includes("কেজি") || text.includes("কে.জি") || text.includes("kg")) return 2;
+    if (text.includes("প্রথম") || text.includes("১ম") || text.includes("class 1") || text.includes("class one")) return 3;
+    if (text.includes("দ্বিতীয়") || text.includes("দ্বিতীয়") || text.includes("২য়") || text.includes("class 2") || text.includes("class two")) return 4;
+    if (text.includes("তৃতীয়") || text.includes("তৃতীয়") || text.includes("৩য়") || text.includes("class 3") || text.includes("class three")) return 5;
+    if (text.includes("চতুর্থ") || text.includes("৪র্থ") || text.includes("class 4") || text.includes("class four")) return 6;
+    if (text.includes("পঞ্চম") || text.includes("৫ম") || text.includes("class 5") || text.includes("class five")) return 7;
+    if (text.includes("মুয়াল্লিম") || text.includes("মুয়াল্লিম")) return 8;
+    if (text.includes("হিফয") || text.includes("হিফজ")) return 9;
+    return 100;
+  };
 
   // Auto subtabs from classes of products in this category
   const autoClassSubTabs = useMemo(() => {
@@ -2724,11 +2833,9 @@ export default function StorePage() {
     );
 
     return classes.sort((a, b) => {
-      const idxA = classOrder.indexOf(a);
-      const idxB = classOrder.indexOf(b);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
+      const rankA = getClassRank(a);
+      const rankB = getClassRank(b);
+      if (rankA !== rankB) return rankA - rankB;
       return a.localeCompare(b, "bn");
     });
   }, [categoryScopedProducts]);
@@ -2757,7 +2864,13 @@ export default function StorePage() {
       }
     });
 
-    return list;
+    // Sort all subtabs according to standard curriculum order (Play -> Nursery -> 1st -> 2nd -> ...)
+    return list.sort((a, b) => {
+      const rankA = getClassRank(a);
+      const rankB = getClassRank(b);
+      if (rankA !== rankB) return rankA - rankB;
+      return a.localeCompare(b, "bn");
+    });
   }, [activeCategoryConfig, autoClassSubTabs]);
 
   const highestPrice = useMemo(() => products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000, [products]);
@@ -2880,17 +2993,41 @@ export default function StorePage() {
               <option value="name">নামানুসারে</option>
             </select>
 
-            <button
-              onClick={() => {
-                const newMode = viewMode === "card" ? "list" : "card";
-                setViewMode(newMode);
-                try { localStorage.setItem("store_view_mode", newMode); } catch { }
-              }}
-              className="p-2.5 bg-slate-100 text-slate-600 rounded-xl transition-colors hover:bg-slate-200 flex items-center justify-center cursor-pointer"
-              title={viewMode === "card" ? "তালিকা ভিউ" : "কার্ড ভিউ"}
-            >
-              {viewMode === "card" ? <List className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
-            </button>
+            {/* View Mode Segmented Toggle: কার্ড ভিউ এবং টেবিল ভিউ */}
+            <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200/80 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode("card");
+                  try { localStorage.setItem("store_view_mode", "card"); } catch { }
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === "card"
+                    ? "bg-white text-emerald-800 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="কার্ড ভিউ"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span>কার্ড ভিউ</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode("list");
+                  try { localStorage.setItem("store_view_mode", "list"); } catch { }
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === "list"
+                    ? "bg-white text-emerald-800 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="টেবিল ভিউ"
+              >
+                <List className="w-4 h-4" />
+                <span>টেবিল ভিউ</span>
+              </button>
+            </div>
 
             {/* Cart Button */}
             <button
@@ -3157,27 +3294,22 @@ export default function StorePage() {
                           {/* Horizontal + and - Quantity Stepper */}
                           {cartQty > 0 ? (
                             <div
-                              className="flex items-center justify-between w-full bg-white rounded-xl p-0.5 border border-slate-200 shadow-2xs"
+                              className="flex items-center justify-between w-full bg-slate-50 border border-slate-200/90 rounded-xl p-0.5 shadow-2xs"
                               onClick={e => e.stopPropagation()}
                             >
                               <button
                                 type="button"
                                 onClick={() => updateCartQty(product, cartQty - 1)}
-                                className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center border border-slate-200/80 transition-all active:scale-90 cursor-pointer"
+                                className="w-7 h-7 sm:w-8 sm:h-8 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-600 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center border border-slate-200/80 shadow-2xs transition-all active:scale-90 cursor-pointer"
                                 title="পরিমাণ কমান"
                               >
                                 −
                               </button>
-                              <input
-                                type="number"
-                                min={1}
-                                value={cartQty || ""}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value);
-                                  updateCartQty(product, isNaN(val) ? 0 : Math.max(0, val));
-                                }}
-                                onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-                                className="w-10 sm:w-12 h-7 sm:h-8 text-center text-xs sm:text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              <EditableQtyInput
+                                value={cartQty}
+                                onChange={(val) => updateCartQty(product, val)}
+                                onRemove={() => updateCartQty(product, 0)}
+                                className="w-10 sm:w-12 h-7 sm:h-8 text-center text-xs sm:text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-lg outline-none focus:ring-1 focus:ring-slate-400"
                               />
                               <button
                                 type="button"
@@ -3364,18 +3496,10 @@ export default function StorePage() {
                               className="w-7 h-7 bg-white hover:bg-slate-200 text-slate-700 rounded-md font-bold text-base flex items-center justify-center border border-slate-200/80 shadow-2xs transition-all active:scale-90 cursor-pointer"
                               title="পরিমাণ কমান"
                             >−</button>
-                            <input
-                              type="number"
-                              min={1}
-                              value={item.qty || ""}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (!isNaN(val) && val > 0) {
-                                  updateCartQty(item.product, val);
-                                }
-                              }}
-                              onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-md outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            <EditableQtyInput
+                              value={item.qty}
+                              onChange={(val) => updateCartQty(item.product, val)}
+                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-md outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                             <button
                               type="button"
@@ -3585,18 +3709,10 @@ export default function StorePage() {
                               className="w-7 h-7 bg-white hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center border border-slate-200/80 shadow-2xs transition-all active:scale-90"
                               title="পরিমাণ কমান"
                             >−</button>
-                            <input
-                              type="number"
-                              min={1}
-                              value={item.qty || ""}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (!isNaN(val) && val > 0) {
-                                  updateCartQty(item.product, val);
-                                }
-                              }}
-                              onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
-                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            <EditableQtyInput
+                              value={item.qty}
+                              onChange={(val) => updateCartQty(item.product, val)}
+                              className="w-10 h-7 text-center text-sm font-black text-slate-900 font-mono bg-white border border-slate-200/80 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                             <button
                               type="button"
@@ -3661,6 +3777,7 @@ export default function StorePage() {
 
       {isOrderModalOpen && (
         <OrderFormModal
+          currentUser={currentUser}
           initialState={orderFormState}
           onClose={(savedState) => {
             if (savedState) setOrderFormState(savedState);

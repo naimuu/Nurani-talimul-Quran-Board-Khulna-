@@ -89,18 +89,38 @@ export async function GET(
     // Generate real text / vector HTML
     const html = await generateInvoiceHTML(orderData, { mode }, boardSettings);
 
-    // Convert directly to genuine vector text PDF
-    const pdfBuffer = await convertHtmlToPdfBuffer(html);
+    try {
+      // Convert directly to genuine vector text PDF
+      const pdfBuffer = await convertHtmlToPdfBuffer(html);
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Invoice-${sale.invoiceId}.pdf"`,
-        "Content-Length": String(pdfBuffer.length),
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-      },
-    });
+      return new NextResponse(new Uint8Array(pdfBuffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="Invoice-${sale.invoiceId}.pdf"`,
+          "Content-Length": String(pdfBuffer.length),
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      });
+    } catch (pdfErr: any) {
+      console.warn("Headless PDF conversion fallback to HTML:", pdfErr?.message);
+      // Fallback: Return printable HTML invoice directly so customer can view & print on any device
+      const autoPrintHtml = html.replace(
+        "</body>",
+        `<script>
+          window.addEventListener('load', function() {
+            setTimeout(function() { window.print(); }, 400);
+          });
+        </script></body>`
+      );
+      return new NextResponse(autoPrintHtml, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      });
+    }
   } catch (error: any) {
     console.error("Failed to generate order PDF:", error);
     return NextResponse.json(

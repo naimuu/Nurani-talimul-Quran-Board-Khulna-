@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ImageCropper from './ImageCropper';
 import CategoryManagementModal from './CategoryManagementModal';
-import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Printer, Scan, Loader2, ChevronLeft, ChevronRight, BookOpen, UploadCloud, Eye } from 'lucide-react';
+import { Search, Plus, Download, Edit, Trash2, MoreVertical, X, Package, TrendingUp, Clock, List, Image as ImageIcon, Printer, Scan, Loader2, ChevronLeft, ChevronRight, BookOpen, UploadCloud, Eye, CheckCircle } from 'lucide-react';
 
 type Product = { id: string; name: string; category: string; price: number; stock: number; unit: string; updatedAt: string; imageUrl?: string | null; samplePages?: string[]; barcode?: string | null; className?: string | null; description?: string | null; weight?: number | null; };
 
@@ -15,6 +15,20 @@ const cleanBarcodeValue = (val?: string | null) => {
   if (!val) return '';
   const trimmed = String(val).trim();
   return trimmed.startsWith('__NO_BARCODE_') ? '' : trimmed;
+};
+
+const getClassRank = (rawName: string): number => {
+  const text = (rawName || '').trim().toLowerCase();
+  if (text.includes("প্লে") || text.includes("play") || text.includes("শিশু")) return 1;
+  if (text.includes("নার্সারি") || text.includes("নার্সারী") || text.includes("nursery") || text.includes("কেজি") || text.includes("কে.জি") || text.includes("kg")) return 2;
+  if (text.includes("প্রথম") || text.includes("১ম") || text.includes("class 1") || text.includes("class one")) return 3;
+  if (text.includes("দ্বিতীয়") || text.includes("দ্বিতীয়") || text.includes("২য়") || text.includes("class 2") || text.includes("class two")) return 4;
+  if (text.includes("তৃতীয়") || text.includes("তৃতীয়") || text.includes("৩য়") || text.includes("class 3") || text.includes("class three")) return 5;
+  if (text.includes("চতুর্থ") || text.includes("৪র্থ") || text.includes("class 4") || text.includes("class four")) return 6;
+  if (text.includes("পঞ্চম") || text.includes("৫ম") || text.includes("class 5") || text.includes("class five")) return 7;
+  if (text.includes("মুয়াল্লিম") || text.includes("মুয়াল্লিম")) return 8;
+  if (text.includes("হিফয") || text.includes("হিফজ")) return 9;
+  return 100;
 };
 
 function ProductThumbnail({ src, alt, className = "w-10 h-10" }: { src?: string | null; alt: string; className?: string }) {
@@ -113,7 +127,12 @@ function ProductModal({ product, products = [], defaultCategory, defaultClass, o
   const uniqueClasses = useMemo(() => {
     const set = new Set(curriculumClasses.map(c => c.name));
     products.forEach(p => { if (p.className) set.add(p.className); });
-    return Array.from(set);
+    return Array.from(set).sort((a, b) => {
+      const rankA = getClassRank(a);
+      const rankB = getClassRank(b);
+      if (rankA !== rankB) return rankA - rankB;
+      return a.localeCompare(b, 'bn');
+    });
   }, [curriculumClasses, products]);
   const [isNewClass, setIsNewClass] = useState(false);
 
@@ -929,12 +948,290 @@ function PrintBarcodeModal({ product, onClose }: { product: Product; onClose: ()
   );
 }
 
+function ManageSamplePagesModal({
+  product,
+  onClose,
+  onSaved,
+}: {
+  product: Product;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [pages, setPages] = useState<string[]>(
+    Array.isArray(product.samplePages) ? [...product.samplePages] : []
+  );
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    setError('');
+    setUploadProgress(`০/${files.length} আপলোড হচ্ছে...`);
+
+    const uploadedUrls: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress(`${i + 1}/${files.length} আপলোড হচ্ছে...`);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'products/samples');
+
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.url) {
+          uploadedUrls.push(data.url);
+        } else {
+          setError(data.error || 'একটি বা একাধিক ফাইল আপলোড হতে ব্যর্থ হয়েছে');
+        }
+      } catch (err: any) {
+        setError('আপলোড এরর: ' + (err.message || ''));
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setPages(prev => [...prev, ...uploadedUrls]);
+    }
+
+    setUploading(false);
+    setUploadProgress('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removePage = (indexToRemove: number) => {
+    setPages(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const movePage = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= pages.length) return;
+    setPages(prev => {
+      const next = [...prev];
+      const [item] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, item);
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await fetch(`/api/store/products/${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          samplePages: pages,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setSuccess('পড়ার পৃষ্ঠাগুলো সফলভাবে সংরক্ষণ করা হয়েছে!');
+        onSaved();
+        setTimeout(() => {
+          onClose();
+        }, 600);
+      } else {
+        setError(data.error || 'পৃষ্ঠাগুলো সেভ করতে সমস্যা হয়েছে');
+      }
+    } catch {
+      setError('সার্ভারে সংযোগ ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in zoom-in-95"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+              <BookOpen className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-800 text-base sm:text-lg truncate">
+                বইয়ের পড়ার পৃষ্ঠা পরিচালনা
+              </h3>
+              <p className="text-xs text-slate-500 truncate">
+                {product.name} {product.className ? `(${product.className})` : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-full transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <span>{success}</span>
+            </div>
+          )}
+
+          {/* Upload Drop Zone / Button */}
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="p-6 border-2 border-dashed border-emerald-300 hover:border-emerald-500 rounded-2xl bg-emerald-50/30 hover:bg-emerald-50/60 text-center cursor-pointer transition-all flex flex-col items-center justify-center group"
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleUpload}
+              className="hidden"
+            />
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 group-hover:bg-emerald-200 text-emerald-700 flex items-center justify-center mb-2 transition-colors shadow-2xs">
+              {uploading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-700" />
+              ) : (
+                <UploadCloud className="w-6 h-6" />
+              )}
+            </div>
+            <p className="text-sm font-bold text-slate-800">
+              {uploading ? uploadProgress : "বইয়ের নতুন পড়ার পৃষ্ঠা আপলোড করতে ক্লিক করুন"}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              একসাথে একাধিক ছবি (JPG, PNG) নির্বাচন করতে পারেন
+            </p>
+          </div>
+
+          {/* Page list */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700">
+                যুক্ত করা পৃষ্ঠাগুলো (মোট {pages.length}টি)
+              </span>
+              <span className="text-[11px] text-slate-400">
+                বামে-ডানে বাটন দিয়ে ক্রম সাজান
+              </span>
+            </div>
+
+            {pages.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 border border-slate-200 rounded-2xl bg-slate-50/50">
+                <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-medium">এখনো কোনো পড়ার পৃষ্ঠা আপলোড করা হয়নি</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {pages.map((url, idx) => (
+                  <div
+                    key={idx}
+                    className="relative group bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs flex flex-col"
+                  >
+                    <div className="aspect-[3/4] bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                      <img
+                        src={url}
+                        alt={`Page ${idx + 1}`}
+                        className="w-full h-full object-contain p-1"
+                      />
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => removePage(idx)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow transition-all active:scale-95 cursor-pointer"
+                        title="পৃষ্ঠাটি বাদ দিন"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Footer / Reorder */}
+                    <div className="p-1.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => movePage(idx, idx - 1)}
+                        disabled={idx === 0}
+                        className="p-1 hover:bg-slate-200 rounded disabled:opacity-20 cursor-pointer"
+                        title="বামে সরান"
+                      >
+                        <ChevronLeft className="w-3 h-3 text-slate-600" />
+                      </button>
+                      <span className="text-[11px] font-bold text-slate-700">
+                        পৃ. {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => movePage(idx, idx + 1)}
+                        disabled={idx === pages.length - 1}
+                        className="p-1 hover:bg-slate-200 rounded disabled:opacity-20 cursor-pointer"
+                        title="ডানে সরান"
+                      >
+                        <ChevronRight className="w-3 h-3 text-slate-600" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-xl hover:bg-slate-200/60 transition-colors"
+          >
+            বাতিল
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || uploading}
+            className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>সংরক্ষণ হচ্ছে...</span>
+              </>
+            ) : (
+              <span>সংরক্ষণ করুন</span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActionDropdown({ product, allProducts = [], onUpdate }: { product: Product; allProducts?: Product[]; onUpdate: () => void }) {
   const [open, setOpen] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showStockUpdate, setShowStockUpdate] = useState(false);
   const [showStockHistory, setShowStockHistory] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [showSamplePages, setShowSamplePages] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -962,6 +1259,7 @@ function ActionDropdown({ product, allProducts = [], onUpdate }: { product: Prod
   return (
     <div className="relative" ref={ref}>
       {showEdit && <ProductModal product={product} products={allProducts} onClose={() => setShowEdit(false)} onSaved={onUpdate} />}
+      {showSamplePages && <ManageSamplePagesModal product={product} onClose={() => setShowSamplePages(false)} onSaved={onUpdate} />}
       {showStockUpdate && <UpdateStockModal product={product} onClose={() => setShowStockUpdate(false)} onSaved={onUpdate} />}
       {showStockHistory && <StockHistoryModal product={product} onClose={() => setShowStockHistory(false)} />}
       {showPrint && (
@@ -979,6 +1277,10 @@ function ActionDropdown({ product, allProducts = [], onUpdate }: { product: Prod
           </button>
           <button onClick={() => { setShowStockHistory(true); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
             <Clock className="w-4 h-4 text-amber-500" /> স্টক ইতিহাস
+          </button>
+          <div className="border-t border-slate-100" />
+          <button onClick={() => { setShowSamplePages(true); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-emerald-800 hover:bg-emerald-50 transition-colors font-semibold">
+            <BookOpen className="w-4 h-4 text-emerald-600" /> পড়ার পৃষ্ঠা পরিচালনা ({product.samplePages?.length || 0})
           </button>
           <div className="border-t border-slate-100" />
           <button onClick={() => { setShowPrint(true); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
@@ -1030,6 +1332,7 @@ export default function StockTab({
   const [filterClass, setFilterClass] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const [samplePagesProduct, setSamplePagesProduct] = useState<Product | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product, direction: 'asc' | 'desc' } | null>(null);
 
@@ -1114,7 +1417,12 @@ export default function StockTab({
   }, [categoryProducts, searchTerm, filterCategory, filterClass]);
 
   const currentCategoryProducts = filterCategory ? categoryProducts.filter((p: Product) => p.category.includes(filterCategory) && p.className) : [];
-  const uniqueClasses: string[] = Array.from(new Set(currentCategoryProducts.map((p: Product) => p.className).filter((c): c is string => Boolean(c))));
+  const uniqueClasses: string[] = Array.from(new Set(currentCategoryProducts.map((p: Product) => p.className).filter((c): c is string => Boolean(c)))).sort((a, b) => {
+    const rankA = getClassRank(a);
+    const rankB = getClassRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return a.localeCompare(b, 'bn');
+  });
 
   const stockStatus = (stock: number) => {
     if (stock === 0) return { label: 'মজুদ শেষ', class: 'bg-red-100 text-red-700' };
@@ -1154,6 +1462,13 @@ export default function StockTab({
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300">
       {showModal && <ProductModal onClose={() => {setShowModal(false); setEditingProduct(undefined);}} onSaved={fetchProducts} product={editingProduct} products={allProducts} defaultCategory={filterCategory} defaultClass={filterClass} />}
+      {samplePagesProduct && (
+        <ManageSamplePagesModal
+          product={samplePagesProduct}
+          onClose={() => setSamplePagesProduct(null)}
+          onSaved={fetchProducts}
+        />
+      )}
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex gap-2 w-full sm:w-auto flex-1">
@@ -1290,11 +1605,32 @@ export default function StockTab({
                       )}
                     </td>
                     <td className="px-4 py-3 font-bold text-slate-800">
-                      {product.name}
-                      {product.className && (
-                        <span className="text-xs text-indigo-600 font-medium ml-1.5">[{product.className}]</span>
-                      )}
-                      <span className="text-xs text-slate-400 font-normal ml-1.5">({product.weight ?? 0.25} কেজি)</span>
+                      <div>
+                        <span>{product.name}</span>
+                        {product.className && (
+                          <span className="text-xs text-indigo-600 font-medium ml-1.5">[{product.className}]</span>
+                        )}
+                        <span className="text-xs text-slate-400 font-normal ml-1.5">({product.weight ?? 0.25} কেজি)</span>
+                      </div>
+                      <div className="mt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSamplePagesProduct(product)}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border transition-colors cursor-pointer ${
+                            product.samplePages && product.samplePages.length > 0
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                          }`}
+                          title="পড়ার নমুনা পৃষ্ঠা আপলোড বা পরিবর্তন করুন"
+                        >
+                          <BookOpen className="w-3 h-3 text-emerald-600" />
+                          <span>
+                            {product.samplePages && product.samplePages.length > 0
+                              ? `পড়ার পৃষ্ঠা (${product.samplePages.length}টি)`
+                              : "+ পড়ার পৃষ্ঠা যোগ"}
+                          </span>
+                        </button>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{product.category}</td>
                     <td className="px-4 py-3 font-semibold text-slate-700">{product.price} ৳</td>
@@ -1339,6 +1675,25 @@ export default function StockTab({
                       <p className="text-xs text-slate-500 mt-0.5">
                         {product.category}{product.className ? ` • ${product.className}` : ''}
                       </p>
+                      <div className="mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSamplePagesProduct(product)}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border transition-colors cursor-pointer ${
+                            product.samplePages && product.samplePages.length > 0
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                          }`}
+                          title="পড়ার নমুনা পৃষ্ঠা আপলোড বা পরিবর্তন করুন"
+                        >
+                          <BookOpen className="w-3 h-3 text-emerald-600" />
+                          <span>
+                            {product.samplePages && product.samplePages.length > 0
+                              ? `পড়ার পৃষ্ঠা (${product.samplePages.length}টি)`
+                              : "+ পড়ার পৃষ্ঠা যোগ"}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <ActionDropdown product={product} allProducts={allProducts} onUpdate={fetchProducts} />
