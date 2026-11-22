@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const PAYMENT_V3_QUESTION_SLUG = "payment-methods-v3-question";
 const PAYMENT_V3_BOOK_SLUG = "payment-methods-v3-book";
 
-export interface PaymentMethodItem {
+interface PaymentMethodItem {
   id?: string;
   type: string; // 'mobile' | 'bank'
   provider: string;
@@ -64,7 +64,7 @@ const DEFAULT_BOOK_PAYMENTS: PaymentMethodItem[] = [
   },
 ];
 
-export const DEFAULT_QUESTION_PAYMENTS: PaymentMethodItem[] = [
+const DEFAULT_QUESTION_PAYMENTS: PaymentMethodItem[] = [
   {
     type: "bank",
     provider: "ইসলামী ব্যাংক",
