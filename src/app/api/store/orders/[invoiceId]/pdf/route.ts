@@ -22,7 +22,13 @@ export async function GET(
     }
 
     let sale = await (prisma as any).storeSale.findFirst({
-      where: { invoiceId: invoiceId },
+      where: {
+        OR: [
+          { invoiceId: invoiceId },
+          { invoiceId: { equals: invoiceId, mode: "insensitive" } },
+          { id: invoiceId },
+        ],
+      },
       include: { items: { include: { product: true } }, payments: true },
     });
 

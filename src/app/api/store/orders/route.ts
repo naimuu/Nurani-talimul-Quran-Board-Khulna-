@@ -45,6 +45,10 @@ export async function POST(request: Request) {
       deliveryOptionType = "pathao",
       courierOrTransportName,
       totalAmount: clientTotalAmount,
+      totalWeight: clientTotalWeight,
+      referralAgentCode,
+      referralAgentPhone,
+      referralCommissionPercent,
     } = await request.json();
 
     if (!customerName || !items || items.length === 0) {
@@ -251,10 +255,43 @@ export async function POST(request: Request) {
       );
     }
 
-    const totalWeight = Math.round(itemsForDeliveryCalc.reduce((w, i) => w + (i.product?.weight || 0.25) * i.quantity, 0) * 10) / 10;
-    const finalDiscount = Number(discount) || 0;
+    const totalWeight = clientTotalWeight !== undefined && Number(clientTotalWeight) > 0
+      ? Number(clientTotalWeight)
+      : Math.round(itemsForDeliveryCalc.reduce((w, i) => w + (i.product?.weight || 0.25) * i.quantity, 0) * 10) / 10;
+    
+    let finalDiscount = Number(discount) || 0;
+
+    // Server-side Zimadar / Agent Commission Verification & Auto-detection:
+    // If discount was not provided or 0, check if customerPhone or referralAgentCode matches a registered Zimadar/Agent
+    if (!finalDiscount && (customerPhone || referralAgentCode || referralAgentPhone)) {
+      try {
+        const { getCommissionSettings } = await import("@/lib/commissions");
+        const commSettings = await getCommissionSettings();
+        const cleanCustomerPhone = customerPhone ? String(customerPhone).replace(/\D/g, "") : "";
+        const cleanRefPhone = referralAgentPhone ? String(referralAgentPhone).replace(/\D/g, "") : "";
+        const refCode = referralAgentCode ? String(referralAgentCode).trim().toLowerCase() : "";
+
+        const matchedAgent = (commSettings?.customAgents || []).find((a: any) => {
+          if (!a.isActive) return false;
+          const aPhone = a.phone ? String(a.phone).replace(/\D/g, "") : "";
+          const aCode = a.code ? String(a.code).toLowerCase() : "";
+          if (cleanCustomerPhone && aPhone && aPhone === cleanCustomerPhone) return true;
+          if (cleanRefPhone && aPhone && aPhone === cleanRefPhone) return true;
+          if (refCode && aCode && aCode === refCode) return true;
+          if (refCode && aPhone && aPhone === refCode) return true;
+          return false;
+        });
+
+        if (matchedAgent && Number(matchedAgent.bookCommissionPercent) > 0) {
+          finalDiscount = Math.round(subtotal * (Number(matchedAgent.bookCommissionPercent) / 100));
+        }
+      } catch (commErr) {
+        console.warn("Commission lookup error in order creation:", commErr);
+      }
+    }
+
     const baseCalcTotal = Math.max(0, subtotal - finalDiscount + deliveryCharge);
-    const totalAmount = (clientTotalAmount !== undefined && Number(clientTotalAmount) >= baseCalcTotal)
+    const totalAmount = clientTotalAmount !== undefined
       ? Number(clientTotalAmount)
       : baseCalcTotal;
 

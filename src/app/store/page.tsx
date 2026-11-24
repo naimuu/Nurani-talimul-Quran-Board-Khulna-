@@ -528,20 +528,8 @@ function ListProductRow({
           <span className="text-xs text-slate-300 font-bold">—</span>
         )}
       </td>
-      <td className="p-2 sm:p-2.5">
-        <div className="flex items-center gap-2.5">
-          {/* Mobile thumbnail */}
-          <div
-            onClick={() => setDetailProduct(product)}
-            className="w-10 h-10 bg-white rounded-lg flex sm:hidden items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200 cursor-pointer"
-          >
-            <ProductImage
-              src={product.imageUrl}
-              alt={product.name}
-              imgClassName="w-full h-full object-cover"
-              iconClassName="w-4 h-4 text-slate-300"
-            />
-          </div>
+      <td className="p-1.5 sm:p-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
           <div className="min-w-0 flex-1">
             <h3
               className="font-bold text-slate-800 text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2"
@@ -549,17 +537,18 @@ function ListProductRow({
             >
               {product.name}
             </h3>
-            <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-slate-500 mt-0.5">
+            <div className="flex items-center gap-1 flex-wrap text-[10px] sm:text-[11px] text-slate-500 mt-0.5">
+              {/* On mobile: display unit price directly under title so it never requires horizontal scrolling */}
+              <span className="sm:hidden font-black text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200/80">
+                দর: ৳{product.price.toFixed(2)}
+              </span>
               {productCode && (
-                <span className="sm:hidden font-mono font-medium">
-                  আইডি: {productCode}
+                <span className="sm:hidden font-mono font-medium text-slate-600">
+                  #{productCode}
                 </span>
               )}
-              {productCode && product.className && (
-                <span className="sm:hidden text-slate-300">•</span>
-              )}
               {product.className && (
-                <span className="font-medium truncate">
+                <span className="font-medium truncate text-slate-500 hidden xs:inline">
                   {product.className}{product.subject ? ` - ${product.subject}` : ''}
                 </span>
               )}
@@ -574,20 +563,33 @@ function ListProductRow({
           ))}
         </div>
       </td>
-      <td className="p-2 sm:p-2.5 text-center font-bold text-xs sm:text-sm text-slate-800">{product.price.toFixed(2)}</td>
-      <td className="p-2 sm:p-2.5">
-        <div className="flex items-center justify-center gap-1 mx-auto w-fit">
-          <button onClick={() => updateCartQty(product, Math.max(0, cartQty - 1))} className="w-6 h-6 sm:w-7 sm:h-7 bg-slate-400 text-white flex items-center justify-center rounded-sm font-bold text-base sm:text-lg leading-none active:scale-95 transition-transform">-</button>
+      {/* Hide separate 'দর' on mobile as it is neatly integrated under book name */}
+      <td className="p-2 sm:p-2.5 text-center font-bold text-xs sm:text-sm text-slate-800 hidden sm:table-cell">
+        {product.price.toFixed(2)}
+      </td>
+      <td className="p-1 sm:p-2.5 w-[85px] sm:w-auto">
+        <div className="flex items-center justify-center gap-0.5 sm:gap-1 mx-auto w-fit">
+          <button 
+            type="button"
+            onClick={() => updateCartQty(product, Math.max(0, cartQty - 1))} 
+            className="w-5 h-5 sm:w-7 sm:h-7 bg-slate-400 hover:bg-slate-500 text-white flex items-center justify-center rounded-sm font-bold text-sm sm:text-lg leading-none active:scale-95 transition-transform cursor-pointer"
+          >−</button>
           <EditableQtyInput
             value={cartQty}
             onChange={(val) => updateCartQty(product, val)}
             onRemove={() => updateCartQty(product, 0)}
-            className="w-9 sm:w-14 h-6 sm:h-7 text-center text-xs sm:text-sm font-bold border border-slate-300 rounded-sm outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-7 sm:w-14 h-5 sm:h-7 text-center text-xs sm:text-sm font-bold border border-slate-300 rounded-sm outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
           />
-          <button onClick={() => updateCartQty(product, cartQty + 1)} className="w-6 h-6 sm:w-7 sm:h-7 bg-[#2f8c5b] hover:bg-[#2f8c5b]/90 text-white flex items-center justify-center rounded-sm font-bold text-base sm:text-lg leading-none active:scale-95 transition-transform">+</button>
+          <button 
+            type="button"
+            onClick={() => updateCartQty(product, cartQty + 1)} 
+            className="w-5 h-5 sm:w-7 sm:h-7 bg-[#2f8c5b] hover:bg-[#2f8c5b]/90 text-white flex items-center justify-center rounded-sm font-bold text-sm sm:text-lg leading-none active:scale-95 transition-transform cursor-pointer"
+          >+</button>
         </div>
       </td>
-      <td className="p-2 sm:p-2.5 text-right pr-3 sm:pr-6 font-bold text-xs sm:text-sm text-slate-800">{(product.price * cartQty).toFixed(2)}</td>
+      <td className="p-1 sm:p-2.5 text-right pr-1.5 sm:pr-6 font-black text-xs sm:text-sm text-slate-900 whitespace-nowrap w-[62px] sm:w-auto">
+        {(product.price * cartQty).toFixed(2)}
+      </td>
     </tr>
   );
 }
@@ -1449,6 +1451,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
 
   const grandTotal = basePayable + paymentFee;
 
+  const totalWeightKg = useMemo(() => {
+    const raw = (cart || []).reduce((w: number, i: any) => {
+      const itemWeight = Number(i.product?.weight || (i as any).weight || 0.25);
+      return w + itemWeight * (Number(i.qty || i.quantity) || 1);
+    }, 0);
+    return Math.round(raw * 10) / 10;
+  }, [cart]);
+
   const [ilhak, setIlhak] = useState(initialState?.ilhak || "");
   const [ownerName, setOwnerName] = useState(initialState?.ownerName || "");
   const [instituteName, setInstituteName] = useState(initialState?.instituteName || "");
@@ -1731,7 +1741,12 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
           deliveryOptionType: selectedDeliveryType,
           courierOrTransportName: selectedDeliveryOption?.requiresName ? courierOrTransportName.trim() : undefined,
           deliveryCharge: deliveryCharge,
+          discount: commissionDiscount,
           totalAmount: grandTotal,
+          totalWeight: totalWeightKg,
+          referralAgentCode: referralAgentInfo?.code || referralAgentCode.trim() || undefined,
+          referralAgentPhone: referralAgentInfo?.phone || undefined,
+          referralCommissionPercent: referralCommissionPercent,
         })
       });
       const data = await res.json();
@@ -1856,7 +1871,18 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
                     <input
                       type="tel"
                       value={contactNo}
-                      onChange={(e) => setContactNo(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setContactNo(val);
+                        if (!referralAgentCode && val.replace(/\D/g, '').length >= 10) {
+                          lookupReferralAgent(val);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!referralAgentCode && contactNo.replace(/\D/g, '').length >= 10) {
+                          lookupReferralAgent(contactNo);
+                        }
+                      }}
                       readOnly={!!autoFilledFields.contactNo}
                       disabled={!!autoFilledFields.contactNo}
                       placeholder="01XXXXXXXXX"
@@ -2107,8 +2133,14 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
                   </div>
                 )}
                 <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                  <span className="font-bold text-slate-700 text-sm sm:text-base">সর্বমোট প্রদেয় বিল:</span>
-                  <span className="text-xl sm:text-2xl font-black text-emerald-800">৳{grandTotal.toFixed(2)}</span>
+                  <div>
+                    <span className="font-bold text-slate-700 text-sm sm:text-base block">সর্বমোট প্রদেয় বিল:</span>
+                    <span className="text-[10px] text-slate-400 block">কুরিয়ার ও পার্সেল হিসাবের জন্য</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xl sm:text-2xl font-black text-emerald-800 font-mono block">৳{grandTotal.toFixed(2)}</span>
+                    <span className="text-[11px] font-bold text-slate-500 block -mt-0.5">মোট ওজন: {totalWeightKg} কেজি</span>
+                  </div>
                 </div>
               </div>
 
@@ -2518,6 +2550,7 @@ export default function StorePage() {
             </table>
             <div class="totals">
               <div><span>পণ্যের মোট মূল্য:</span><span>${(orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0)).toFixed(2)} ৳</span></div>
+              <div style="font-weight: 700;"><span>মোট পার্সেল ওজন:</span><span style="font-weight: 800;">${(orderToPrint.totalWeight || 1.0)} কেজি</span></div>
               <div>
                 <span>কুরিয়ার চার্জ (${orderToPrint.courierName || 'পাঠাও কুরিয়ার'}):</span>
                 <span>${(orderToPrint.deliveryCharge !== undefined ? orderToPrint.deliveryCharge : Math.max(0, orderToPrint.totalAmount - orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0))) > 0 ? `${(orderToPrint.deliveryCharge !== undefined ? orderToPrint.deliveryCharge : Math.max(0, orderToPrint.totalAmount - orderToPrint.items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice), 0))).toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি)'}</span>
@@ -2570,8 +2603,20 @@ export default function StorePage() {
       .catch(() => { });
   }, []);
 
+  const [commissionSettings, setCommissionSettings] = useState<any>({
+    bookRetailCommissionPercent: 0,
+    bookMadrasaCommissionPercent: 10,
+    bookDefaultAgentCommissionPercent: 15,
+  });
+
   useEffect(() => {
     fetchDbCategories();
+    fetch(`/api/store/commissions?t=${Date.now()}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d && typeof d === "object") setCommissionSettings(d);
+      })
+      .catch(() => {});
   }, [fetchDbCategories]);
 
   // Current authenticated user
@@ -2745,7 +2790,19 @@ export default function StorePage() {
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const cartWeight = cart.reduce((w, i) => {
+    const itemWeight = Number(i.product?.weight || (i as any).weight || 0.25);
+    return w + itemWeight * (Number(i.qty) || 1);
+  }, 0);
+  const totalWeightKg = Math.round(cartWeight * 10) / 10;
   const grandTotal = cartTotal;
+
+  const defaultCommissionPercent =
+    orderFormState?.referralCommissionPercent ||
+    commissionSettings?.bookMadrasaCommissionPercent ||
+    10;
+  const commissionDiscount = Math.round(cartTotal * (defaultCommissionPercent / 100));
+  const totalAfterCommission = Math.max(0, cartTotal - commissionDiscount);
 
   const allCategories = useMemo(() => {
     const fromProducts = products.flatMap(p =>
@@ -2956,14 +3013,16 @@ export default function StorePage() {
           <div className="flex items-center gap-2 shrink-0">
             <Link
               href="/"
-              className="p-2 sm:p-2.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 rounded-xl transition-all flex items-center justify-center shrink-0 active:scale-95 shadow-2xs border border-slate-200/80 cursor-pointer"
+              className="flex items-center gap-2 group cursor-pointer transition-all active:scale-95"
               title="মূল ওয়েবসাইটে ফিরে যান"
             >
-              <ArrowLeft className="w-5 h-5 text-emerald-800" />
+              <div className="p-2 sm:p-2.5 bg-emerald-50 group-hover:bg-emerald-100 text-emerald-800 rounded-xl transition-all flex items-center justify-center shrink-0 shadow-2xs border border-emerald-200/80">
+                <ArrowLeft className="w-5 h-5 text-emerald-800 group-hover:-translate-x-0.5 transition-transform" />
+              </div>
+              <h1 className="text-base sm:text-lg md:text-xl font-black text-[#095738] group-hover:text-emerald-900 whitespace-nowrap tracking-tight">
+                নূরানী প্রকাশন
+              </h1>
             </Link>
-            <h1 className="text-base sm:text-lg font-black text-slate-800 whitespace-nowrap hidden sm:block">
-              বই ও স্টেশনারি
-            </h1>
           </div>
 
           {/* Search & Filters */}
@@ -3350,9 +3409,14 @@ export default function StorePage() {
                     <span className="font-black text-emerald-800 text-xs sm:text-sm md:text-base truncate">বই ও স্টেশনারি তালিকা</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 justify-end">
-                    <div className="flex items-center gap-1 bg-white border border-emerald-300/80 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl shadow-2xs">
-                      <span className="text-[11px] sm:text-xs font-bold text-slate-700">সর্বমোট:</span>
-                      <span className="text-xs sm:text-sm md:text-base font-black text-emerald-800">৳{cartTotal.toFixed(2)}</span>
+                    <div className="flex flex-col items-end bg-white border border-emerald-300/80 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-xl shadow-2xs">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px] sm:text-xs font-bold text-slate-700">সর্বমোট:</span>
+                        <span className="text-xs sm:text-sm md:text-base font-black text-emerald-800 font-mono">৳{cartTotal.toFixed(2)}</span>
+                      </div>
+                      {cart.length > 0 && (
+                        <span className="text-[9.5px] font-bold text-slate-500 leading-tight">মোট ওজন: {totalWeightKg} কেজি</span>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -3365,18 +3429,18 @@ export default function StorePage() {
                   </div>
                 </div>
 
-                {/* Table Area with smooth horizontal touch pan and natural vertical page flow */}
-                <div className="overflow-x-auto w-full touch-pan-x">
-                  <table className="w-full text-left border-collapse min-w-full sm:min-w-[750px]">
+                {/* Table Area: 100% width on mobile without horizontal scrollbars, full columns fit smoothly */}
+                <div className="w-full overflow-x-hidden sm:overflow-x-auto touch-pan-y">
+                  <table className="w-full table-fixed sm:table-auto text-left border-collapse">
                     <thead className="bg-[#2f8c5b] text-white">
                       <tr className="bg-[#2f8c5b] text-white text-xs sm:text-sm">
                         <th className="p-2.5 font-bold text-center border-r border-white/20 w-14 sm:w-20 hidden sm:table-cell bg-[#2f8c5b]">ছবি</th>
                         <th className="p-2.5 font-bold text-center border-r border-white/20 w-20 hidden sm:table-cell bg-[#2f8c5b]">আইডি</th>
-                        <th className="p-2.5 sm:p-3 font-bold text-left sm:text-center border-r border-white/20 bg-[#2f8c5b]">পণ্যের নাম</th>
+                        <th className="p-2 sm:p-3 font-bold text-left border-r border-white/20 bg-[#2f8c5b]">পণ্যের নাম ও দর</th>
                         <th className="p-2.5 font-bold text-center border-r border-white/20 w-24 hidden sm:table-cell bg-[#2f8c5b]">ক্যাটাগরি</th>
-                        <th className="p-2.5 sm:p-3 font-bold text-center border-r border-white/20 w-20 sm:w-28 bg-[#2f8c5b]">দর (৳)</th>
-                        <th className="p-2.5 sm:p-3 font-bold text-center border-r border-white/20 w-28 sm:w-44 bg-[#2f8c5b]">পরিমাণ</th>
-                        <th className="p-2.5 sm:p-3 font-bold text-right pr-3 sm:pr-6 w-20 sm:w-32 bg-[#2f8c5b]">মূল্য (৳)</th>
+                        <th className="p-2.5 sm:p-3 font-bold text-center border-r border-white/20 w-20 sm:w-28 hidden sm:table-cell bg-[#2f8c5b]">দর (৳)</th>
+                        <th className="p-1 sm:p-3 font-bold text-center border-r border-white/20 w-[85px] sm:w-44 bg-[#2f8c5b]">পরিমাণ</th>
+                        <th className="p-1 sm:p-3 font-bold text-right pr-1.5 sm:pr-6 w-[62px] sm:w-32 bg-[#2f8c5b]">মোট (৳)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -3518,13 +3582,28 @@ export default function StorePage() {
 
             {/* Sticky Bottom Footer: Summary & Checkout Button */}
             {cart.length > 0 && (
-              <div className="sticky bottom-0 z-20 mt-auto flex-shrink-0 p-2 sm:p-2.5 border-t border-slate-200 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.08)] space-y-1.5">
-                <div className="flex justify-between text-slate-800 items-baseline">
-                  <div>
-                    <span className="font-bold text-xs block text-slate-700">সর্বমোট প্রদেয় বিল</span>
-                    <span className="text-[9px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>
+              <div className="sticky bottom-0 z-20 mt-auto flex-shrink-0 p-2 sm:p-2.5 border-t border-slate-200 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.08)] space-y-2">
+                <div className="space-y-1">
+                  {/* Row 1: Bill Total (Large, exactly as it is now) */}
+                  <div className="flex justify-between text-slate-800 items-baseline">
+                    <div>
+                      <span className="font-bold text-xs block text-slate-700">বিলের মোট টাকা</span>
+                      <span className="text-[9px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>
+                    </div>
+                    <span className="text-base sm:text-lg font-black text-emerald-800 font-mono">৳{cartTotal.toFixed(2)}</span>
                   </div>
-                  <span className="text-sm sm:text-base font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
+
+                  {/* Row 2: After Commission (Small) */}
+                  <div className="flex justify-between items-center text-emerald-700">
+                    <span className="text-[10.5px] font-semibold">কমিশন বাদে মোট টাকা ({defaultCommissionPercent}%):</span>
+                    <span className="text-xs font-bold font-mono">৳{totalAfterCommission.toFixed(2)}</span>
+                  </div>
+
+                  {/* Row 3: Total Weight (Small) */}
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span className="text-[9.5px] font-medium">মোট পার্সেল ওজন:</span>
+                    <span className="text-[10px] font-bold font-mono">{totalWeightKg} কেজি</span>
+                  </div>
                 </div>
 
                 <button
@@ -3556,9 +3635,15 @@ export default function StorePage() {
                 </span>
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-baseline gap-1.5 flex-wrap">
                   <span className="text-xs sm:text-sm font-black text-white font-mono leading-tight drop-shadow-xs">
-                    ৳{grandTotal.toFixed(2)}
+                    ৳{cartTotal.toFixed(2)}
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-300">
+                    • কমিশন বাদে: ৳{totalAfterCommission.toFixed(2)}
+                  </span>
+                  <span className="text-[9.5px] font-medium text-slate-300">
+                    • {totalWeightKg} কেজি
                   </span>
                 </div>
                 <p className="text-[10px] sm:text-[11px] text-emerald-100/80 truncate">
@@ -3732,12 +3817,27 @@ export default function StorePage() {
             {/* Bottom Sticky Checkout Footer */}
             {cart.length > 0 && (
               <div className="p-3 sm:p-4 border-t border-slate-200 bg-white/95 backdrop-blur-xs shrink-0 space-y-2.5 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
-                <div className="flex justify-between text-slate-800 items-baseline">
-                  <div>
-                    <span className="font-bold text-xs block text-slate-700">সর্বমোট প্রদেয় বিল</span>
-                    <span className="text-[10px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>
+                <div className="space-y-1">
+                  {/* Row 1: Bill Total (Large) */}
+                  <div className="flex justify-between text-slate-800 items-baseline">
+                    <div>
+                      <span className="font-bold text-xs block text-slate-700">বিলের মোট টাকা</span>
+                      <span className="text-[10px] text-slate-400">ডেলিভারি চার্জ ছাড়া</span>
+                    </div>
+                    <span className="text-lg font-black text-emerald-800 font-mono">৳{cartTotal.toFixed(2)}</span>
                   </div>
-                  <span className="text-lg font-black text-emerald-800 font-mono">৳{grandTotal.toFixed(2)}</span>
+
+                  {/* Row 2: After Commission (Small) */}
+                  <div className="flex justify-between items-center text-emerald-700">
+                    <span className="text-[11px] font-semibold">কমিশন বাদে মোট টাকা ({defaultCommissionPercent}%):</span>
+                    <span className="text-xs font-bold font-mono">৳{totalAfterCommission.toFixed(2)}</span>
+                  </div>
+
+                  {/* Row 3: Total Weight (Small) */}
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span className="text-[10px] font-medium">মোট পার্সেল ওজন:</span>
+                    <span className="text-[10.5px] font-bold font-mono">{totalWeightKg} কেজি</span>
+                  </div>
                 </div>
 
                 <button

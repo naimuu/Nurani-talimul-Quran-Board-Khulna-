@@ -203,6 +203,33 @@ function NewSaleModal({ onClose, onSaved, storeCategory = 'all' }: { onClose: ()
   const [items, setItems] = useState<{ productId: string; quantity: number }[]>([]);
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
   const [discountValue, setDiscountValue] = useState<string>('');
+  const [matchedAgent, setMatchedAgent] = useState<any>(null);
+
+  const lookupAgentByPhone = async (phone: string) => {
+    const clean = phone.replace(/\D/g, '');
+    if (clean.length < 5) {
+      setMatchedAgent(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/store/commissions?lookup=${encodeURIComponent(clean)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.found && data.agent) {
+          setMatchedAgent(data.agent);
+          const percent = Number(data.bookCommissionPercent) || 0;
+          if (percent > 0) {
+            setDiscountType('percentage');
+            setDiscountValue(String(percent));
+          }
+          return;
+        }
+      }
+      setMatchedAgent(null);
+    } catch {
+      setMatchedAgent(null);
+    }
+  };
   const [paidAmount, setPaidAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [promiseDate, setPromiseDate] = useState<string>('');
@@ -332,6 +359,9 @@ function NewSaleModal({ onClose, onSaved, storeCategory = 'all' }: { onClose: ()
         deliveryCharge: parsedDelivery,
         courierName: courierName || "পাঠাও কুরিয়ার",
         totalWeight: autoDelivery.totalWeightKg,
+        notes: matchedAgent 
+          ? `[${matchedAgent.category === 'agent' ? 'বই এজেন্ট' : 'কেন্দ্র জিম্মাদার'}: ${matchedAgent.name} (ফোন: ${matchedAgent.phone})${matchedAgent.code ? ` (${matchedAgent.code})` : ''} | কমিশন: ৳${discountAmount.toFixed(2)} (${discountValue}%)]` 
+          : undefined,
       }),
     });
     setLoading(false);
@@ -526,10 +556,35 @@ function NewSaleModal({ onClose, onSaved, storeCategory = 'all' }: { onClose: ()
                   })()}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">মোবাইল নাম্বার</label>
-                  <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} type="tel"
-                    placeholder="017..." lang="en"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm" />
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">মোবাইল নাম্বার</label>
+                    {matchedAgent && (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                        {matchedAgent.category === 'agent' ? 'বই এজেন্ট' : 'কেন্দ্রীয় জিম্মাদার'} ({matchedAgent.bookCommissionPercent}% কমিশন)
+                      </span>
+                    )}
+                  </div>
+                  <input 
+                    value={customerPhone} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setCustomerPhone(val);
+                      if (val.replace(/\D/g, '').length >= 10) {
+                        lookupAgentByPhone(val);
+                      } else {
+                        setMatchedAgent(null);
+                      }
+                    }} 
+                    onBlur={() => {
+                      if (customerPhone.replace(/\D/g, '').length >= 10) {
+                        lookupAgentByPhone(customerPhone);
+                      }
+                    }}
+                    type="tel"
+                    placeholder="017..." 
+                    lang="en"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm" 
+                  />
                 </div>
               </div>
 
@@ -537,9 +592,18 @@ function NewSaleModal({ onClose, onSaved, storeCategory = 'all' }: { onClose: ()
 
               {/* Cart items */}
               <div className="flex-1">
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  অর্ডার তালিকা {items.length > 0 && <span className="ml-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full">{items.length}</span>}
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    অর্ডার তালিকা {items.length > 0 && <span className="ml-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full">{items.length}</span>}
+                  </label>
+                  {items.length > 0 && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-xs font-bold text-blue-800 shadow-2xs" title="নির্বাচিত বইগুলোর মোট ওজন">
+                      <span>⚖️ মোট ওজন:</span>
+                      <span className="font-mono text-sm text-blue-950 font-black">{autoDelivery.totalWeightKg}</span>
+                      <span>কেজি</span>
+                    </div>
+                  )}
+                </div>
                 {items.length === 0 ? (
                   <div className="border-2 border-dashed border-slate-100 rounded-xl py-10 text-center text-slate-400 text-sm">
                     <Plus className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -582,6 +646,16 @@ function NewSaleModal({ onClose, onSaved, storeCategory = 'all' }: { onClose: ()
                   <span className="text-sm">🚚</span>
                   <span>কুরিয়ার চার্জ ({courierName}):</span>
                 </label>
+
+                {/* Live Parcel Weight Badge for courier booking */}
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md text-amber-900 font-bold text-xs shrink-0" title="কুরিয়ার বুকিং ওজন">
+                  <span>⚖️ ওজন:</span>
+                  <span className="font-mono font-black">{autoDelivery.totalWeightKg} কেজি</span>
+                  {autoDelivery.isOverweight && (
+                    <span className="text-[10px] text-red-600 font-normal">(১৫ কেজির বেশি!)</span>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-1 ml-auto shrink-0">
                   <div className="relative w-24">
                     <input
@@ -703,6 +777,33 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
   const deliveryCharge = Number(sale.deliveryCharge) || 0;
   const courierName = sale.courierName || "পাঠাও কুরিয়ার";
   const discount = Number(sale.discount) || Math.max(0, subtotal + deliveryCharge - sale.totalAmount);
+  const calculatedWeight = sale.items.reduce((sum, i: any) => {
+    const itemWeight = Number(i.product?.weight || (i as any).weight || 0.25);
+    return sum + itemWeight * (Number(i.quantity) || 1);
+  }, 0);
+  const effectiveWeight = Number(sale.totalWeight) > 0 ? Number(sale.totalWeight) : Math.round(calculatedWeight * 10) / 10;
+  const formattedWeight = `${effectiveWeight > 0 ? effectiveWeight : 1.0} কেজি`;
+
+  let rawPromiseDate = sale.promiseDate;
+  if (!rawPromiseDate && sale.notes) {
+    const pMatch = String(sale.notes).match(/সম্ভাব্য\s*(?:পরিশোধ\s*)?তারিখ:\s*([^\],|]+)/i);
+    if (pMatch) {
+      rawPromiseDate = pMatch[1].trim();
+    }
+  }
+  let formattedPromiseDate = "";
+  if (rawPromiseDate) {
+    try {
+      const d = new Date(rawPromiseDate);
+      if (!isNaN(d.getTime())) {
+        formattedPromiseDate = d.toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" });
+      } else {
+        formattedPromiseDate = String(rawPromiseDate);
+      }
+    } catch {
+      formattedPromiseDate = String(rawPromiseDate);
+    }
+  }
   
   return `
     <html>
@@ -821,7 +922,7 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
           <div class="header">
           <div style="font-family: 'Amiri', 'Traditional Arabic', serif !important; font-size: 14px; color: #000000; margin-bottom: 2px; text-align: center; font-weight: 700;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
           <h1 style="color: #000000; margin: 2px 0 4px 0; font-size: 24px; font-weight: 900; letter-spacing: -0.3px;">নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ</h1>
-          <p style="color: #000000; font-size: 10.5px; margin: 1px 0 4px 0; font-weight: 500;">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা। 📳 ০১৭১৪-৯০ ৮৩ ৮১</p>
+          <p style="color: #000000; font-size: 10.5px; margin: 1px 0 4px 0; font-weight: 500;">প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা। 📳 হেল্পলাইন (বই বিভাগ): 01312-135862</p>
           <div class="invoice-badge" style="background: #000000; color: #ffffff;">ইনভয়েস</div>
         </div>
         
@@ -835,6 +936,9 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
             <div>
               <p><strong>ইনভয়েস নং:</strong> <span style="font-family: monospace; font-weight: bold;">${sale.invoiceId}</span></p>
               <p><strong>তারিখ:</strong> ${new Date(sale.createdAt).toLocaleDateString('bn-BD')}</p>
+              <p><strong>ডেলিভারি/কুরিয়ার:</strong> ${courierName}</p>
+              <p><strong>মোট পার্সেল ওজন:</strong> <span style="font-weight: 800; color: #000;">${formattedWeight}</span></p>
+              ${formattedPromiseDate ? `<p style="border-top: 1px dashed #000; margin-top: 2px; padding-top: 2px; color: #b91c1c;"><strong>সম্ভাব্য তারিখ:</strong> <span style="font-weight: 800; color: #b91c1c;">${formattedPromiseDate}</span></p>` : ''}
             </div>
             ${qrCodeUrl ? `<img src="${qrCodeUrl}" alt="QR" style="width: 60px; height: 60px; border: 1px solid #cbd5e1; padding: 2px; border-radius: 4px;" />` : ''}
           </div>
@@ -870,6 +974,10 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
           <div class="total-row">
             <span>পণ্যের মূল্য (সাবটোটাল):</span>
             <span>${subtotal.toFixed(2)} ৳</span>
+          </div>
+          <div class="total-row" style="font-weight: 700;">
+            <span>মোট পার্সেল ওজন:</span>
+            <span style="font-weight: 800;">${formattedWeight}</span>
           </div>
           <div class="total-row">
             <span>কুরিয়ার চার্জ (${courierName}):</span>
@@ -913,7 +1021,11 @@ const generateInvoiceHTML = (sale: Sale, coverUrl: string, qrCodeUrl?: string, b
           </div>
         </div>
 
-        <div style="margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 11px; color: #166534; text-align: left;">
+        <div style="margin-top: 12px; padding: 8px 10px; background: #fffbeb; border-radius: 6px; border: 1px solid #fde68a; font-size: 11px; color: #92400e; text-align: left;">
+          <strong>📌 শর্তাবলী:</strong> ${isQuestionOrder(sale) ? 'প্রশ্নপত্র রিসিভ করার সময় প্যাকেট ও সিল ঠিক আছে কিনা তা সতর্কতার সাথে যাচাই করুন।' : 'ত্রুটিযুক্ত বই ৩০ দিনের মধ্যে মূল মেমোসহ পরিবর্তনযোগ্য, ফেরতযোগ্য নয়।'}
+        </div>
+
+        <div style="margin-top: 6px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 11px; color: #166534; text-align: left;">
           <strong>🚚 কুরিয়ার নীতিমালা:</strong> ৫,০০০ টাকার কম অর্ডারে “পাঠাও কুরিয়ার”-এর মাধ্যমে পাঠানো হয় (প্রথম ২ কেজি ১৮০ ৳, পরের প্রতি কেজি ২৫ ৳, সর্বোচ্চ ১৫ কেজি)। ৫,০০০ ৳ বা তদূর্ধ্ব অর্ডারে ফ্রি ডেলিভারি।
         </div>
 
@@ -1653,6 +1765,10 @@ function SaleDetailsModal({ sale, allSales = [], onClose }: { sale: Sale; allSal
     }
   };
 
+  const saleEffectiveWeight = Number(sale.totalWeight) > 0
+    ? Number(sale.totalWeight)
+    : Math.round(sale.items.reduce((s, i: any) => s + (Number(i.product?.weight || 0.25) * i.quantity), 0) * 10) / 10;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1674,7 +1790,7 @@ function SaleDetailsModal({ sale, allSales = [], onClose }: { sale: Sale; allSal
             </div>
           </div>
           
-          <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 flex flex-col sm:flex-row gap-4 justify-between">
+          <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-slate-500 mb-1">ক্রেতার নাম</p>
               <p className="font-bold text-slate-800">{sale.customerName}</p>
@@ -1686,6 +1802,10 @@ function SaleDetailsModal({ sale, allSales = [], onClose }: { sale: Sale; allSal
             <div>
               <p className="text-sm text-slate-500 mb-1">পেমেন্ট মাধ্যম</p>
               <p className="font-medium text-slate-800">{method}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500 mb-1">পার্সেল ওজন</p>
+              <p className="font-bold text-blue-700 font-mono text-sm">{saleEffectiveWeight > 0 ? saleEffectiveWeight : 1.0} কেজি</p>
             </div>
           </div>
 
@@ -1742,6 +1862,10 @@ function SaleDetailsModal({ sale, allSales = [], onClose }: { sale: Sale; allSal
                 <div className="flex justify-end gap-4 text-slate-600">
                   <span>পণ্যের মূল্য (সাবটোটাল):</span>
                   <span className="font-bold text-slate-800 w-32">{itemsSubtotal.toFixed(2)} ৳</span>
+                </div>
+                <div className="flex justify-end gap-4 text-slate-600">
+                  <span>মোট পার্সেল ওজন:</span>
+                  <span className="font-bold text-blue-800 w-32">{saleEffectiveWeight > 0 ? saleEffectiveWeight : 1.0} কেজি</span>
                 </div>
                 <div className="flex justify-end gap-4 text-slate-600">
                   <span>কুরিয়ার ({sale.courierName || 'পাঠাও কুরিয়ার'}):</span>

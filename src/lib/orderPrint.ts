@@ -98,6 +98,15 @@ export async function generateInvoiceHTML(
     (s: number, i: any) => s + i.quantity * Number(i.unitPrice || 0),
     0
   );
+  const calculatedWeight = displayItems.reduce((w: number, i: any) => {
+    const itemWeight = Number(i.product?.weight || i.weight || 0.25);
+    return w + itemWeight * (Number(i.quantity) || 1);
+  }, 0);
+  const effectiveTotalWeight = Number(order.totalWeight) > 0 
+    ? Number(order.totalWeight) 
+    : Math.round(calculatedWeight * 10) / 10;
+  const formattedWeight = `${effectiveTotalWeight > 0 ? effectiveTotalWeight : 1.0} কেজি`;
+
   const deliveryCharge = Number(order.deliveryCharge) || 0;
   const courierName = order.courierName || "পাঠাও কুরিয়ার";
   const optType = (order.deliveryOptionType || "").toLowerCase();
@@ -111,9 +120,83 @@ export async function generateInvoiceHTML(
   } else {
     deliveryChargeLabel = "চার্জ নাই";
   }
-  const grandTotalBill = (Number(order.totalAmount) || 0) + (Number(order.currentTotalDue) || 0);
+  let effectiveDiscount = Number(order.discount) || 0;
+  if (!effectiveDiscount && order.notes) {
+    const discMatch = String(order.notes).match(/কমিশন:\s*৳?\s*([0-9.]+)/i);
+    if (discMatch) {
+      effectiveDiscount = Number(discMatch[1]) || 0;
+    }
+  }
+
+  const itemsSubtotalPlusDelivery = itemsSubtotal + deliveryCharge;
+  let orderTotalAmount = Number(order.totalAmount || 0);
+  if (effectiveDiscount > 0 && (orderTotalAmount === 0 || Math.abs(orderTotalAmount - itemsSubtotalPlusDelivery) < 1)) {
+    orderTotalAmount = Math.max(0, itemsSubtotalPlusDelivery - effectiveDiscount);
+  }
+
+  const grandTotalBill = orderTotalAmount + (Number(order.currentTotalDue) || 0);
   const paidAmount = Number(order.paidAmount || 0);
   const totalDue = Math.max(0, grandTotalBill - paidAmount);
+
+  // Helpline definition:
+  // For books/stationary: 01312-135862 (as requested by accounts department)
+  // For question papers: board's exam helpline
+  const helplinePhone = isQuestion
+    ? (boardSettings?.contactPhone || "০১৮২০-৫৮০৫৬০")
+    : "01312-135862";
+  const helplineLabel = isQuestion
+    ? `হেল্পলাইন (পরীক্ষা): ${helplinePhone}`
+    : `হেল্পলাইন (বই ও স্টেশনারী): ${helplinePhone}`;
+
+  // Promise date parsing (সম্ভাব্য তারিখ):
+  let rawPromiseDate = order.promiseDate;
+  if (!rawPromiseDate && order.notes) {
+    const pMatch = String(order.notes).match(/সম্ভাব্য\s*(?:পরিশোধ\s*)?তারিখ:\s*([^\],|]+)/i);
+    if (pMatch) {
+      rawPromiseDate = pMatch[1].trim();
+    }
+  }
+  let formattedPromiseDate = "";
+  if (rawPromiseDate) {
+    try {
+      const d = new Date(rawPromiseDate);
+      if (!isNaN(d.getTime())) {
+        formattedPromiseDate = d.toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" });
+      } else {
+        formattedPromiseDate = String(rawPromiseDate);
+      }
+    } catch {
+      formattedPromiseDate = String(rawPromiseDate);
+    }
+  }
+
+  // Payment status calculation (Truthful: NEVER mark as paid if unpaid!)
+  const orderBillAmount = Number(order.totalAmount || 0);
+  const isFullyPaid = paidAmount >= orderBillAmount && orderBillAmount > 0;
+  const isPartiallyPaid = paidAmount > 0 && paidAmount < orderBillAmount;
+  const hasTrx = Boolean(order.trxId && String(order.trxId).trim());
+  const isPayLater = String(order.paymentMethod || "").includes("বকেয়া") || String(order.paymentMethod || "").includes("পরে পরিশোধ");
+
+  let paymentStatusHtml = '<span style="color: #b91c1c; font-weight: 800;">বকেয়া (পরে পরিশোধ)</span>';
+  let paymentStatusShort = 'বকেয়া (পরে পরিশোধ)';
+
+  if (isPayLater) {
+    paymentStatusHtml = '<span style="color: #b91c1c; font-weight: 800;">বকেয়া (পরে পরিশোধ)</span>';
+    paymentStatusShort = 'বকেয়া (পরে পরিশোধ)';
+  } else if (isFullyPaid || (String(order.status || "").toLowerCase() === "paid" && paidAmount > 0)) {
+    paymentStatusHtml = '<span style="color: #065f46; font-weight: 800;">পরিশোধিত (PAID) ✓</span>';
+    paymentStatusShort = 'পরিশোধিত (PAID) ✓';
+  } else if (isPartiallyPaid) {
+    const dueRem = (orderBillAmount - paidAmount).toFixed(2);
+    paymentStatusHtml = `<span style="color: #c2410c; font-weight: 800;">আংশিক পরিশোধিত (বাকি: ৳${dueRem})</span>`;
+    paymentStatusShort = `আংশিক পরিশোধ (বাকি: ৳${dueRem})`;
+  } else if (hasTrx) {
+    paymentStatusHtml = '<span style="color: #1e40af; font-weight: 800;">যাচাই প্রক্রিয়াধীন (VERIFYING)</span>';
+    paymentStatusShort = 'যাচাই প্রক্রিয়াধীন (VERIFYING)';
+  } else {
+    paymentStatusHtml = '<span style="color: #b91c1c; font-weight: 800;">বকেয়া / অপরিশোধিত (UNPAID)</span>';
+    paymentStatusShort = 'বকেয়া / অপরিশোধিত (UNPAID)';
+  }
 
   // Format short-listed dues if more than 5
   let dueListHtml = "";
@@ -444,8 +527,8 @@ export async function generateInvoiceHTML(
       <div class="header-container">
         <div class="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
         <h1 class="board-title">${boardSettings?.siteTitle || "নূরানী তা'লীমুল কুরআন বোর্ড খুলনা বাংলাদেশ"}</h1>
-        <p class="sub-title">কেন্দ্রীয় কার্যালয় ও পরীক্ষা নিয়ন্ত্রণ বিভাগ — অফিসিয়াল ইনভয়েস</p>
-        <p class="board-address">${boardSettings?.address || "প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।"} | হেল্পলাইন: ${boardSettings?.contactPhone || "০১৮২০-৫৮০৫৬০"}</p>
+        <p class="sub-title">${isQuestion ? "কেন্দ্রীয় কার্যালয় ও পরীক্ষা নিয়ন্ত্রণ বিভাগ — অফিসিয়াল ইনভয়েস" : "প্রকাশনা ও বিক্রয় বিভাগ — অফিশিয়াল ক্যাশ মেমো"}</p>
+        <p class="board-address">${boardSettings?.address || "প্রধান কার্যালয়: মুহাম্মাদনগর বড় মাদরাসা, মাদরাসা সড়ক, জলমা - ৯২৬০, লবণচরা, খুলনা।"} | ${helplineLabel}</p>
         <span class="invoice-pill">${
           isCustomer
             ? "গ্রাহক কপি — অফিশিয়াল ক্যাশ মেমো ও পরিশোধ রসিদ (Customer Invoice)"
@@ -510,20 +593,25 @@ export async function generateInvoiceHTML(
           </div>` : ""}
           <div class="info-item">
             <span class="label">পেমেন্ট অবস্থা:</span>
-            <span class="value" style="font-weight: 800;">${
-              isCustomer || paidAmount >= grandTotalBill && grandTotalBill > 0
-                ? '<span style="color: #065f46; font-weight: 800;">পরিশোধিত (PAID)</span>'
-                : (order.trxId ? '<span style="color: #1e40af; font-weight: 800;">যাচাই প্রক্রিয়াধীন (VERIFYING)</span>' : '<span style="color: #92400e; font-weight: 800;">অপেক্ষমান (PENDING)</span>')
-            }</span>
+            <span class="value" style="font-weight: 800;">${paymentStatusHtml}</span>
           </div>
           <div class="info-item">
             <span class="label">ডেলিভারি পদ্ধতি:</span>
             <span class="value" style="font-weight: 700;">${courierName} ${order.courierOrTransportName ? `(${order.courierOrTransportName})` : ''}</span>
           </div>
           <div class="info-item">
+            <span class="label">মোট পার্সেল ওজন:</span>
+            <span class="value" style="font-weight: 800; color: #000000;">${formattedWeight}</span>
+          </div>
+          <div class="info-item">
             <span class="label">ডেলিভারি চার্জ:</span>
             <span class="value" style="font-weight: 800;">${deliveryChargeLabel}</span>
           </div>
+          ${formattedPromiseDate ? `
+          <div class="info-item" style="border-top: 1.5px dashed #cbd5e1; margin-top: 5px; padding-top: 5px; background: #fef2f2; border-radius: 4px; padding-left: 6px; padding-right: 6px;">
+            <span class="label" style="color: #b91c1c; font-weight: 700;">সম্ভাব্য পরিশোধ/ডেলিভারি তারিখ:</span>
+            <span class="value" style="font-weight: 800; color: #b91c1c;">${formattedPromiseDate}</span>
+          </div>` : ""}
         </div>
       </div>
 
@@ -564,9 +652,18 @@ export async function generateInvoiceHTML(
 
       <div class="totals-container">
         <div class="notes-box">
-          <strong>📌 নির্দেশনাবলী ও শর্তাবলী:</strong>
-          <p style="margin: 1.5px 0;">১. প্রশ্নপত্র বা পণ্য রিসিভ করার সময় প্যাকেট ও সিল ঠিক আছে কিনা যাচাই করুন।</p>
-          <p style="margin: 1.5px 0;">২. যেকোনো প্রয়োজনে ইনভয়েস নম্বরটি সংরক্ষণ করুন ও বোর্ডের হেল্পলাইনে যোগাযোগ করুন।</p>
+          <strong>📌 ${isQuestion ? "প্রশ্নপত্র সংক্রান্ত নির্দেশনাবলী ও শর্তাবলী:" : "বই ক্রয়ের নির্দেশনাবলী ও শর্তাবলী:"}</strong>
+          ${
+            isQuestion
+              ? `
+          <p style="margin: 1.5px 0;">১. প্রশ্নপত্র রিসিভ করার সময় প্যাকেট ও সিল ঠিক আছে কিনা তা সতর্কতার সাথে যাচাই করুন।</p>
+          <p style="margin: 1.5px 0;">২. যেকোনো প্রয়োজনে ইনভয়েস নম্বরটি সংরক্ষণ করুন ও পরীক্ষা নিয়ন্ত্রণ শাখার হেল্পলাইনে (${helplinePhone}) যোগাযোগ করুন।</p>
+          `
+              : `
+          <p style="margin: 1.5px 0; font-weight: 700;">১. ত্রুটিযুক্ত বই ৩০ দিনের মধ্যে মূল মেমোসহ পরিবর্তনযোগ্য, ফেরতযোগ্য নয়।</p>
+          <p style="margin: 1.5px 0;">২. যেকোনো প্রয়োজনে ইনভয়েস নম্বরটি সংরক্ষণ করুন ও বোর্ডের বই বিভাগের হেল্পলাইনে (${helplinePhone}) যোগাযোগ করুন।</p>
+          `
+          }
           ${options.customNotes ? `<p style="margin: 2px 0; font-weight: 700; border-top: 1px dashed #000; padding-top: 2px;">নোট: ${options.customNotes}</p>` : ""}
         </div>
 
@@ -575,28 +672,41 @@ export async function generateInvoiceHTML(
             <span>পণ্যের মোট মূল্য:</span>
             <span>৳${itemsSubtotal.toFixed(2)}</span>
           </div>
+          <div class="totals-row" style="font-weight: 700;">
+            <span>মোট পার্সেল ওজন:</span>
+            <span style="font-weight: 800; color: #000000;">${formattedWeight}</span>
+          </div>
           <div class="totals-row">
             <span>ডেলিভারি চার্জ (${courierName}${order.courierOrTransportName ? ` - ${order.courierOrTransportName}` : ''}):</span>
             <span>${deliveryChargeLabel}</span>
           </div>
-          ${order.discount ? `<div class="totals-row" style="color: #047857;"><span>বিশেষ ছাড় / কমিশন:</span><span>-৳${order.discount.toFixed(2)}</span></div>` : ""}
+          ${effectiveDiscount > 0 ? `<div class="totals-row" style="color: #047857; font-weight: 700;"><span>কমিশন / বিশেষ ছাড়:</span><span>-৳${effectiveDiscount.toFixed(2)}</span></div>` : ""}
           
           ${
             isCustomer
               ? `
             <div class="totals-row grand" style="margin-top: 4px;">
               <span>সর্বমোট প্রদেয় বিল:</span>
-              <span>৳${order.totalAmount.toFixed(2)}</span>
+              <span>৳${orderTotalAmount.toFixed(2)}</span>
             </div>
-            <div class="totals-row" style="color: #000; font-weight: 700;">
+            <div class="totals-row">
+              <span>পরিশোধিত টাকা:</span>
+              <span style="font-weight: 700; color: #047857;">৳${paidAmount.toFixed(2)}</span>
+            </div>
+            ${(orderTotalAmount - paidAmount) > 0 ? `
+            <div class="totals-row due" style="color: #dc2626; font-weight: 800;">
+              <span>অবশিষ্ট বকেয়া:</span>
+              <span>৳${Math.max(0, orderTotalAmount - paidAmount).toFixed(2)}</span>
+            </div>` : ""}
+            <div class="totals-row" style="color: #000; font-weight: 700; border-top: 1px dashed #000000; padding-top: 2px; margin-top: 2px;">
               <span>পেমেন্ট স্ট্যাটাস:</span>
-              <span>পরিশোধিত (PAID) ✓</span>
+              <span>${paymentStatusHtml}</span>
             </div>
           `
               : `
             <div class="totals-row" style="border-top: 1px dashed #000000; padding-top: 1.5px; font-weight: 700;">
               <span>বর্তমান অর্ডারের বিল:</span>
-              <span>৳${order.totalAmount.toFixed(2)}</span>
+              <span>৳${orderTotalAmount.toFixed(2)}</span>
             </div>
             ${dueListHtml}
             <div class="totals-row grand">
@@ -610,6 +720,10 @@ export async function generateInvoiceHTML(
             <div class="totals-row due">
               <span>সর্বমোট বর্তমান বকেয়া (বাকিতে):</span>
               <span>${totalDue > 0 ? `৳${totalDue.toFixed(2)}` : "পরিশোধিত (০.০০)"}</span>
+            </div>
+            <div class="totals-row" style="color: #000; font-weight: 700; border-top: 1px dashed #000000; padding-top: 2px; margin-top: 2px;">
+              <span>পেমেন্ট স্ট্যাটাস:</span>
+              <span>${paymentStatusHtml}</span>
             </div>
           `
           }
@@ -642,7 +756,38 @@ export async function generateInvoiceHTML(
 }
 
 /**
- * Directly downloads the real text-based PDF invoice without browser print dialogue.
+ * Dynamically loads html2pdf bundle in the browser.
+ */
+async function loadHtml2Pdf(): Promise<any> {
+  if (typeof window === "undefined") return null;
+  if ((window as any).html2pdf) return (window as any).html2pdf;
+
+  return new Promise((resolve) => {
+    const existing = document.querySelector('script[data-id="html2pdf-cdn"]');
+    if (existing) {
+      if ((window as any).html2pdf) return resolve((window as any).html2pdf);
+      existing.addEventListener("load", () => resolve((window as any).html2pdf || null));
+      existing.addEventListener("error", () => resolve(null));
+      setTimeout(() => resolve((window as any).html2pdf || null), 2000);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.setAttribute("data-id", "html2pdf-cdn");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    script.async = true;
+    script.onload = () => resolve((window as any).html2pdf || null);
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
+    setTimeout(() => resolve((window as any).html2pdf || null), 3500);
+  });
+}
+
+/**
+ * Directly downloads the real text-based PDF invoice.
+ * - If server generates PDF (has headless browser), downloads true server PDF.
+ * - If server lacks headless browser (Docker/Dokploy), converts HTML directly to authentic PDF on client via html2pdf.
+ * - Guaranteed fallback to native system print/Save-as-PDF sheet (never produces corrupt or unopenable PDF files).
  */
 export async function downloadOrderPdf(
   orderInput: any,
@@ -651,18 +796,89 @@ export async function downloadOrderPdf(
   if (!orderInput?.invoiceId || typeof window === "undefined") return;
 
   const mode = options.mode || "customer";
-  const downloadUrl = `/api/store/orders/${encodeURIComponent(orderInput.invoiceId)}/pdf?mode=${mode}&t=${Date.now()}`;
 
-  const link = document.createElement("a");
-  link.href = downloadUrl;
-  link.setAttribute("download", `Invoice-${orderInput.invoiceId}.pdf`);
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(() => {
-    if (document.body.contains(link)) {
-      document.body.removeChild(link);
+  // 1. Try to fetch from server PDF endpoint
+  try {
+    const res = await fetch(
+      `/api/store/orders/${encodeURIComponent(orderInput.invoiceId)}/pdf?mode=${mode}&t=${Date.now()}`
+    );
+    const contentType = res.headers.get("content-type") || "";
+
+    if (res.ok && contentType.includes("application/pdf")) {
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `Invoice-${orderInput.invoiceId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+        if (document.body.contains(link)) document.body.removeChild(link);
+      }, 2000);
+      return;
     }
-  }, 1000);
+  } catch (err) {
+    console.warn("Server PDF fetch error:", err);
+  }
+
+  // 2. Client-side PDF generation if server returned HTML
+  try {
+    const html2pdf = await loadHtml2Pdf();
+    if (html2pdf) {
+      let order = orderInput;
+      try {
+        const freshRes = await fetch(`/api/store/orders/${encodeURIComponent(orderInput.invoiceId)}`);
+        if (freshRes.ok) {
+          const fresh = await freshRes.json();
+          order = { ...fresh, ...order };
+        }
+      } catch (_) {}
+
+      const html = await generateInvoiceHTML(order, options);
+
+      // Create an isolated iframe to render CSS fonts and layout cleanly
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.left = "-9999px";
+      iframe.style.top = "0";
+      iframe.style.width = "800px";
+      iframe.style.height = "1130px";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        // Give fonts and images a moment to settle
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        const target = doc.body.querySelector(".invoice-wrapper") || doc.body;
+        const opt = {
+          margin: 4,
+          filename: `Invoice-${order.invoiceId}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        };
+
+        await html2pdf().from(target).set(opt).save();
+
+        setTimeout(() => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }, 3000);
+        return;
+      }
+    }
+  } catch (clientPdfErr) {
+    console.warn("Client PDF generator error, falling back to print:", clientPdfErr);
+  }
+
+  // 3. Guaranteed Fallback: Open native browser print sheet (which allows 1-click 'Save as PDF' on all phones and desktops)
+  await printOrderInvoice(orderInput, options);
 }
 
 /**

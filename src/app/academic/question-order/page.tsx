@@ -1336,15 +1336,15 @@ export default function QuestionOrderPage() {
           </div>
         ) : viewMode === "table" ? (
           <div className="w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto touch-pan-x">
+            <div className="overflow-x-auto touch-pan-y sm:touch-pan-x">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead className="sticky top-0 z-10 bg-[#095738] shadow-xs">
                   <tr className="bg-[#095738] text-white">
-                    <th className="py-2.5 px-2.5 text-center w-8 sm:w-10 font-bold bg-[#095738]">#</th>
-                    <th className="py-2.5 px-3 font-bold min-w-[200px] bg-[#095738]">প্রশ্নপত্রের নাম ও বিবরণ</th>
-                    <th className="py-2.5 px-2.5 sm:px-3 text-right font-bold whitespace-nowrap bg-[#095738]">মূল্য</th>
-                    <th className="py-2.5 px-2.5 sm:px-3 text-center font-bold min-w-[120px] bg-[#095738]">সেট (সংখ্যা)</th>
-                    <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap pr-3 sm:pr-4 bg-[#095738]">মোট</th>
+                    <th className="py-2.5 px-1.5 sm:px-2.5 text-center w-7 sm:w-10 font-bold bg-[#095738]">#</th>
+                    <th className="py-2.5 px-2 sm:px-3 font-bold bg-[#095738]">প্রশ্নপত্রের নাম ও বিবরণ</th>
+                    <th className="hidden sm:table-cell py-2.5 px-2.5 sm:px-3 text-right font-bold whitespace-nowrap bg-[#095738]">মূল্য</th>
+                    <th className="py-2.5 px-1.5 sm:px-3 text-center font-bold w-24 sm:w-32 bg-[#095738]">সেট (সংখ্যা)</th>
+                    <th className="py-2.5 px-2 sm:px-3 text-right font-bold whitespace-nowrap pr-2.5 sm:pr-4 bg-[#095738]">মোট</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1357,11 +1357,11 @@ export default function QuestionOrderPage() {
                           currentQty > 0 ? "bg-emerald-50/70 font-semibold" : "hover:bg-slate-50/70"
                         }`}
                       >
-                        <td className="py-2.5 px-2.5 text-center text-slate-400 font-bold">
+                        <td className="py-2.5 px-1.5 sm:px-2.5 text-center text-slate-400 font-bold">
                           {idx + 1}
                         </td>
                         <td 
-                          className="py-2.5 px-3 cursor-pointer group"
+                          className="py-2.5 px-2 sm:px-3 cursor-pointer group"
                           onClick={() => setSelectedDetailItem(item)}
                         >
                           <div className="flex items-start justify-between gap-1">
@@ -1372,6 +1372,10 @@ export default function QuestionOrderPage() {
                                 <span className="text-slate-900 font-black">{item.examTerm.includes("পরীক্ষা") ? item.examTerm : `${item.examTerm} পরীক্ষা`}</span>
                               </h4>
                               <p className="text-[10.5px] text-slate-500 font-normal leading-tight mt-0.5">{item.description}</p>
+                              {/* Price shown on mobile directly under name */}
+                              <div className="sm:hidden text-[11px] font-bold text-emerald-800 mt-0.5">
+                                প্রতি সেট: ৳{item.pricePerSet}
+                              </div>
                             </div>
                             <span className="shrink-0 text-[10.5px] text-emerald-700 font-bold hidden sm:inline-flex items-center gap-0.5 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors">
                               <Info className="w-3 h-3" />
@@ -1379,15 +1383,15 @@ export default function QuestionOrderPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-2.5 sm:px-3 text-right font-bold text-slate-800 whitespace-nowrap font-mono">
+                        <td className="hidden sm:table-cell py-2.5 px-2.5 sm:px-3 text-right font-bold text-slate-800 whitespace-nowrap font-mono">
                           ৳{item.pricePerSet}
                         </td>
-                        <td className="py-2.5 px-2.5 sm:px-3 text-center">
+                        <td className="py-2.5 px-1 sm:px-3 text-center">
                           {currentQty === 0 ? (
                             <button
                               type="button"
                               onClick={() => updateQty(item, 1)}
-                              className="px-3 py-1.5 bg-emerald-50 hover:bg-[#095738] text-[#095738] hover:text-white border border-emerald-300 hover:border-[#095738] rounded-xl font-bold text-xs flex items-center gap-1 mx-auto transition-all active:scale-95 shadow-2xs cursor-pointer"
+                              className="px-2.5 sm:px-3 py-1.5 bg-emerald-50 hover:bg-[#095738] text-[#095738] hover:text-white border border-emerald-300 hover:border-[#095738] rounded-xl font-bold text-xs flex items-center gap-1 mx-auto transition-all active:scale-95 shadow-2xs cursor-pointer"
                               title="যোগ করুন"
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -1398,7 +1402,7 @@ export default function QuestionOrderPage() {
                               <button
                                 type="button"
                                 onClick={() => updateQty(item, -1)}
-                                className="w-7 h-7 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-slate-800 font-black text-xs shadow-2xs flex items-center justify-center transition-all cursor-pointer"
+                                className="w-6 sm:w-7 h-7 bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 rounded-lg text-slate-800 font-black text-xs shadow-2xs flex items-center justify-center transition-all cursor-pointer"
                                 title="কমান"
                               >
                                 -
@@ -1407,12 +1411,12 @@ export default function QuestionOrderPage() {
                                 value={currentQty}
                                 onChange={(val) => setDirectQty(item, val, false)}
                                 onRemove={() => setDirectQty(item, 0, false)}
-                                className="w-12 h-7 text-center font-black font-mono bg-white rounded-lg border border-emerald-600 text-xs text-slate-900 focus:outline-emerald-600 shadow-2xs"
+                                className="w-10 sm:w-12 h-7 text-center font-black font-mono bg-white rounded-lg border border-emerald-600 text-xs text-slate-900 focus:outline-emerald-600 shadow-2xs"
                               />
                               <button
                                 type="button"
                                 onClick={() => updateQty(item, 1)}
-                                className="w-7 h-7 bg-[#095738] hover:bg-[#07472d] active:scale-95 text-white rounded-lg font-black text-xs shadow-2xs flex items-center justify-center transition-all border border-[#095738] cursor-pointer"
+                                className="w-6 sm:w-7 h-7 bg-[#095738] hover:bg-[#07472d] active:scale-95 text-white rounded-lg font-black text-xs shadow-2xs flex items-center justify-center transition-all border border-[#095738] cursor-pointer"
                                 title="বাড়ান"
                               >
                                 +
@@ -1420,7 +1424,7 @@ export default function QuestionOrderPage() {
                             </div>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-right pr-3 sm:pr-4 font-black text-emerald-900 whitespace-nowrap font-mono">
+                        <td className="py-2.5 px-2 sm:px-3 text-right pr-2.5 sm:pr-4 font-black text-emerald-900 whitespace-nowrap font-mono">
                           ৳{(currentQty * item.pricePerSet).toFixed(2)}
                         </td>
                       </tr>

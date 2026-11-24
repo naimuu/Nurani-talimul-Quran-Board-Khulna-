@@ -393,11 +393,7 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
       href: "/store",
       icon: ShoppingBag,
       subItems: [
-        { title: "অনলাইন প্রকাশনা শপ", href: "/store", icon: ShoppingBag },
-        { title: "নূরানী পাঠ্যবই ও কারিকুলাম", href: "/store?category=বই", icon: BookOpen },
-        { title: "শ্রেণিভিত্তিক বই সেট", href: "/store?category=বই সেট", icon: Layers },
-        { title: "খাতা ও শিক্ষা উপকরণ", href: "/store?category=স্টেশনারি", icon: ClipboardList },
-        { title: "পরীক্ষার প্রশ্নপত্র অর্ডার", href: "/academic/question-order", icon: FileCheck },
+        { title: "বই ও স্টেশনারি অর্ডার", href: "/store", icon: ShoppingBag },
         { title: "বইয়ের মূল্যতালিকা", href: "/store?view=list", icon: FileSpreadsheet },
         { title: "অর্ডার ট্র্যাকিং", href: "#track", icon: Search },
         { title: "পাইকারি ও বাল্ক অর্ডার", href: "/referral", icon: Users },
@@ -547,13 +543,15 @@ export default function Navbar({ user, initialSettings }: { user?: UserPayload, 
               return (
                 <div key={idx} className="relative group">
                   {item.subItems ? (
-                    <div className={`flex items-center gap-1 cursor-pointer px-2 2xl:px-3 py-1.5 2xl:py-2 rounded-lg transition-all duration-200 select-none whitespace-nowrap ${isActive
+                    <Link
+                      href={item.href}
+                      className={`flex items-center gap-1 cursor-pointer px-2 2xl:px-3 py-1.5 2xl:py-2 rounded-lg transition-all duration-200 select-none whitespace-nowrap ${isActive
                         ? 'bg-black/20 text-amber-300 font-extrabold'
                         : 'text-white hover:text-amber-200 hover:bg-white/10'
                       }`}>
                       <span>{item.title}</span>
                       <ChevronDown className="w-3.5 h-3.5 opacity-75 group-hover:rotate-180 transition-transform duration-200" />
-                    </div>
+                    </Link>
                   ) : (
                     <Link
                       href={item.href}

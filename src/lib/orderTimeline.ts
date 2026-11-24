@@ -48,16 +48,23 @@ export function cleanAddressNotes(notes?: string | null): string {
     .replace(/\[প্রশ্নের অর্ডার\]:[\s\S]*?(?:\|\s*|$)/gi, '')
     .replace(/\[(?:Tracking|ট্র্যাকিং|Consignment):\s*[^\]]+\]/gi, '')
     .replace(/\[(?:কুরিয়ার নোট|Courier Note):\s*[^\]]+\]/gi, '')
+    .replace(/\[পেমেন্ট:[^\]]*\]/gi, '')
+    .replace(/\[ডেলিভারি[^\]]*:[^\]]*\]/gi, '')
+    .replace(/\[সম্ভাব্য[^\]]*\]/gi, '')
+    .replace(/\[কমিশন:[^\]]*\]/gi, '')
+    .replace(/\[পার্সেল ওজন:[^\]]*\]/gi, '')
+    .replace(/\[ইলহাক:[^\]]*\]/gi, '')
     .replace(/\|\s*কুরিয়ার:\s*[^|]+/gi, '')
     .replace(/কুরিয়ার:\s*[^|]+/gi, '')
     .replace(/\(ফ্রি ডেলিভারি[^)]*\)/gi, '')
     .replace(/\(চার্জ:[^)]*\)/gi, '')
     .replace(/ওজন:\s*[\d.]+\s*(?:কেজি|kg)/gi, '')
     .replace(/\(ইলহাক:\s*[^)]+\)/gi, '')
+    .replace(/\[[^\]]+\]/g, '')
     .trim();
 
-  // Remove leading/trailing pipes and commas
-  cleaned = cleaned.replace(/^[|,\s]+|[|,\s]+$/g, '').trim();
+  // Remove leading/trailing pipes and commas, and multiple pipes
+  cleaned = cleaned.replace(/^[|,\s]+|[|,\s]+$/g, '').replace(/\|\s*\|/g, '|').trim();
   return cleaned;
 }
 

@@ -144,7 +144,7 @@ type SaleItem = {
   productId: string; 
   quantity: number; 
   unitPrice: number; 
-  product: { id: string, name: string, className?: string | null, stock: number, price: number } 
+  product: { id: string, name: string, className?: string | null, stock: number, price: number, weight?: number | null } 
 };
 
 type Sale = {
@@ -833,6 +833,16 @@ export default function OrderTab({
                           <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span>{tracking.courier}</span>
                         </div>
+                        {(() => {
+                          const w = Number(order.totalWeight) > 0 
+                            ? Number(order.totalWeight) 
+                            : Math.round((order.items || []).reduce((acc, it) => acc + (it.product?.weight || 0.25) * it.quantity, 0) * 10) / 10;
+                          return (
+                            <div className="text-[11px] font-bold text-blue-700 mt-0.5" title="পার্সেলের মোট ওজন">
+                              ওজন: {w > 0 ? w : 1.0} কেজি
+                            </div>
+                          );
+                        })()}
                         {tracking.trackingId ? (
                           <div className="flex items-center gap-1 mt-1">
                             <span className="bg-cyan-50 text-cyan-900 border border-cyan-200 px-2 py-0.5 rounded text-[11px] font-mono font-bold">
@@ -1237,6 +1247,9 @@ export default function OrderTab({
                     <div className="flex items-center gap-1 text-slate-600 font-medium truncate">
                       <Truck className="w-3 h-3 text-slate-400 shrink-0" />
                       <span className="truncate">{tracking.courier}</span>
+                      <span className="text-blue-700 font-bold ml-1 shrink-0">
+                        ({Number(order.totalWeight) > 0 ? order.totalWeight : (Math.round((order.items || []).reduce((acc, it) => acc + (it.product?.weight || 0.25) * it.quantity, 0) * 10) / 10) || 1.0} কেজি)
+                      </span>
                     </div>
                     {tracking.trackingId ? (
                       <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
@@ -1872,6 +1885,15 @@ export default function OrderTab({
                             </div>
 
                             <div className="flex justify-between items-center text-slate-600 font-bold">
+                              <span>মোট পার্সেল ওজন:</span>
+                              <span className="font-mono text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                {Number(selectedOrder.totalWeight) > 0 
+                                  ? selectedOrder.totalWeight 
+                                  : (Math.round((selectedOrder.items || []).reduce((acc, it) => acc + (it.product?.weight || 0.25) * it.quantity, 0) * 10) / 10) || 1.0} কেজি
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-slate-600 font-bold">
                               <span>কুরিয়ার চার্জ:</span>
                               <span className={`font-mono ${deliveryChargeVal > 0 ? 'text-slate-800' : 'text-emerald-700'}`}>
                                 {deliveryChargeVal > 0 ? `+ ${deliveryChargeVal.toFixed(2)} ৳` : '০.০০ ৳ (ফ্রি)'}
@@ -2171,7 +2193,7 @@ export default function OrderTab({
                 />
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs text-slate-600 flex flex-col gap-1">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs text-slate-600 flex flex-col gap-1.5">
                 <div className="flex justify-between font-medium">
                   <span>প্রাপক:</span>
                   <strong className="text-slate-800">{courierModalOrder.customerName}</strong>
@@ -2179,6 +2201,14 @@ export default function OrderTab({
                 <div className="flex justify-between font-medium">
                   <span>ফোন:</span>
                   <span className="font-mono">{courierModalOrder.customerPhone || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between font-medium items-center">
+                  <span>কুরিয়ার বুকিং ওজন:</span>
+                  <strong className="text-blue-700 font-mono text-xs bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    {Number(courierModalOrder.totalWeight) > 0 
+                      ? courierModalOrder.totalWeight 
+                      : (Math.round((courierModalOrder.items || []).reduce((w, i) => w + (i.product?.weight || 0.25) * i.quantity, 0) * 10) / 10) || 1.0} কেজি
+                  </strong>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span>মোট বিল:</span>
