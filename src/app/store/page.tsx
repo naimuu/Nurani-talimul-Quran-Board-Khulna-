@@ -1290,7 +1290,7 @@ function DeliveryPolicyAlertModal({
   );
 }
 
-function OrderFormModal({ onClose, initialState, total, cart, onSuccess, currentUser }: { onClose: (state?: any) => void; initialState?: any; total: number; cart: any[]; onSuccess: (data: any) => void; currentUser?: any }) {
+function OrderFormModal({ onClose, initialState, total, cart, onSuccess, currentUser, commissionSettings }: { onClose: (state?: any) => void; initialState?: any; total: number; cart: any[]; onSuccess: (data: any) => void; currentUser?: any; commissionSettings?: any }) {
   // Delivery Options State
   const [deliveryOptions, setDeliveryOptions] = useState<any[]>([]);
   const [selectedDeliveryType, setSelectedDeliveryType] = useState<string>("pathao");
@@ -1434,8 +1434,12 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
     );
   }, [selectedMethodId, selectedPaymentTab, activeMethods, mobileMethods, bankMethods]);
 
-  const commissionDiscount = referralAgentInfo && referralCommissionPercent > 0
-    ? Math.round(total * (referralCommissionPercent / 100))
+  const activeCommissionPercent = referralAgentInfo && referralCommissionPercent > 0
+    ? referralCommissionPercent
+    : (referralCommissionPercent > 0 ? referralCommissionPercent : (Number(commissionSettings?.bookMadrasaCommissionPercent) || 20));
+
+  const commissionDiscount = activeCommissionPercent > 0
+    ? Math.round(total * (activeCommissionPercent / 100))
     : 0;
 
   const deliveryCharge = Number(selectedDeliveryOption.charge) || 0;
@@ -1708,8 +1712,8 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
 
       const agentTypeLabel = referralAgentInfo?.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার";
       const referralNote = referralAgentInfo
-        ? ` | [${agentTypeLabel}: ${referralAgentInfo.name} (ফোন: ${referralAgentInfo.phone})${referralAgentInfo.code ? ` (কোড: ${referralAgentInfo.code})` : ""} | কমিশন: ৳${commissionDiscount} (${referralCommissionPercent}%)]`
-        : (commissionDiscount > 0 ? ` | কমিশন: ৳${commissionDiscount} (${referralCommissionPercent}%)` : "");
+        ? ` | [${agentTypeLabel}: ${referralAgentInfo.name} (ফোন: ${referralAgentInfo.phone})${referralAgentInfo.code ? ` (কোড: ${referralAgentInfo.code})` : ""} | কমিশন: ৳${commissionDiscount} (${activeCommissionPercent}%)]`
+        : (commissionDiscount > 0 ? ` | [মাদরাসা কমিশন: ৳${commissionDiscount} (${activeCommissionPercent}%)]` : "");
 
       const items = cart.map(c => ({ productId: c.product.id, quantity: c.qty }));
       const effectiveSenderNumber = paymentOption === "pay_now" ? senderNumber.trim() : (isPartialReceipt ? remainingSenderNumber.trim() : undefined);
@@ -2097,7 +2101,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
                 {commissionDiscount > 0 && (
                   <div className="flex items-center justify-between text-xs sm:text-sm text-emerald-800 font-bold bg-emerald-50/80 px-2.5 py-1.5 rounded-lg border border-emerald-200">
                     <span>
-                      {referralAgentInfo?.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার"} কমিশন ছাড় ({referralCommissionPercent}%):
+                      {referralAgentInfo ? (referralAgentInfo?.category === "agent" ? "বই এজেন্ট" : "কেন্দ্র জিম্মাদার") : "মাদরাসা"} কমিশন ছাড় ({activeCommissionPercent}%):
                     </span>
                     <span>-৳{commissionDiscount.toFixed(2)}</span>
                   </div>
@@ -2113,7 +2117,7 @@ function OrderFormModal({ onClose, initialState, total, cart, onSuccess, current
                   <span>
                     {selectedDeliveryOption.type === "pathao" || selectedDeliveryOption.type === "steadfast" ? (
                       <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-200">
-                        চার্জ কুরিয়ার বাহককে
+                        কুরিয়ার বাহককে দিতে হবে
                       </span>
                     ) : selectedDeliveryOption.type === "self" ? (
                       <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
@@ -2605,8 +2609,8 @@ export default function StorePage() {
 
   const [commissionSettings, setCommissionSettings] = useState<any>({
     bookRetailCommissionPercent: 0,
-    bookMadrasaCommissionPercent: 10,
-    bookDefaultAgentCommissionPercent: 15,
+    bookMadrasaCommissionPercent: 20,
+    bookDefaultAgentCommissionPercent: 20,
   });
 
   useEffect(() => {
@@ -2800,7 +2804,7 @@ export default function StorePage() {
   const defaultCommissionPercent =
     orderFormState?.referralCommissionPercent ||
     commissionSettings?.bookMadrasaCommissionPercent ||
-    10;
+    20;
   const commissionDiscount = Math.round(cartTotal * (defaultCommissionPercent / 100));
   const totalAfterCommission = Math.max(0, cartTotal - commissionDiscount);
 
@@ -3879,6 +3883,7 @@ export default function StorePage() {
         <OrderFormModal
           currentUser={currentUser}
           initialState={orderFormState}
+          commissionSettings={commissionSettings}
           onClose={(savedState) => {
             if (savedState) setOrderFormState(savedState);
             setIsOrderModalOpen(false);

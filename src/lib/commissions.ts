@@ -27,8 +27,8 @@ export interface CommissionSettingsData {
 
 export const DEFAULT_COMMISSION_SETTINGS: CommissionSettingsData = {
   bookRetailCommissionPercent: 0,
-  bookMadrasaCommissionPercent: 10,
-  bookDefaultAgentCommissionPercent: 15,
+  bookMadrasaCommissionPercent: 20,
+  bookDefaultAgentCommissionPercent: 20,
   questionCommissionPercent: 15,
   questionCommissionEnabled: true,
   customAgents: [

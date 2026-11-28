@@ -112,13 +112,13 @@ export async function generateInvoiceHTML(
   const optType = (order.deliveryOptionType || "").toLowerCase();
   let deliveryChargeLabel = "চার্জ নাই";
   if (optType === "pathao" || optType === "steadfast" || courierName.includes("পাঠাও") || courierName.includes("স্টিডফাস্ট")) {
-    deliveryChargeLabel = "চার্জ কুরিয়ার বাহককে";
+    deliveryChargeLabel = "কুরিয়ার বাহককে দিতে হবে";
   } else if (optType === "self" || courierName.includes("নিজে")) {
     deliveryChargeLabel = "চার্জ নাই";
   } else if (deliveryCharge > 0) {
     deliveryChargeLabel = `৳${deliveryCharge.toFixed(2)}`;
   } else {
-    deliveryChargeLabel = "চার্জ নাই";
+    deliveryChargeLabel = "কুরিয়ার বাহককে দিতে হবে";
   }
   let effectiveDiscount = Number(order.discount) || 0;
   if (!effectiveDiscount && order.notes) {
