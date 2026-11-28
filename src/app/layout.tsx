@@ -46,6 +46,31 @@ export const metadata: Metadata = {
     siteName: "নূরানী প্রকাশন | নূরানী বোর্ড খুলনা",
     locale: "bn_BD",
     type: "website",
+    images: [
+      {
+        url: "/images/logo.png",
+        width: 512,
+        height: 512,
+        alt: "নূরানী তা'লীমুল কুরআন বোর্ড খুলনা লোগো",
+      },
+    ],
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/images/logo.png", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico", "/images/logo.png"],
+    apple: [
+      { url: "/images/logo.png" },
+      { url: "/images/logo.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "নূরানী প্রকাশন | নূরানী বোর্ড খুলনা",
+    description: "নূরানী প্রকাশন ও নূরানী বোর্ড খুলনার অফিসিয়াল ওয়েবসাইট।",
+    images: ["/images/logo.png"],
   },
   manifest: "/manifest.json",
   appleWebApp: {
